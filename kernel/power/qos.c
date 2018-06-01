@@ -294,8 +294,6 @@ int pm_qos_request_for_cpumask(struct cpumask *mask)
 	val = c->default_value;
 
 	for_each_cpu(cpu, mask) {
-		if (cpu_isolated(cpu))
-			continue;
 
 		switch (c->type) {
 		case PM_QOS_MIN:
