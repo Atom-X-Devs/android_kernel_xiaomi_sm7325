@@ -24,3 +24,6 @@ obj-$(CONFIG_ARM_QCOM_DEVFREQ_QOSLAT)	+= devfreq_qcom_qoslat.o
 
 # DEVFREQ Event Drivers
 obj-$(CONFIG_PM_DEVFREQ_EVENT)		+= event/
+
+# DEVFREQ Boost
+obj-$(CONFIG_DEVFREQ_BOOST)		+= devfreq_boost.o
