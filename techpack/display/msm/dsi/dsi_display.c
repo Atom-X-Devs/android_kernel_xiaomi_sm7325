@@ -8007,7 +8007,8 @@ error_ctrl_clk_off:
 	(void)dsi_display_clk_ctrl(display->dsi_clk_handle,
 			DSI_CORE_CLK, DSI_CLK_OFF);
 error_panel_post_unprep:
-	(void)dsi_panel_post_unprepare(display->panel);
+	if (!display->is_cont_splash_enabled)
+		(void)dsi_panel_post_unprepare(display->panel);
 error:
 	mutex_unlock(&display->display_lock);
 	SDE_EVT32(SDE_EVTLOG_FUNC_EXIT);
