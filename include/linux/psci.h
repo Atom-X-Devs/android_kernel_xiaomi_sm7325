@@ -7,6 +7,7 @@
 #ifndef __LINUX_PSCI_H
 #define __LINUX_PSCI_H
 
+#include <linux/arm-smccc.h>
 #include <linux/init.h>
 #include <linux/types.h>
 
@@ -19,12 +20,6 @@ int psci_cpu_suspend_enter(u32 state);
 bool psci_power_state_is_valid(u32 state);
 int psci_set_osi_mode(bool enable);
 bool psci_has_osi_support(void);
-
-enum psci_conduit {
-	PSCI_CONDUIT_NONE,
-	PSCI_CONDUIT_SMC,
-	PSCI_CONDUIT_HVC,
-};
 
 enum smccc_version {
 	SMCCC_VERSION_1_0,
@@ -40,7 +35,7 @@ struct psci_operations {
 	int (*affinity_info)(unsigned long target_affinity,
 			unsigned long lowest_affinity_level);
 	int (*migrate_info_type)(void);
-	enum psci_conduit conduit;
+	enum arm_smccc_conduit conduit;
 	enum smccc_version smccc_version;
 };
 
