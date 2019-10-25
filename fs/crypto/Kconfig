@@ -3,7 +3,7 @@ config FS_ENCRYPTION
 	bool "FS Encryption (Per-file encryption)"
 	select CRYPTO
 	select CRYPTO_HASH
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select KEYS
 	help
 	  Enable encryption of files and directories.  This
