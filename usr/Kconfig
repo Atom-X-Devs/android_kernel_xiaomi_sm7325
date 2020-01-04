@@ -213,13 +213,3 @@ config INITRAMFS_COMPRESSION_NONE
 	  filesystem image will be present in memory simultaneously
 
 endchoice
-
-config INITRAMFS_COMPRESSION
-	string
-	default ""      if INITRAMFS_COMPRESSION_NONE
-	default ".gz"   if INITRAMFS_COMPRESSION_GZIP
-	default ".bz2"  if INITRAMFS_COMPRESSION_BZIP2
-	default ".lzma" if INITRAMFS_COMPRESSION_LZMA
-	default ".xz"   if INITRAMFS_COMPRESSION_XZ
-	default ".lzo"  if INITRAMFS_COMPRESSION_LZO
-	default ".lz4"  if INITRAMFS_COMPRESSION_LZ4
