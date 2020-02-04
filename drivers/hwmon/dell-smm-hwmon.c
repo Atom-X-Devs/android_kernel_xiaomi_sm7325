@@ -583,13 +583,12 @@ static int i8k_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, i8k_proc_show, NULL);
 }
 
-static const struct file_operations i8k_fops = {
-	.owner		= THIS_MODULE,
-	.open		= i8k_open_fs,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.unlocked_ioctl	= i8k_ioctl,
+static const struct proc_ops i8k_proc_ops = {
+	.proc_open	= i8k_open_fs,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_ioctl	= i8k_ioctl,
 };
 
 static struct proc_dir_entry *entry;
@@ -597,7 +596,7 @@ static struct proc_dir_entry *entry;
 static void __init i8k_init_procfs(void)
 {
 	/* Register the proc entry */
-	entry = proc_create("i8k", 0, NULL, &i8k_fops);
+	entry = proc_create("i8k", 0, NULL, &i8k_proc_ops);
 }
 
 static void __exit i8k_exit_procfs(void)
