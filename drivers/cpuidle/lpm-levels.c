@@ -680,7 +680,7 @@ static inline uint32_t get_cpus_qos(const struct cpumask *mask)
 {
 	int cpu;
 	uint32_t n;
-	uint32_t latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
+	uint32_t latency = PM_QOS_CPU_LATENCY_DEFAULT_VALUE;
 
 	for_each_cpu(cpu, mask) {
 		if (check_cpu_isolated(cpu))
