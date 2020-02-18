@@ -956,8 +956,7 @@ END(tramp_exit_compat)
 #ifdef CONFIG_RANDOMIZE_BASE
 	.pushsection ".rodata", "a"
 	.align PAGE_SHIFT
-	.globl	__entry_tramp_data_start
-__entry_tramp_data_start:
+SYM_DATA_START(__entry_tramp_data_start)
 __entry_tramp_data_vectors:
 	.quad	vectors
 #ifdef CONFIG_ARM_SDE_INTERFACE
@@ -966,6 +965,7 @@ __entry_tramp_data___sdei_asm_handler:
 #endif /* CONFIG_ARM_SDE_INTERFACE */
 __entry_tramp_data_this_cpu_vector:
 	.quad	this_cpu_vector
+SYM_DATA_END(__entry_tramp_data_start)
 	.popsection				// .rodata
 #endif /* CONFIG_RANDOMIZE_BASE */
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
