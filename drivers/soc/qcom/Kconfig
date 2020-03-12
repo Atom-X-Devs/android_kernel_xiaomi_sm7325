@@ -182,6 +182,10 @@ config QCOM_MDT_LOADER
 	tristate
 	select QCOM_SCM
 
+config QCOM_PDR_HELPERS
+	tristate
+	select QCOM_QMI_HELPERS
+
 config QPNP_PBS
 	tristate "PBS trigger support for QPNP PMIC"
 	depends on SPMI

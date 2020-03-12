@@ -6,6 +6,7 @@ obj-$(CONFIG_QCOM_COMMAND_DB) += cmd-db.o
 obj-$(CONFIG_QCOM_GLINK_SSR) +=	glink_ssr.o
 obj-$(CONFIG_QCOM_GSBI)	+=	qcom_gsbi.o
 obj-$(CONFIG_QCOM_MDT_LOADER)	+= mdt_loader.o
+obj-$(CONFIG_QCOM_PDR_HELPERS)	+= pdr_interface.o
 obj-$(CONFIG_QCOM_PM)	+=	spm.o
 obj-$(CONFIG_MSM_PIL)   +=      peripheral-loader.o
 obj-$(CONFIG_MSM_SUBSYSTEM_RESTART) += subsystem_restart.o
