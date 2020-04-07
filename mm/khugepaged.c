@@ -548,7 +548,7 @@ void __khugepaged_exit(struct mm_struct *mm)
 static void release_pte_page(struct page *page)
 {
 	mod_node_page_state(page_pgdat(page),
-			NR_ISOLATED_ANON + page_is_file_cache(page),
+			NR_ISOLATED_ANON + page_is_file_lru(page),
 			-compound_nr(page));
 	unlock_page(page);
 	putback_lru_page(page);
@@ -688,7 +688,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 			goto out;
 		}
 		mod_node_page_state(page_pgdat(page),
-				NR_ISOLATED_ANON + page_is_file_cache(page),
+				NR_ISOLATED_ANON + page_is_file_lru(page),
 				compound_nr(page));
 		VM_BUG_ON_PAGE(!PageLocked(page), page);
 		VM_BUG_ON_PAGE(PageLRU(page), page);
