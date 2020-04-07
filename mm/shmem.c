@@ -1875,8 +1875,10 @@ alloc_nohuge:
 	error = mem_cgroup_try_charge_delay(page, charge_mm, gfp, &memcg,
 					    PageTransHuge(page));
 	if (error) {
-		if (PageTransHuge(page))
+		if (PageTransHuge(page)) {
 			count_vm_event(THP_FILE_FALLBACK);
+			count_vm_event(THP_FILE_FALLBACK_CHARGE);
+		}
 		goto unacct;
 	}
 	error = shmem_add_to_page_cache(page, mapping, hindex,
