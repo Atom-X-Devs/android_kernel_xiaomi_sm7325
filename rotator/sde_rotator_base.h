@@ -311,7 +311,14 @@ int sde_rotator_base_init(struct sde_rot_data_type **pmdata,
 
 void sde_rotator_base_destroy(struct sde_rot_data_type *data);
 
+#ifdef CONFIG_MSM_SDE_ROTATOR
 struct sde_rot_data_type *sde_rot_get_mdata(void);
+#else
+static inline struct sde_rot_data_type *sde_rot_get_mdata(void)
+{
+	return NULL;
+}
+#endif
 
 struct reg_bus_client *sde_reg_bus_vote_client_create(char *client_name);
 
