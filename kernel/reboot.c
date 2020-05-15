@@ -246,7 +246,7 @@ void migrate_to_reboot_cpu(void)
 void kernel_restart(char *cmd)
 {
 #ifdef CONFIG_MACH_XIAOMI
-	kmsg_dump(KMSG_DUMP_RESTART);
+	kmsg_dump(KMSG_DUMP_SHUTDOWN);
 #endif
 	kernel_restart_prepare(cmd);
 	migrate_to_reboot_cpu();
@@ -256,7 +256,7 @@ void kernel_restart(char *cmd)
 	else
 		pr_emerg("Restarting system with command '%s'\n", cmd);
 #ifndef CONFIG_MACH_XIAOMI
-	kmsg_dump(KMSG_DUMP_RESTART);
+	kmsg_dump(KMSG_DUMP_SHUTDOWN);
 #endif
 	machine_restart(cmd);
 }
@@ -278,14 +278,14 @@ static void kernel_shutdown_prepare(enum system_states state)
 void kernel_halt(void)
 {
 #ifdef CONFIG_MACH_XIAOMI
-	kmsg_dump(KMSG_DUMP_HALT);
+	kmsg_dump(KMSG_DUMP_SHUTDOWN);
 #endif
 	kernel_shutdown_prepare(SYSTEM_HALT);
 	migrate_to_reboot_cpu();
 	syscore_shutdown();
 	pr_emerg("System halted\n");
 #ifndef CONFIG_MACH_XIAOMI
-	kmsg_dump(KMSG_DUMP_HALT);
+	kmsg_dump(KMSG_DUMP_SHUTDOWN);
 #endif
 	machine_halt();
 }
@@ -299,7 +299,7 @@ EXPORT_SYMBOL_GPL(kernel_halt);
 void kernel_power_off(void)
 {
 #ifdef CONFIG_MACH_XIAOMI
-	kmsg_dump(KMSG_DUMP_POWEROFF);
+	kmsg_dump(KMSG_DUMP_SHUTDOWN);
 #endif
 	kernel_shutdown_prepare(SYSTEM_POWER_OFF);
 	if (pm_power_off_prepare)
@@ -308,7 +308,7 @@ void kernel_power_off(void)
 	syscore_shutdown();
 	pr_emerg("Power down\n");
 #ifndef CONFIG_MACH_XIAOMI
-	kmsg_dump(KMSG_DUMP_POWEROFF);
+	kmsg_dump(KMSG_DUMP_SHUTDOWN);
 #endif
 	machine_power_off();
 }
