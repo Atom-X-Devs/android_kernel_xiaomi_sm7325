@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_ENERGY_MODEL_H
 #define _LINUX_ENERGY_MODEL_H
+
 #include <linux/cpumask.h>
 #include <linux/device.h>
 #include <linux/jump_label.h>
