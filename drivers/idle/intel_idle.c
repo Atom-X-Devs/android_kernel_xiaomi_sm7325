@@ -927,7 +927,7 @@ static __cpuidle int intel_idle(struct cpuidle_device *dev,
 	struct cpuidle_state *state = &drv->states[index];
 	unsigned long eax = flg2MWAIT(state->flags);
 	unsigned int cstate;
-	bool uninitialized_var(tick);
+	bool tick;
 	int cpu = smp_processor_id();
 
 	/*

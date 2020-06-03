@@ -491,7 +491,7 @@ static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct drm_mm_node *uninitialized_var(compressed_llb);
+	struct drm_mm_node *compressed_llb;
 	int size, fb_cpp, ret;
 
 	WARN_ON(drm_mm_node_allocated(&fbc->compressed_fb));
