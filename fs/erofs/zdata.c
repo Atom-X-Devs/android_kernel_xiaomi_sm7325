@@ -1212,7 +1212,7 @@ static bool z_erofs_vle_submit_all(struct super_block *sb,
 	struct bio *bio;
 	void *bi_private;
 	/* since bio will be NULL, no need to initialize last_index */
-	pgoff_t uninitialized_var(last_index);
+	pgoff_t last_index;
 	bool force_submit = false;
 	unsigned int nr_bios;
 

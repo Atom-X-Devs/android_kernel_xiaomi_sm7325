@@ -4999,7 +4999,7 @@ static int _mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	struct mlx5_wqe_xrc_seg *xrc;
 	struct mlx5_bf *bf;
 	void *cur_edge;
-	int uninitialized_var(size);
+	int size;
 	unsigned long flags;
 	unsigned idx;
 	int err = 0;

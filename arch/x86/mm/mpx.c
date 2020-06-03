@@ -275,7 +275,7 @@ static int mpx_cmpxchg_bd_entry(struct mm_struct *mm,
 		ret = user_atomic_cmpxchg_inatomic(curval,
 				addr, old_val, new_val);
 	} else {
-		u32 uninitialized_var(curval_32);
+		u32 curval_32;
 		u32 old_val_32 = old_val;
 		u32 new_val_32 = new_val;
 		u32 __user *addr_32 = (u32 __user *)addr;
@@ -721,7 +721,7 @@ static int unmap_entire_bt(struct mm_struct *mm,
 		long __user *bd_entry, unsigned long bt_addr)
 {
 	unsigned long expected_old_val = bt_addr | MPX_BD_ENTRY_VALID_FLAG;
-	unsigned long uninitialized_var(actual_old_val);
+	unsigned long actual_old_val;
 	int ret;
 
 	while (1) {
@@ -782,7 +782,7 @@ static int try_unmap_single_bt(struct mm_struct *mm,
 	 */
 	unsigned long bta_start_vaddr = start & ~(bd_entry_virt_space(mm)-1);
 	unsigned long bta_end_vaddr = bta_start_vaddr + bd_entry_virt_space(mm);
-	unsigned long uninitialized_var(bt_addr);
+	unsigned long bt_addr;
 	void __user *bde_vaddr;
 	int ret;
 	/*
