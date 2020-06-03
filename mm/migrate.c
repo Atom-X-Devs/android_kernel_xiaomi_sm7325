@@ -2767,7 +2767,6 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 {
 	struct vm_area_struct *vma = migrate->vma;
 	struct mm_struct *mm = vma->vm_mm;
-	struct mem_cgroup *memcg;
 	bool flush = false;
 	spinlock_t *ptl;
 	pte_t entry;
@@ -2814,7 +2813,7 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 
 	if (unlikely(anon_vma_prepare(vma)))
 		goto abort;
-	if (mem_cgroup_try_charge(page, vma->vm_mm, GFP_KERNEL, &memcg))
+	if (mem_cgroup_charge(page, vma->vm_mm, GFP_KERNEL, false))
 		goto abort;
 
 	/*
@@ -2872,7 +2871,6 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 	}
 
 	inc_mm_counter(mm, MM_ANONPAGES);
-	mem_cgroup_commit_charge(page, memcg, false);
 	page_add_new_anon_rmap(page, vma, addr, false);
 	if (!is_zone_device_page(page))
 		lru_cache_add_active_or_unevictable(page, vma);
