@@ -854,7 +854,7 @@ static int __init nx842_powernv_probe_vas(struct device_node *pn)
 	struct device_node *dn;
 	int chip_id, vasid, ret = 0;
 	int nx_fifo_found = 0;
-	int uninitialized_var(ct);
+	int ct;
 
 	chip_id = of_get_ibm_chip_id(pn);
 	if (chip_id < 0) {

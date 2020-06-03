@@ -5660,7 +5660,7 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 {
 	struct skb_shared_info *info = skb_shinfo(skb);
 	unsigned int cur_frag, entry;
-	struct TxDesc *uninitialized_var(txd);
+	struct TxDesc *txd;
 	struct device *d = tp_to_dev(tp);
 
 	entry = tp->cur_tx;
