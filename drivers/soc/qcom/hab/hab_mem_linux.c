@@ -169,7 +169,7 @@ static struct dma_buf *habmem_get_dma_buf_from_va(unsigned long address,
 	int rc = 0;
 	int fd = -1;
 
-	down_read(&current->mm->mmap_sem);
+	mmap_read_lock(current->mm);
 
 	vma = find_vma(current->mm, address);
 	if (!vma || !vma->vm_file) {
@@ -195,7 +195,7 @@ static struct dma_buf *habmem_get_dma_buf_from_va(unsigned long address,
 	*offset = address - vma->vm_start;
 
 pro_end:
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 
 	return rc < 0 ? ERR_PTR(rc) : dmabuf;
 }
@@ -221,11 +221,11 @@ static struct dma_buf *habmem_get_dma_buf_from_uva(unsigned long address,
 		goto err;
 	}
 
-	down_read(&current->mm->mmap_sem);
+	mmap_read_lock(current->mm);
 
 	ret = get_user_pages(address, page_count, 0, pages, NULL);
 
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 
 	if (ret <= 0) {
 		ret = -EINVAL;
