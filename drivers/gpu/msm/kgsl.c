@@ -2660,7 +2660,7 @@ static int kgsl_setup_dmabuf_useraddr(struct kgsl_device *device,
 		if (fd) {
 			dmabuf = dma_buf_get(fd - 1);
 			if (IS_ERR(dmabuf)) {
-				up_read(&current->mm->mmap_sem);
+				mmap_read_unlock(current->mm);
 				return PTR_ERR(dmabuf);
 			}
 			/*
@@ -2672,7 +2672,7 @@ static int kgsl_setup_dmabuf_useraddr(struct kgsl_device *device,
 			 */
 			if (dmabuf != vma->vm_file->private_data) {
 				dma_buf_put(dmabuf);
-				up_read(&current->mm->mmap_sem);
+				mmap_read_unlock(current->mm);
 				return -EBADF;
 			}
 		}
