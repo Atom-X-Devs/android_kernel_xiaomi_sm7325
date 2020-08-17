@@ -772,36 +772,6 @@ config QGKI
 	  This flag is absent if the build is a GKI build. If this flag is
 	  enabled, all the ABI compatibilities are not applicable.
 
-config MSM_PM
-	bool
-	select MSM_IDLE_STATS if DEBUG_FS
-	select QTI_SYSTEM_PM if QCOM_RPMH
-	select QTI_SYSTEM_PM_RPM if MSM_RPM_SMD && QGKI && QCOM_MPM
-	bool "Qualcomm Technologies, Inc. (QTI) Power Management Drivers"
-	help
-	  Platform specific power driver to manage cores and l2 low power
-	  modes. It interface with various system driver and put the cores
-	  into low power modes. It implements OS initiated scheme and
-	  determines last CPU to call into PSCI for cluster Low power
-	  modes.
-
-config QTI_SYSTEM_PM
-	bool
-
-config QTI_SYSTEM_PM_RPM
-	bool
-
-config MSM_PM_LEGACY
-	depends on PM
-	select MSM_IDLE_STATS if DEBUG_FS
-	select CPU_IDLE_MULTIPLE_DRIVERS
-	bool "Qualcomm Technologies, Inc. (QTI) platform specific Legacy PM driver"
-	help
-	  Platform specific legacy power driver to manage
-	  cores and l2 low power modes. It interface with
-	  various system driver and put the cores into
-	  low power modes.
-
 config QTI_PLH_SCMI_CLIENT
 	tristate "Qualcomm Technologies Inc. SCMI client driver for PLH"
 	depends on QTI_PLH
@@ -862,49 +832,6 @@ config QTI_HW_MEMLAT_LOG
 	  This driver register with IPC_Logging framework, to have dedicated
 	  buffer for memlat hw device.
 
-if (MSM_PM || MSM_PM_LEGACY)
-menuconfig MSM_IDLE_STATS
-	bool "Collect idle statistics"
-	help
-	  Collect cores various low power mode idle statistics
-	  and export them in proc/msm_pm_stats. User can read
-	  this data and determine what low power modes and how
-	  many times cores have entered into LPM modes.
-
-if MSM_IDLE_STATS
-
-config MSM_IDLE_STATS_FIRST_BUCKET
-	int "First bucket time"
-	default 62500
-	help
-	  Upper time limit in nanoseconds of first bucket.
-
-config MSM_IDLE_STATS_BUCKET_SHIFT
-	int "Bucket shift"
-	default 2
-
-config MSM_IDLE_STATS_BUCKET_COUNT
-	int "Bucket count"
-	default 10
-
-config MSM_SUSPEND_STATS_FIRST_BUCKET
-	int "First bucket time for suspend"
-	default 1000000000
-	help
-	  Upper time limit in nanoseconds of first bucket of the
-	  histogram.  This is for collecting statistics on suspend.
-
-endif # MSM_IDLE_STATS
-endif # MSM_PM || MSM_PM_LEGACY
-
-config QTI_RPM_STATS_LOG
-	tristate "Qualcomm Technologies RPM Stats Driver"
-	help
-	  This option enables a driver which reads RPM messages from a shared
-	  memory location. These messages provide statistical information about
-	  the low power modes that RPM enters. The drivers outputs the message
-	  via a sysfs node.
-
 config QCOM_SUBSYSTEM_SLEEP_STATS
 	tristate "Qualcomm Technologies, Inc. Subsystem sleep stats driver"
 	depends on QCOM_SMEM
@@ -954,14 +881,6 @@ config QCOM_FSA4480_I2C
 	  using I2C. This driver provides common support
 	  for accessing the device, switching between USB and Audio
 	  modes, changing orientation.
-
-config QCOM_SOC_SLEEP_STATS
-	tristate "Qualcomm Technologies, Inc. (QTI) SoC sleep stats driver"
-	help
-	  Qualcomm Technologies Inc (QTI) SoC sleep stats driver to read
-	  the shared memory exported by the remote processor related to
-	  various SoC level low power modes statistics and export to sysfs
-	  interface.
 
 config QCOM_CDSP_RM
 	tristate "CDSP request manager"
