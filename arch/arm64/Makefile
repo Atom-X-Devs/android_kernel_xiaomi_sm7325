@@ -11,7 +11,6 @@
 # Copyright (C) 1995-2001 by Russell King
 
 LDFLAGS_vmlinux	:=--no-undefined -X
-CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET=$(TEXT_OFFSET)
 GZFLAGS		:=-9
 
 ifeq ($(CONFIG_RELOCATABLE), y)
@@ -110,9 +109,6 @@ endif
 # Default value
 head-y		:= arch/arm64/kernel/head.o
 
-# The byte offset of the kernel image in RAM from the start of RAM.
-TEXT_OFFSET := 0x0
-
 ifeq ($(CONFIG_KASAN_SW_TAGS), y)
 KASAN_SHADOW_SCALE_SHIFT := 4
 else
@@ -123,7 +119,7 @@ KBUILD_CFLAGS += -DKASAN_SHADOW_SCALE_SHIFT=$(KASAN_SHADOW_SCALE_SHIFT)
 KBUILD_CPPFLAGS += -DKASAN_SHADOW_SCALE_SHIFT=$(KASAN_SHADOW_SCALE_SHIFT)
 KBUILD_AFLAGS += -DKASAN_SHADOW_SCALE_SHIFT=$(KASAN_SHADOW_SCALE_SHIFT)
 
-export	TEXT_OFFSET GZFLAGS
+export GZFLAGS
 
 core-y		+= arch/arm64/
 libs-y		:= arch/arm64/lib/ $(libs-y)
