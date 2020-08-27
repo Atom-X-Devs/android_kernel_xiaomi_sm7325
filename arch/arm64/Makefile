@@ -83,12 +83,18 @@ asm-arch := armv8.2-a
 endif
 
 # Ensure that if the compiler supports branch protection we default it
+
 # off.
 KBUILD_CFLAGS += $(call cc-option,-mbranch-protection=none)
 
 ifeq ($(CONFIG_AS_HAS_ARMV8_4), y)
 # make sure to pass the newest target architecture to -march.
-KBUILD_CFLAGS	+= -Wa,-march=armv8.4-a
+asm-arch := armv8.4-a
+endif
+
+ifdef asm-arch
+KBUILD_CFLAGS	+= -Wa,-march=$(asm-arch) \
+		   -DARM64_ASM_ARCH='"$(asm-arch)"'
 endif
 
 ifeq ($(CONFIG_SHADOW_CALL_STACK), y)
