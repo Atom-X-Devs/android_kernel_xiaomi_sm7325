@@ -255,8 +255,6 @@ qcom_cpufreq_hw_target_index(struct cpufreq_policy *policy,
 		writel_relaxed(freq / 1000, c->sdpm_base[i]);
 
 	writel_relaxed(index, policy->driver_data + offsets[REG_PERF_STATE]);
-	arch_set_freq_scale(policy->related_cpus, freq,
-			    policy->cpuinfo.max_freq);
 
 	for (i = 0; i < c->sdpm_base_count && freq < policy->cur; i++)
 		writel_relaxed(freq / 1000, c->sdpm_base[i]);
