@@ -41,6 +41,8 @@ unsigned long topology_get_max_freq_scale(struct sched_domain *sd, int cpu)
 	return per_cpu(max_freq_scale, cpu);
 }
 
+bool topology_scale_freq_invariant(void);
+
 bool arch_freq_counters_available(const struct cpumask *cpus);
 
 struct cpu_topology {
