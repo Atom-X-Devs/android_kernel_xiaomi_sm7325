@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/kernel.h>
+#include <clocksource/arm_arch_timer.h>
 #include "cam_sensor_util.h"
 #include "cam_mem_mgr.h"
 #include "cam_res_mgr_api.h"
@@ -38,6 +39,29 @@ static struct i2c_settings_list*
 	tmp->i2c_settings.size = size;
 
 	return tmp;
+}
+
+int32_t cam_sensor_util_get_current_qtimer_ns(uint64_t *qtime_ns)
+{
+	uint64_t ticks = 0;
+	int32_t rc = 0;
+
+	ticks = arch_timer_read_counter();
+	if (ticks == 0) {
+		CAM_ERR(CAM_SENSOR, "qtimer returned 0, rc:%d", rc);
+		return -EINVAL;
+	}
+
+	if (qtime_ns != NULL) {
+		*qtime_ns = mul_u64_u32_div(ticks,
+			QTIMER_MUL_FACTOR, QTIMER_DIV_FACTOR);
+		CAM_DBG(CAM_SENSOR, "Qtimer time: 0x%x", *qtime_ns);
+	} else {
+		CAM_ERR(CAM_SENSOR, "NULL pointer passed");
+		return -EINVAL;
+	}
+
+	return rc;
 }
 
 int32_t delete_request(struct i2c_settings_array *i2c_array)
@@ -269,6 +293,64 @@ static int32_t cam_sensor_get_io_buffer(
 			 (uint8_t *)buf_addr + io_cfg->offsets[0];
 		i2c_settings->read_buff_len =
 			buf_size - io_cfg->offsets[0];
+	} else {
+		CAM_ERR(CAM_SENSOR, "Invalid direction: %d",
+			io_cfg->direction);
+		rc = -EINVAL;
+	}
+	return rc;
+}
+
+int32_t cam_sensor_util_write_qtimer_to_io_buffer(
+	struct cam_buf_io_cfg *io_cfg)
+{
+	uintptr_t buf_addr = 0x0, target_buf = 0x0;
+	size_t buf_size = 0, target_size = 0;
+	int32_t rc = 0;
+	uint64_t qtime_ns = 0;
+
+	if (io_cfg == NULL) {
+		CAM_ERR(CAM_SENSOR,
+			"Invalid args, io buf is NULL");
+		return -EINVAL;
+	}
+
+	if (io_cfg->direction == CAM_BUF_OUTPUT) {
+		rc = cam_mem_get_cpu_buf(io_cfg->mem_handle[0],
+			&buf_addr, &buf_size);
+		if ((rc < 0) || (!buf_addr)) {
+			CAM_ERR(CAM_SENSOR,
+				"invalid buffer, rc: %d, buf_addr: %pK",
+				rc, buf_addr);
+			return -EINVAL;
+		}
+		CAM_DBG(CAM_SENSOR,
+			"buf_addr: %pK, buf_size: %zu, offsetsize: %d",
+			(void *)buf_addr, buf_size, io_cfg->offsets[0]);
+		if (io_cfg->offsets[0] >= buf_size) {
+			CAM_ERR(CAM_SENSOR,
+				"invalid size:io_cfg->offsets[0]: %d, buf_size: %d",
+				io_cfg->offsets[0], buf_size);
+			return -EINVAL;
+		}
+
+		target_buf  = buf_addr + io_cfg->offsets[0];
+		target_size = buf_size - io_cfg->offsets[0];
+
+		if (target_size < sizeof(uint64_t)) {
+			CAM_ERR(CAM_SENSOR,
+				"not enough size for qtimer, target_size:%d",
+				target_size);
+			return -EINVAL;
+		}
+
+		rc = cam_sensor_util_get_current_qtimer_ns(&qtime_ns);
+		if (rc < 0) {
+			CAM_ERR(CAM_SENSOR, "failed to get qtimer rc:%d");
+			return rc;
+		}
+
+		memcpy((void *)target_buf, &qtime_ns, sizeof(uint64_t));
 	} else {
 		CAM_ERR(CAM_SENSOR, "Invalid direction: %d",
 			io_cfg->direction);
@@ -1145,6 +1227,45 @@ int cam_sensor_util_request_gpio_table(
 	return rc;
 }
 
+static bool cam_sensor_util_check_gpio_is_shared(
+	struct cam_hw_soc_info *soc_info)
+{
+	int rc = 0;
+	uint8_t size = 0;
+	struct cam_soc_gpio_data *gpio_conf =
+			soc_info->gpio_data;
+	struct gpio *gpio_tbl = NULL;
+
+	if (!gpio_conf) {
+		CAM_DBG(CAM_SENSOR, "No GPIO data");
+		return false;
+	}
+
+	if (gpio_conf->cam_gpio_common_tbl_size <= 0) {
+		CAM_DBG(CAM_SENSOR, "No GPIO entry");
+		return false;
+	}
+
+	gpio_tbl = gpio_conf->cam_gpio_req_tbl;
+	size = gpio_conf->cam_gpio_req_tbl_size;
+
+	if (!gpio_tbl || !size) {
+		CAM_ERR(CAM_SENSOR, "invalid gpio_tbl %pK / size %d",
+			gpio_tbl, size);
+		return false;
+	}
+
+	rc = cam_res_mgr_check_if_gpio_is_shared(
+		gpio_tbl, size);
+	if (!rc) {
+		CAM_DBG(CAM_SENSOR,
+			"dev: %s don't have shared gpio resources",
+			soc_info->dev_name);
+		return false;
+	}
+
+	return true;
+}
 
 static int32_t cam_sensor_validate(void *ptr, size_t remain_buf)
 {
@@ -1867,6 +1988,7 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 		struct cam_hw_soc_info *soc_info)
 {
 	int rc = 0, index = 0, no_gpio = 0, ret = 0, num_vreg, j = 0, i = 0;
+	bool shared_gpio = false;
 	int32_t vreg_idx = -1;
 	struct cam_sensor_power_setting *power_setting = NULL;
 	struct msm_camera_gpio_num_info *gpio_num_info = NULL;
@@ -1897,15 +2019,20 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 		ctrl->cam_pinctrl_status = 1;
 	}
 
-	if (cam_res_mgr_shared_pinctrl_init()) {
-		CAM_ERR(CAM_SENSOR,
-			"Failed to init shared pinctrl");
-		return -EINVAL;
-	}
-
+	shared_gpio = cam_sensor_util_check_gpio_is_shared(soc_info);
 	rc = cam_sensor_util_request_gpio_table(soc_info, 1);
 	if (rc < 0)
 		no_gpio = rc;
+
+	if (shared_gpio) {
+		rc = cam_res_mgr_shared_pinctrl_init();
+		if (rc) {
+			CAM_ERR(CAM_SENSOR,
+				"Failed to init shared pinctrl");
+			shared_gpio = false;
+			return -EINVAL;
+		}
+	}
 
 	if (ctrl->cam_pinctrl_status) {
 		ret = pinctrl_select_state(
@@ -1915,11 +2042,12 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 			CAM_ERR(CAM_SENSOR, "cannot set pin to active state");
 	}
 
-	ret = cam_res_mgr_shared_pinctrl_select_state(true);
-	if (ret)
-		CAM_ERR(CAM_SENSOR,
-			"Cannot set shared pin to active state");
-
+	if (shared_gpio) {
+		ret = cam_res_mgr_shared_pinctrl_select_state(true);
+		if (ret)
+			CAM_ERR(CAM_SENSOR,
+				"Cannot set shared pin to active state");
+	}
 	CAM_DBG(CAM_SENSOR, "power setting size: %d", ctrl->power_setting_size);
 
 	for (index = 0; index < ctrl->power_setting_size; index++) {
@@ -2103,11 +2231,6 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 				(power_setting->delay * 1000) + 1000);
 	}
 
-	ret = cam_res_mgr_shared_pinctrl_post_init();
-	if (ret)
-		CAM_ERR(CAM_SENSOR,
-			"Failed to post init shared pinctrl");
-
 	return 0;
 power_up_failed:
 	CAM_ERR(CAM_SENSOR, "failed");
@@ -2212,8 +2335,10 @@ power_up_failed:
 	if (soc_info->use_shared_clk)
 		cam_res_mgr_shared_clk_config(false);
 
-	cam_res_mgr_shared_pinctrl_select_state(false);
-	cam_res_mgr_shared_pinctrl_put();
+	if (shared_gpio) {
+		cam_res_mgr_shared_pinctrl_select_state(false);
+		cam_res_mgr_shared_pinctrl_put();
+	}
 
 	ctrl->cam_pinctrl_status = 0;
 
@@ -2247,6 +2372,7 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 		struct cam_hw_soc_info *soc_info)
 {
 	int index = 0, ret = 0, num_vreg = 0, i;
+	bool shared_gpio = false;
 	struct cam_sensor_power_setting *pd = NULL;
 	struct cam_sensor_power_setting *ps = NULL;
 	struct msm_camera_gpio_num_info *gpio_num_info = NULL;
@@ -2257,6 +2383,7 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 		return -EINVAL;
 	}
 
+	shared_gpio = cam_sensor_util_check_gpio_is_shared(soc_info);
 	gpio_num_info = ctrl->gpio_num_info;
 	num_vreg = soc_info->num_rgltr;
 
@@ -2393,15 +2520,15 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 		devm_pinctrl_put(ctrl->pinctrl_info.pinctrl);
 	}
 
+	cam_sensor_util_request_gpio_table(soc_info, 0);
+
 	if (soc_info->use_shared_clk)
 		cam_res_mgr_shared_clk_config(false);
-
-	cam_res_mgr_shared_pinctrl_select_state(false);
-	cam_res_mgr_shared_pinctrl_put();
-
+	if (shared_gpio) {
+		cam_res_mgr_shared_pinctrl_select_state(false);
+		cam_res_mgr_shared_pinctrl_put();
+	}
 	ctrl->cam_pinctrl_status = 0;
-
-	cam_sensor_util_request_gpio_table(soc_info, 0);
 
 	return 0;
 }

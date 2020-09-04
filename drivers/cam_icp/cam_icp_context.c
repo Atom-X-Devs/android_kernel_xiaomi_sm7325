@@ -22,15 +22,16 @@
 
 static const char icp_dev_name[] = "cam-icp";
 
-static int cam_icp_context_dump_active_request(void *data, unsigned long iova,
-	uint32_t buf_info)
+static int cam_icp_context_dump_active_request(void *data,
+	struct cam_smmu_pf_info *pf_info)
 {
 	struct cam_context *ctx = (struct cam_context *)data;
 	struct cam_ctx_request          *req = NULL;
 	struct cam_ctx_request          *req_temp = NULL;
 	struct cam_hw_mgr_dump_pf_data  *pf_dbg_entry = NULL;
+	uint32_t  resource_type = 0;
 	int rc = 0;
-	bool b_mem_found = false;
+	bool b_mem_found = false, b_ctx_found = false;
 
 	if (!ctx) {
 		CAM_ERR(CAM_ICP, "Invalid ctx");
@@ -52,7 +53,7 @@ static int cam_icp_context_dump_active_request(void *data, unsigned long iova,
 		CAM_INFO(CAM_ICP, "req_id : %lld", req->request_id);
 
 		rc = cam_context_dump_pf_info_to_hw(ctx, pf_dbg_entry->packet,
-			iova, buf_info, &b_mem_found);
+			&b_mem_found, &b_ctx_found, &resource_type, pf_info);
 		if (rc)
 			CAM_ERR(CAM_ICP, "Failed to dump pf info");
 
@@ -285,7 +286,7 @@ int cam_icp_context_init(struct cam_icp_context *ctx,
 	}
 
 	rc = cam_context_init(ctx->base, icp_dev_name, CAM_ICP, ctx_id,
-		NULL, hw_intf, ctx->req_base, CAM_CTX_REQ_MAX);
+		NULL, hw_intf, ctx->req_base, CAM_CTX_ICP_REQ_MAX);
 	if (rc) {
 		CAM_ERR(CAM_ICP, "Camera Context Base init failed");
 		goto err;
