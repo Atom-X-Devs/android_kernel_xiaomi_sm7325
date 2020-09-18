@@ -12,6 +12,7 @@
 #include "cam_soc_util.h"
 #include "cam_irq_controller.h"
 #include "cam_hw_intf.h"
+#include "cam_cdm_intf_api.h"
 
 /* Maximum length of tag while dumping */
 #define CAM_ISP_HW_DUMP_TAG_MAX_LEN 32
@@ -49,6 +50,7 @@ enum cam_isp_hw_type {
 	CAM_ISP_HW_TYPE_TFE,
 	CAM_ISP_HW_TYPE_TFE_CSID,
 	CAM_ISP_HW_TYPE_TPG,
+	CAM_ISP_HW_TYPE_SFE,
 	CAM_ISP_HW_TYPE_MAX,
 };
 
@@ -124,6 +126,9 @@ enum cam_isp_hw_cmd_type {
 	CAM_ISP_HW_CMD_UNMASK_BUS_WR_IRQ,
 	CAM_ISP_HW_CMD_IS_CONSUMED_ADDR_SUPPORT,
 	CAM_ISP_HW_CMD_GET_RES_FOR_MID,
+	CAM_ISP_HW_CMD_BLANKING_UPDATE,
+	CAM_ISP_HW_CMD_CSID_CLOCK_DUMP,
+	CAM_ISP_HW_CMD_TPG_CORE_CFG_CMD,
 	CAM_ISP_HW_CMD_MAX,
 };
 
@@ -176,6 +181,20 @@ struct cam_isp_resource_node {
 		uint32_t cmd_type, void *cmd_args, uint32_t arg_size);
 	CAM_IRQ_HANDLER_TOP_HALF       top_half_handler;
 	CAM_IRQ_HANDLER_BOTTOM_HALF    bottom_half_handler;
+};
+
+/*
+ * struct cam_isp_blanking_config:
+ *
+ * @Brief:          Structure to pass blanking details
+ * @hbi:            HBI Value
+ * @vbi:            VBI Value
+ * node_res:        Pointer to Resource Node object
+ */
+struct cam_isp_blanking_config {
+	uint32_t                           hbi;
+	uint32_t                           vbi;
+	struct cam_isp_resource_node       *node_res;
 };
 
 /*
@@ -257,12 +276,14 @@ struct cam_isp_hw_get_res_for_mid {
  *
  * @res:           Resource node
  * @cmd_type:      Command type for which to get update
+ * @cdm_id  :      CDM id
  * @cmd:           Command buffer information
  *
  */
 struct cam_isp_hw_get_cmd_update {
 	struct cam_isp_resource_node     *res;
 	enum cam_isp_hw_cmd_type          cmd_type;
+	enum cam_cdm_id                   cdm_id;
 	struct cam_isp_hw_cmd_buf_update  cmd;
 	union {
 		void                                 *data;

@@ -50,6 +50,16 @@ struct hfi_mem_info {
 };
 
 /**
+ * struct hfi_ops
+ * @irq_raise: called to raise H2ICP interrupt
+ * @irq_enable: called to enable interrupts from ICP
+ */
+struct hfi_ops {
+	void (*irq_raise)(void *data);
+	void (*irq_enable)(void *data);
+};
+
+/**
  * hfi_write_cmd() - function for hfi write
  * @cmd_ptr: pointer to command data for hfi write
  *
@@ -70,15 +80,16 @@ int hfi_read_message(uint32_t *pmsg, uint8_t q_id, uint32_t *words_read);
 
 /**
  * hfi_init() - function initialize hfi after firmware download
- * @event_driven_mode: event mode
  * @hfi_mem: hfi memory info
+ * @hfi_ops: processor-specific hfi ops
+ * @priv: device private data
+ * @event_driven_mode: event mode
  * @icp_base: icp base address
- * @debug: debug flag
  *
  * Returns success(zero)/failure(non zero)
  */
-int cam_hfi_init(uint8_t event_driven_mode, struct hfi_mem_info *hfi_mem,
-	void *__iomem icp_base, bool debug);
+int cam_hfi_init(struct hfi_mem_info *hfi_mem, struct hfi_ops *hfi_ops,
+		void *priv, uint8_t event_driven_mode, void *__iomem icp_base);
 
 /**
  * hfi_get_hw_caps() - hardware capabilities from firmware
@@ -95,18 +106,6 @@ int hfi_get_hw_caps(void *query_caps);
  * @size: size of command data
  */
 void hfi_send_system_cmd(uint32_t type, uint64_t data, uint32_t size);
-
-/**
- * cam_hfi_enable_cpu() - enable A5 CPU
- * @icp_base: icp base address
- */
-void cam_hfi_enable_cpu(void __iomem *icp_base);
-
-/**
- * cam_hfi_disable_cpu() - disable A5 CPU
- * @icp_base: icp base address
- */
-void cam_hfi_disable_cpu(void __iomem *icp_base);
 
 /**
  * cam_hfi_deinit() - cleanup HFI
@@ -154,12 +153,10 @@ int hfi_cmd_ubwc_config(uint32_t *ubwc_cfg);
  * cam_hfi_resume() - function to resume
  * @hfi_mem: hfi memory info
  * @icp_base: icp base address
- * @debug: debug flag
  *
  * Returns success(zero)/failure(non zero)
  */
-int cam_hfi_resume(struct hfi_mem_info *hfi_mem,
-	void __iomem *icp_base, bool debug);
+int cam_hfi_resume(struct hfi_mem_info *hfi_mem, void __iomem *icp_base);
 
 /**
  * cam_hfi_queue_dump() - utility function to dump hfi queues
