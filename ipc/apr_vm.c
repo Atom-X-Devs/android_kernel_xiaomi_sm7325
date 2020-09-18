@@ -23,7 +23,6 @@
 #include <linux/ipc_logging.h>
 #include <linux/of_platform.h>
 #include <soc/qcom/subsystem_restart.h>
-#include <soc/qcom/scm.h>
 #include <soc/snd_event.h>
 #include <dsp/apr_audio-v2.h>
 #include <dsp/audio_notifier.h>
@@ -1074,6 +1073,13 @@ static void apr_reset_deregister(struct work_struct *work)
 	apr_deregister(handle);
 	kfree(apr_reset);
 }
+
+void apr_register_adsp_state_cb(void *adsp_cb, void *client_handle)
+{
+	q6.state_notify_cb = adsp_cb;
+	q6.client_handle = client_handle;
+}
+EXPORT_SYMBOL(apr_register_adsp_state_cb);
 
 /**
  * apr_start_rx_rt - Clients call to vote for thread
