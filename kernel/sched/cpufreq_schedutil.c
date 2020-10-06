@@ -207,13 +207,10 @@ static void sugov_calc_avg_cap(struct sugov_policy *sg_policy, u64 curr_ws,
 static void sugov_fast_switch(struct sugov_policy *sg_policy, u64 time,
 			      unsigned int next_freq)
 {
-	struct cpufreq_policy *policy = sg_policy->policy;
-
-	if (!sugov_update_next_freq(sg_policy, time, next_freq))
-		return;
-
-	sugov_track_cycles(sg_policy, sg_policy->policy->cur, time);
-	cpufreq_driver_fast_switch(policy, next_freq);
+	if (sugov_update_next_freq(sg_policy, time, next_freq)) {
+		sugov_track_cycles(sg_policy, sg_policy->policy->cur, time);
+		cpufreq_driver_fast_switch(sg_policy->policy, next_freq);
+	}
 }
 
 static void sugov_deferred_update(struct sugov_policy *sg_policy, u64 time,
