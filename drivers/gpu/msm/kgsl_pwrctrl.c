@@ -1964,7 +1964,7 @@ _nap(struct kgsl_device *device)
 {
 	switch (device->state) {
 	case KGSL_STATE_ACTIVE:
-		if (!device->ftbl->prepare_for_power_off(device)) {
+		if (!device->ftbl->is_hw_collapsible(device)) {
 			kgsl_pwrctrl_request_state(device, KGSL_STATE_NONE);
 			return -EBUSY;
 		}
@@ -2026,7 +2026,7 @@ _slumber(struct kgsl_device *device)
 
 	switch (device->state) {
 	case KGSL_STATE_ACTIVE:
-		if (!device->ftbl->prepare_for_power_off(device)) {
+		if (!device->ftbl->is_hw_collapsible(device)) {
 			kgsl_pwrctrl_request_state(device, KGSL_STATE_NONE);
 			return -EBUSY;
 		}
