@@ -270,6 +270,8 @@ int a6xx_init(struct adreno_device *adreno_dev)
 
 	find_ddr_qos_device(adreno_dev);
 
+	adreno_create_profile_buffer(adreno_dev);
+
 	return a6xx_get_cp_init_cmds(adreno_dev);
 }
 
