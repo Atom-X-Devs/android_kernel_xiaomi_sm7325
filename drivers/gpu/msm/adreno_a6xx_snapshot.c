@@ -1806,9 +1806,8 @@ void a6xx_snapshot(struct adreno_device *adreno_dev,
 		struct kgsl_snapshot *snapshot)
 {
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
-	const struct adreno_gpudev *gpudev = ADRENO_GPU_DEVICE(adreno_dev);
 	struct adreno_ringbuffer *rb;
-	bool sptprac_on = true;
+	bool sptprac_on;
 	unsigned int i;
 	u32 hi, lo;
 	struct kgsl_snapshot_registers r;
@@ -1849,8 +1848,7 @@ void a6xx_snapshot(struct adreno_device *adreno_dev,
 	kgsl_snapshot_add_section(device, KGSL_SNAPSHOT_SECTION_REGS,
 		snapshot, a6xx_snapshot_cx_misc_registers, &r);
 
-	if (gpudev->sptprac_is_on)
-		sptprac_on = gpudev->sptprac_is_on(adreno_dev);
+	sptprac_on = a6xx_gmu_sptprac_is_on(adreno_dev);
 
 	if (!gmu_core_dev_gx_is_on(device))
 		return;
