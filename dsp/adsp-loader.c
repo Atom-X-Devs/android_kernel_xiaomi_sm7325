@@ -179,11 +179,11 @@ load_adsp:
 				goto fail;
 			}
 			if (!priv->adsp_fw_name) {
-				dev_err(&pdev->dev, "%s: Load default ADSP\n",
+				dev_dbg(&pdev->dev, "%s: Load default ADSP\n",
 					__func__);
 				priv->pil_h = subsystem_get("adsp");
 			} else {
-				dev_err(&pdev->dev, "%s: Load ADSP with fw name %s\n",
+				dev_dbg(&pdev->dev, "%s: Load ADSP with fw name %s\n",
 					__func__, priv->adsp_fw_name);
 				priv->pil_h = subsystem_get_with_fwname("adsp", priv->adsp_fw_name);
 			}
@@ -478,8 +478,6 @@ static int adsp_loader_probe(struct platform_device *pdev)
 		goto wqueue;
 	}
 
-	dev_err(&pdev->dev, "%s: looking for adsp_var_idx 0x%x\n",
-			__func__, adsp_var_idx);
 	for (i = 0; i < adsp_fw_cnt; i++) {
 		if (adsp_fw_bit_values[i] == adsp_var_idx) {
 			fw_name_size = strlen(adsp_fw_name_array[i]) + 1;
