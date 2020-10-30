@@ -17,7 +17,7 @@ static const struct adreno_gpu_core adreno_gpu_core_##_name = { \
 
 DEFINE_DEPRECATED_CORE(a630v1, ADRENO_REV_A630, 6, 3, 0, 0);
 
-static const struct adreno_reglist a630_hwcg_regs[] = {
+static const struct kgsl_regmap_list a630_hwcg_regs[] = {
 	{A6XX_RBBM_CLOCK_CNTL_SP0, 0x02222222},
 	{A6XX_RBBM_CLOCK_CNTL_SP1, 0x02222222},
 	{A6XX_RBBM_CLOCK_CNTL_SP2, 0x02222222},
@@ -125,7 +125,7 @@ static const struct adreno_reglist a630_hwcg_regs[] = {
 	{A6XX_RBBM_CLOCK_HYST_GMU_GX, 0x00000555},
 };
 
-static const struct adreno_reglist a630_vbif_regs[] = {
+static const struct kgsl_regmap_list a630_vbif_regs[] = {
 	{A6XX_VBIF_GATE_OFF_WRREQ_EN, 0x00000009},
 	{A6XX_RBBM_VBIF_CLIENT_QOS_CNTL, 0x3},
 };
@@ -196,7 +196,7 @@ static const struct adreno_a6xx_core adreno_gpu_core_a630v2 = {
 };
 
 /* For a615, a616, a618 and a619 */
-static const struct adreno_reglist a615_hwcg_regs[] = {
+static const struct kgsl_regmap_list a615_hwcg_regs[] = {
 	{A6XX_RBBM_CLOCK_CNTL_SP0,  0x02222222},
 	{A6XX_RBBM_CLOCK_CNTL2_SP0, 0x02222220},
 	{A6XX_RBBM_CLOCK_DELAY_SP0, 0x00000080},
@@ -263,7 +263,7 @@ static const struct adreno_reglist a615_hwcg_regs[] = {
 };
 
 /* For a615, a616, a618 and a619 */
-static const struct adreno_reglist a615_gbif_regs[] = {
+static const struct kgsl_regmap_list a615_gbif_regs[] = {
 	{A6XX_RBBM_VBIF_CLIENT_QOS_CNTL, 0x3},
 };
 
@@ -372,7 +372,7 @@ static const struct adreno_a6xx_core adreno_gpu_core_a619_variant = {
 	.highest_bank_bit = 14,
 };
 
-static const struct adreno_reglist a620_hwcg_regs[] = {
+static const struct kgsl_regmap_list a620_hwcg_regs[] = {
 	{A6XX_RBBM_CLOCK_CNTL_SP0, 0x02222222},
 	{A6XX_RBBM_CLOCK_CNTL2_SP0, 0x02222220},
 	{A6XX_RBBM_CLOCK_DELAY_SP0, 0x00000080},
@@ -425,7 +425,7 @@ static const struct adreno_reglist a620_hwcg_regs[] = {
 };
 
 /* a620 and a650 */
-static const struct adreno_reglist a650_gbif_regs[] = {
+static const struct kgsl_regmap_list a650_gbif_regs[] = {
 	{A6XX_GBIF_QSB_SIDE0, 0x00071620},
 	{A6XX_GBIF_QSB_SIDE1, 0x00071620},
 	{A6XX_GBIF_QSB_SIDE2, 0x00071620},
@@ -508,7 +508,7 @@ static const struct adreno_a6xx_core adreno_gpu_core_a620 = {
 	.highest_bank_bit = 14,
 };
 
-static const struct adreno_reglist a640_hwcg_regs[] = {
+static const struct kgsl_regmap_list a640_hwcg_regs[] = {
 	{A6XX_RBBM_CLOCK_CNTL_SP0, 0x02222222},
 	{A6XX_RBBM_CLOCK_CNTL2_SP0, 0x02222220},
 	{A6XX_RBBM_CLOCK_DELAY_SP0, 0x00000080},
@@ -560,7 +560,7 @@ static const struct adreno_reglist a640_hwcg_regs[] = {
 	{A6XX_RBBM_CLOCK_HYST_GMU_GX, 0x00000555},
 };
 
-static const struct adreno_reglist a680_hwcg_regs[] = {
+static const struct kgsl_regmap_list a680_hwcg_regs[] = {
 	{A6XX_RBBM_CLOCK_CNTL_SP0, 0x02222222},
 	{A6XX_RBBM_CLOCK_CNTL2_SP0, 0x02222220},
 	{A6XX_RBBM_CLOCK_DELAY_SP0, 0x00000080},
@@ -616,7 +616,7 @@ static const struct adreno_reglist a680_hwcg_regs[] = {
 };
 
 /* These apply to a640, a680, a612, a610 and a702 */
-static const struct adreno_reglist a640_vbif_regs[] = {
+static const struct kgsl_regmap_list a640_vbif_regs[] = {
 	{A6XX_GBIF_QSB_SIDE0, 0x00071620},
 	{A6XX_GBIF_QSB_SIDE1, 0x00071620},
 	{A6XX_GBIF_QSB_SIDE2, 0x00071620},
@@ -652,7 +652,7 @@ static const struct adreno_a6xx_core adreno_gpu_core_a640 = {
 	.highest_bank_bit = 15,
 };
 
-static const struct adreno_reglist a650_hwcg_regs[] = {
+static const struct kgsl_regmap_list a650_hwcg_regs[] = {
 	{A6XX_RBBM_CLOCK_CNTL_SP0, 0x02222222},
 	{A6XX_RBBM_CLOCK_CNTL2_SP0, 0x02222220},
 	{A6XX_RBBM_CLOCK_DELAY_SP0, 0x00000080},
@@ -789,7 +789,7 @@ static const struct adreno_a6xx_core adreno_gpu_core_a680 = {
 	.highest_bank_bit = 16,
 };
 
-static const struct adreno_reglist a612_hwcg_regs[] = {
+static const struct kgsl_regmap_list a612_hwcg_regs[] = {
 	{A6XX_RBBM_CLOCK_CNTL_SP0, 0x22222222},
 	{A6XX_RBBM_CLOCK_CNTL2_SP0, 0x02222220},
 	{A6XX_RBBM_CLOCK_DELAY_SP0, 0x00000081},
@@ -912,7 +912,7 @@ static const struct adreno_a6xx_core adreno_gpu_core_a610 = {
 	.highest_bank_bit = 14,
 };
 
-static const struct adreno_reglist a660_hwcg_regs[] = {
+static const struct kgsl_regmap_list a660_hwcg_regs[] = {
 	{A6XX_RBBM_CLOCK_CNTL_SP0, 0x02222222},
 	{A6XX_RBBM_CLOCK_CNTL2_SP0, 0x02222220},
 	{A6XX_RBBM_CLOCK_DELAY_SP0, 0x00000080},
@@ -1173,7 +1173,7 @@ static const struct adreno_a6xx_core adreno_gpu_core_a643 = {
 	.ctxt_record_size = 2496 * 1024,
 };
 
-static const struct adreno_reglist a702_hwcg_regs[] = {
+static const struct kgsl_regmap_list a702_hwcg_regs[] = {
 	{A6XX_RBBM_CLOCK_CNTL_SP0, 0x22222222},
 	{A6XX_RBBM_CLOCK_CNTL2_SP0, 0x02222220},
 	{A6XX_RBBM_CLOCK_DELAY_SP0, 0x00000081},
