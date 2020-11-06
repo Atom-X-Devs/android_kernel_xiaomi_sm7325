@@ -173,6 +173,7 @@ struct va_macro_priv {
 	int dapm_tx_clk_status;
 	bool lpi_enable;
 	bool register_event_listener;
+	bool clk_div_switch;
 	int dec_mode[VA_MACRO_NUM_DECIMATORS];
 	u16 current_clk_id;
 };
@@ -206,7 +207,7 @@ static int va_macro_clk_div_get(struct snd_soc_component *component)
 		return -EINVAL;
 
 	if ((va_priv->version >= BOLERO_VERSION_2_0)
-		&& !va_priv->lpi_enable
+		&& va_priv->clk_div_switch
 		&& (va_priv->dmic_clk_div == VA_MACRO_CLK_DIV_16))
 		return VA_MACRO_CLK_DIV_8;
 
@@ -428,12 +429,8 @@ static int va_macro_swr_pwr_event_v2(struct snd_soc_dapm_widget *w,
 			}
 			va_priv->current_clk_id = VA_CORE_CLK;
 		}
-		msm_cdc_pinctrl_set_wakeup_capable(
-				va_priv->va_swr_gpio_p, false);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		msm_cdc_pinctrl_set_wakeup_capable(
-				va_priv->va_swr_gpio_p, true);
 		if (va_priv->current_clk_id == VA_CORE_CLK &&
 			va_priv->va_swr_clk_cnt != 0 &&
 			va_priv->tx_clk_status) {
@@ -610,9 +607,12 @@ static int va_macro_tx_va_mclk_enable(struct va_macro_priv *va_priv,
 		(enable ? "enable" : "disable"), va_priv->va_mclk_users);
 
 	if (enable) {
-		if (va_priv->swr_clk_users == 0)
+		if (va_priv->swr_clk_users == 0) {
 			msm_cdc_pinctrl_select_active_state(
 						va_priv->va_swr_gpio_p);
+			msm_cdc_pinctrl_set_wakeup_capable(
+					va_priv->va_swr_gpio_p, false);
+		}
 		clk_tx_ret = bolero_clk_rsc_request_clock(va_priv->dev,
 						   TX_CORE_CLK,
 						   TX_CORE_CLK,
@@ -705,9 +705,12 @@ static int va_macro_tx_va_mclk_enable(struct va_macro_priv *va_priv,
 						   TX_CORE_CLK,
 						   TX_CORE_CLK,
 						   false);
-		if (va_priv->swr_clk_users == 0)
+		if (va_priv->swr_clk_users == 0) {
+			msm_cdc_pinctrl_set_wakeup_capable(
+					va_priv->va_swr_gpio_p, true);
 			msm_cdc_pinctrl_select_sleep_state(
 						va_priv->va_swr_gpio_p);
+		}
 	}
 	return 0;
 
@@ -1522,6 +1525,10 @@ static int va_macro_hw_params(struct snd_pcm_substream *substream,
 		params_channels(params));
 
 	sample_rate = params_rate(params);
+	if (sample_rate > 16000)
+		va_priv->clk_div_switch = true;
+	else
+		va_priv->clk_div_switch = false;
 	switch (sample_rate) {
 	case 8000:
 		tx_fs_rate = 0;
