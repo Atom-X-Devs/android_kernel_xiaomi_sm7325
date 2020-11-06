@@ -748,6 +748,8 @@ static inline bool cpu_has_amu_feat(int cpu)
 }
 #endif
 
+extern int get_cpu_with_amu_feat(void);
+
 /* Check whether hardware update of the Access flag is supported */
 static inline bool cpu_has_hw_af(void)
 {
