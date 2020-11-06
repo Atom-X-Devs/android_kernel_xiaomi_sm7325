@@ -104,6 +104,12 @@ struct cam_isp_in_port_generic_info {
 	uint32_t                        horizontal_bin;
 	uint32_t                        qcfa_bin;
 	uint32_t                        num_bytes_out;
+	uint32_t                        ipp_count;
+	uint32_t                        ppp_count;
+	uint32_t                        rdi_count;
+	uint32_t                        udi_count;
+	uint32_t                        lcr_count;
+	uint32_t                        ife_rd_count;
 	struct cam_isp_out_port_generic_info    *data;
 };
 
@@ -128,6 +134,7 @@ struct cam_isp_in_port_generic_info {
  * @priv:         private data to be sent in callback
  * @event_cb:     CSID event callback to hw manager
  * @phy_sel:      Phy selection number if tpg is enabled from userspace
+ * @can_use_lite: Flag to indicate if current call qualifies for acquire lite
  *
  */
 struct cam_csid_hw_reserve_resource_args {
@@ -144,6 +151,7 @@ struct cam_csid_hw_reserve_resource_args {
 	void                                     *priv;
 	cam_hw_mgr_event_cb_func                  event_cb;
 	uint32_t                                  phy_sel;
+	bool                                      can_use_lite;
 };
 
 /**
@@ -154,6 +162,33 @@ enum cam_ife_csid_halt_cmd {
 	CAM_CSID_RESUME_AT_FRAME_BOUNDARY,
 	CAM_CSID_HALT_IMMEDIATELY,
 	CAM_CSID_HALT_MAX,
+};
+
+/**
+ *  enum cam_ife_csid_halt_mode - Specify the halt command type
+ */
+enum cam_ife_csid_halt_mode {
+	CAM_CSID_HALT_MODE_INTERNAL,
+	CAM_CSID_HALT_MODE_GLOBAL,
+	CAM_CSID_HALT_MODE_MASTER,
+	CAM_CSID_HALT_MODE_SLAVE,
+	CAM_CSID_HALT_MODE_MAX,
+};
+
+/**
+ * struct cam_ife_csid_hw_halt_args
+ * @halt_mode : Applicable only for PATH resources
+ *              0 Internal : The CSID responds to the HALT_CMD
+ *              1 Global   : The CSID responds to the GLOBAL_HALT_CMD
+ *              2 Master   : The CSID responds to the HALT_CMD
+ *              3 Slave    : The CSID responds to the external halt command
+ *                           and not the HALT_CMD register
+ * @node_res : reource pointer array( ie cid or CSID)
+ *
+ */
+struct cam_ife_csid_hw_halt_args {
+	enum cam_ife_csid_halt_mode     halt_mode;
+	struct cam_isp_resource_node   *node_res;
 };
 
 /**
