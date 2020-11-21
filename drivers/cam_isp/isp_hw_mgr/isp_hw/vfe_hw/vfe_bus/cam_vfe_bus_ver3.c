@@ -630,6 +630,8 @@ static enum cam_vfe_bus_ver3_vfe_out_type
 	case CAM_ISP_IFE_LITE_OUT_RES_GAMMA:
 		return CAM_VFE_BUS_VER3_VFE_OUT_GAMMA;
 	default:
+		CAM_WARN(CAM_ISP, "Invalid isp res id: %d , assigning max",
+			res_type);
 		return CAM_VFE_BUS_VER3_VFE_OUT_MAX;
 	}
 }
@@ -853,17 +855,23 @@ static void cam_vfe_bus_ver3_print_constraint_errors(
 static void cam_vfe_bus_ver3_get_constraint_errors(
 	struct cam_vfe_bus_ver3_priv *bus_priv)
 {
-	uint32_t i, constraint_errors;
-	struct cam_vfe_bus_ver3_wm_resource_data *wm_data;
+	uint32_t i, j, constraint_errors;
+	struct cam_isp_resource_node              *out_rsrc_node = NULL;
+	struct cam_vfe_bus_ver3_vfe_out_data      *out_rsrc_data = NULL;
+	struct cam_vfe_bus_ver3_wm_resource_data  *wm_data   = NULL;
 
-	for (i = 0; i < bus_priv->num_client; i++) {
-		wm_data = bus_priv->bus_client[i].res_priv;
-		if (wm_data) {
-			constraint_errors = cam_io_r_mb(
-				bus_priv->common_data.mem_base +
-				wm_data->hw_regs->debug_status_1);
-			cam_vfe_bus_ver3_print_constraint_errors(i,
-				constraint_errors);
+	for (i = 0; i < bus_priv->num_out; i++) {
+		out_rsrc_node = &bus_priv->vfe_out[i];
+		out_rsrc_data = out_rsrc_node->res_priv;
+		for (j = 0; j < out_rsrc_data->num_wm; j++) {
+			wm_data = out_rsrc_data->wm_res[j].res_priv;
+			if (wm_data) {
+				constraint_errors = cam_io_r_mb(
+					bus_priv->common_data.mem_base +
+					wm_data->hw_regs->debug_status_1);
+				cam_vfe_bus_ver3_print_constraint_errors(j,
+					constraint_errors);
+			}
 		}
 	}
 }
@@ -2505,19 +2513,31 @@ static int cam_vfe_bus_ver3_print_dimensions(
 	struct cam_vfe_bus_ver3_vfe_out_data      *rsrc_data = NULL;
 	struct cam_vfe_bus_ver3_wm_resource_data  *wm_data   = NULL;
 	struct cam_vfe_bus_ver3_common_data  *common_data = NULL;
-	int                                        i, wm_idx;
+	int                                        i;
 	uint32_t addr_status0, addr_status1, addr_status2, addr_status3;
+
+	if (!bus_priv) {
+		CAM_ERR(CAM_ISP, "Invalid bus private data, res_id: %d",
+			vfe_out_res_id);
+		return -EINVAL;
+	}
+
+	if (vfe_out_res_id >= CAM_VFE_BUS_VER3_VFE_OUT_MAX) {
+		CAM_ERR(CAM_ISP, "Invalid out resource for dump: %d",
+			vfe_out_res_id);
+		return -EINVAL;
+	}
 
 	rsrc_node = &bus_priv->vfe_out[vfe_out_res_id];
 	rsrc_data = rsrc_node->res_priv;
+	if (!rsrc_data) {
+		CAM_ERR(CAM_ISP, "VFE out data is null, res_id: %d",
+			vfe_out_res_id);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < rsrc_data->num_wm; i++) {
-		wm_idx = 0;
-		if (wm_idx < 0 || wm_idx >= bus_priv->num_client) {
-			CAM_ERR(CAM_ISP, "Unsupported VFE out %d",
-				vfe_out_res_id);
-			return -EINVAL;
-		}
-		wm_data = bus_priv->bus_client[wm_idx].res_priv;
+		wm_data = rsrc_data->wm_res[i].res_priv;
 		common_data = rsrc_data->common_data;
 		addr_status0 = cam_io_r_mb(common_data->mem_base +
 			wm_data->hw_regs->addr_status_0);
@@ -2530,7 +2550,7 @@ static int cam_vfe_bus_ver3_print_dimensions(
 
 		CAM_INFO(CAM_ISP,
 			"VFE:%d WM:%d width:%u height:%u stride:%u x_init:%u en_cfg:%u acquired width:%u height:%u",
-			wm_data->common_data->core_index, wm_idx,
+			wm_data->common_data->core_index, wm_data->index,
 			wm_data->width,
 			wm_data->height,
 			wm_data->stride, wm_data->h_init,
