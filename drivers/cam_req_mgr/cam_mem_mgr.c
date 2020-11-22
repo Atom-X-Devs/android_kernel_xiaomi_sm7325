@@ -410,71 +410,47 @@ end:
 EXPORT_SYMBOL(cam_mem_mgr_cache_ops);
 
 static int cam_mem_util_get_dma_buf(size_t len,
-	unsigned int heap_id_mask,
-	unsigned int flags,
+	unsigned int cam_flags,
 	struct dma_buf **buf)
 {
 	int rc = 0;
+	unsigned int heap_id;
+	int32_t ion_flag = 0;
+	struct timespec64 ts1, ts2;
+	long microsec = 0;
 
 	if (!buf) {
 		CAM_ERR(CAM_MEM, "Invalid params");
 		return -EINVAL;
 	}
 
-	if (tbl.force_cache_allocs && (!(flags & ION_FLAG_SECURE)))
-		flags |= ION_FLAG_CACHED;
-
-	*buf = ion_alloc(len, heap_id_mask, flags);
-	if (IS_ERR_OR_NULL(*buf))
-		return -ENOMEM;
-
-	return rc;
-}
-
-static int cam_mem_util_get_dma_buf_fd(size_t len,
-	size_t align,
-	unsigned int heap_id_mask,
-	unsigned int flags,
-	struct dma_buf **buf,
-	int *fd)
-{
-	struct dma_buf *dmabuf = NULL;
-	int rc = 0;
-	struct timespec64 ts1, ts2;
-	long microsec = 0;
-
-	if (!buf || !fd) {
-		CAM_ERR(CAM_MEM, "Invalid params, buf=%pK, fd=%pK", buf, fd);
-		return -EINVAL;
-	}
-
 	if (tbl.alloc_profile_enable)
 		CAM_GET_TIMESTAMP(ts1);
 
-	if (tbl.force_cache_allocs && (!(flags & ION_FLAG_SECURE)))
-		flags |= ION_FLAG_CACHED;
+	if ((cam_flags & CAM_MEM_FLAG_PROTECTED_MODE) &&
+		(cam_flags & CAM_MEM_FLAG_CDSP_OUTPUT)) {
+		heap_id = ION_HEAP(ION_SECURE_DISPLAY_HEAP_ID);
+		ion_flag |=
+			ION_FLAG_SECURE | ION_FLAG_CP_CAMERA | ION_FLAG_CP_CDSP;
+	} else if (cam_flags & CAM_MEM_FLAG_PROTECTED_MODE) {
+		heap_id = ION_HEAP(ION_SECURE_DISPLAY_HEAP_ID);
+		ion_flag |= ION_FLAG_SECURE | ION_FLAG_CP_CAMERA;
+	} else {
+		heap_id = ION_HEAP(ION_SYSTEM_HEAP_ID) |
+			ION_HEAP(ION_CAMERA_HEAP_ID);
+	}
 
-	*buf = ion_alloc(len, heap_id_mask, flags);
+	if (cam_flags & CAM_MEM_FLAG_CACHE)
+		ion_flag |= ION_FLAG_CACHED;
+	else
+		ion_flag &= ~ION_FLAG_CACHED;
+
+	if (tbl.force_cache_allocs && (!(ion_flag & ION_FLAG_SECURE)))
+		ion_flag |= ION_FLAG_CACHED;
+
+	*buf = ion_alloc(len, heap_id, ion_flag);
 	if (IS_ERR_OR_NULL(*buf))
 		return -ENOMEM;
-
-	*fd = dma_buf_fd(*buf, O_CLOEXEC);
-	if (*fd < 0) {
-		CAM_ERR(CAM_MEM, "get fd fail, *fd=%d", *fd);
-		rc = -EINVAL;
-		goto get_fd_fail;
-	}
-
-	/*
-	 * increment the ref count so that ref count becomes 2 here
-	 * when we close fd, refcount becomes 1 and when we do
-	 * dmap_put_buf, ref count becomes 0 and memory will be freed.
-	 */
-	dmabuf = dma_buf_get(*fd);
-	if (IS_ERR_OR_NULL(dmabuf)) {
-		CAM_ERR(CAM_MEM, "dma_buf_get failed, *fd=%d", *fd);
-		rc = -EINVAL;
-	}
 
 	if (tbl.alloc_profile_enable) {
 		CAM_GET_TIMESTAMP(ts2);
@@ -484,48 +460,50 @@ static int cam_mem_util_get_dma_buf_fd(size_t len,
 	}
 
 	return rc;
-
-get_fd_fail:
-	dma_buf_put(*buf);
-	return rc;
 }
 
 static int cam_mem_util_ion_alloc(struct cam_mem_mgr_alloc_cmd *cmd,
 	struct dma_buf **dmabuf,
 	int *fd)
 {
-	uint32_t heap_id;
-	uint32_t ion_flag = 0;
 	int rc;
+	struct dma_buf *temp_dmabuf = NULL;
 
-	if ((cmd->flags & CAM_MEM_FLAG_PROTECTED_MODE) &&
-		(cmd->flags & CAM_MEM_FLAG_CDSP_OUTPUT)) {
-		heap_id = ION_HEAP(ION_SECURE_DISPLAY_HEAP_ID);
-		ion_flag |=
-			ION_FLAG_SECURE | ION_FLAG_CP_CAMERA | ION_FLAG_CP_CDSP;
-	} else if (cmd->flags & CAM_MEM_FLAG_PROTECTED_MODE) {
-		heap_id = ION_HEAP(ION_SECURE_DISPLAY_HEAP_ID);
-		ion_flag |= ION_FLAG_SECURE | ION_FLAG_CP_CAMERA;
-	} else {
-		heap_id = ION_HEAP(ION_SYSTEM_HEAP_ID) |
-			ION_HEAP(ION_CAMERA_HEAP_ID);
+	rc = cam_mem_util_get_dma_buf(cmd->len,
+		cmd->flags,
+		dmabuf);
+	if (rc) {
+		CAM_ERR(CAM_MEM,
+			"Error allocating dma buf : len=%llu, flags=0x%x",
+			cmd->len, cmd->flags);
+		return rc;
 	}
 
-	if (cmd->flags & CAM_MEM_FLAG_CACHE)
-		ion_flag |= ION_FLAG_CACHED;
-	else
-		ion_flag &= ~ION_FLAG_CACHED;
+	*fd = dma_buf_fd(*dmabuf, O_CLOEXEC);
+	if (*fd < 0) {
+		CAM_ERR(CAM_MEM, "get fd fail, *fd=%d", *fd);
+		rc = -EINVAL;
+		goto put_buf;
+	}
 
-	rc = cam_mem_util_get_dma_buf_fd(cmd->len,
-		cmd->align,
-		heap_id,
-		ion_flag,
-		dmabuf,
-		fd);
+	/*
+	 * increment the ref count so that ref count becomes 2 here
+	 * when we close fd, refcount becomes 1 and when we do
+	 * dmap_put_buf, ref count becomes 0 and memory will be freed.
+	 */
+	temp_dmabuf = dma_buf_get(*fd);
+	if (IS_ERR_OR_NULL(temp_dmabuf)) {
+		CAM_ERR(CAM_MEM, "dma_buf_get failed, *fd=%d", *fd);
+		rc = -EINVAL;
+		goto put_buf;
+	}
 
 	return rc;
-}
 
+put_buf:
+	dma_buf_put(*dmabuf);
+	return rc;
+}
 
 static int cam_mem_util_check_alloc_flags(struct cam_mem_mgr_alloc_cmd *cmd)
 {
@@ -1191,8 +1169,6 @@ int cam_mem_mgr_request_mem(struct cam_mem_mgr_request_desc *inp,
 	struct dma_buf *buf = NULL;
 	int ion_fd = -1;
 	int rc = 0;
-	uint32_t heap_id;
-	int32_t ion_flag = 0;
 	uintptr_t kvaddr;
 	dma_addr_t iova = 0;
 	size_t request_len = 0;
@@ -1220,17 +1196,8 @@ int cam_mem_mgr_request_mem(struct cam_mem_mgr_request_desc *inp,
 		return -EINVAL;
 	}
 
-	if (inp->flags & CAM_MEM_FLAG_CACHE)
-		ion_flag |= ION_FLAG_CACHED;
-	else
-		ion_flag &= ~ION_FLAG_CACHED;
-
-	heap_id = ION_HEAP(ION_SYSTEM_HEAP_ID) |
-		ION_HEAP(ION_CAMERA_HEAP_ID);
-
 	rc = cam_mem_util_get_dma_buf(inp->size,
-		heap_id,
-		ion_flag,
+		inp->flags,
 		&buf);
 
 	if (rc) {
@@ -1374,7 +1341,6 @@ int cam_mem_mgr_reserve_memory_region(struct cam_mem_mgr_request_desc *inp,
 	struct dma_buf *buf = NULL;
 	int rc = 0;
 	int ion_fd = -1;
-	uint32_t heap_id;
 	dma_addr_t iova = 0;
 	size_t request_len = 0;
 	uint32_t mem_handle;
@@ -1402,10 +1368,7 @@ int cam_mem_mgr_reserve_memory_region(struct cam_mem_mgr_request_desc *inp,
 		return -EINVAL;
 	}
 
-	heap_id = ION_HEAP(ION_SYSTEM_HEAP_ID) |
-		ION_HEAP(ION_CAMERA_HEAP_ID);
 	rc = cam_mem_util_get_dma_buf(inp->size,
-		heap_id,
 		0,
 		&buf);
 
