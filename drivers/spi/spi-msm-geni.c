@@ -287,6 +287,13 @@ static int spi_slv_abort(struct spi_master *spi)
 	return 0;
 }
 
+int geni_spi_get_master_irq(struct spi_device *spi)
+{
+	struct spi_geni_master *mas = spi_master_get_devdata(spi->master);
+
+	return mas->irq;
+}
+
 static struct spi_master *get_spi_master(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
