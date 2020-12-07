@@ -750,6 +750,22 @@ endif
 ifdef CONFIG_CC_IS_CLANG
 KBUILD_CFLAGS += -mcpu=cortex-a55
 KBUILD_AFLAGS += -mcpu=cortex-a55
+ifdef CONFIG_POLLY_CLANG
+KBUILD_CFLAGS	+= -mllvm -polly \
+		   -mllvm -polly-ast-use-context \
+		   -mllvm -polly-detect-keep-going \
+		   -mllvm -polly-invariant-load-hoisting \
+		   -mllvm -polly-opt-fusion=max \
+		   -mllvm -polly-run-inliner \
+		   -mllvm -polly-vectorizer=stripmine
+# Polly may optimise loops with dead paths beyound what the linker
+# can understand. This may negate the effect of the linker's DCE
+# so we tell Polly to perfom proven DCE on the loops it optimises
+# in order to preserve the overall effect of the linker's DCE.
+ifdef CONFIG_LD_DEAD_CODE_DATA_ELIMINATION
+POLLY_FLAGS	+= -mllvm -polly-run-dce
+endif
+endif
 else
 KBUILD_CFLAGS += -mcpu=cortex-a76.cortex-a55
 KBUILD_AFLAGS += -mcpu=cortex-a76.cortex-a55
