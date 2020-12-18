@@ -476,7 +476,7 @@
 544	common	pidfd_open			sys_pidfd_open
 # 545 reserved for clone3
 546	common	close_range			sys_close_range
-# 547 reserved for openat2
+547	common	epoll_pwait2			sys_epoll_pwait2
 # 548 reserved for pidfd_getfd
 # 549 reserved for faccessat2
 550	common	process_madvise			sys_process_madvise
