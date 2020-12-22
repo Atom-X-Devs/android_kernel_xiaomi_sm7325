@@ -1604,6 +1604,9 @@ endmenu
 
 menu "ARMv8.5 architectural features"
 
+config AS_HAS_ARMV8_5
+	def_bool $(cc-option,-Wa$(comma)-march=armv8.5-a)
+
 config ARCH_RANDOM
 	bool "Enable support for random number generation"
 	default y
