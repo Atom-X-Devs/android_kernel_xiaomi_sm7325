@@ -226,16 +226,11 @@ static ssize_t swrm_reg_show(struct swr_mstr_ctrl *swrm, char __user *ubuf,
 	int i, reg_val, len;
 	ssize_t total = 0;
 	char tmp_buf[SWR_MSTR_MAX_BUF_LEN];
-	int rem = 0;
 
 	if (!ubuf || !ppos)
 		return 0;
 
 	i = ((int) *ppos + SWRM_BASE);
-	rem = i%4;
-
-	if (rem)
-		i = (i - rem);
 
 	for (; i <= SWRM_MAX_REGISTER; i += 4) {
 		usleep_range(100, 150);
@@ -253,7 +248,7 @@ static ssize_t swrm_reg_show(struct swr_mstr_ctrl *swrm, char __user *ubuf,
 			total = -EFAULT;
 			goto copy_err;
 		}
-		*ppos += len;
+		*ppos += 4;
 		total += len;
 	}
 
@@ -3095,6 +3090,12 @@ static int swrm_runtime_resume(struct device *dev)
 		dev_err(dev, "%s:lpass core hw enable failed\n",
 			__func__);
 		hw_core_err = true;
+		pm_runtime_set_autosuspend_delay(&pdev->dev,
+			ERR_AUTO_SUSPEND_TIMER_VAL);
+		if (swrm->req_clk_switch)
+			swrm->req_clk_switch = false;
+		mutex_unlock(&swrm->reslock);
+		return 0;
 	}
 	if (swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, true)) {
 		dev_err(dev, "%s:lpass audio hw enable failed\n",
