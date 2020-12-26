@@ -1383,6 +1383,10 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 	}
 	mutex_unlock(&goodix_modules.mutex);
 
+	/* prevent CPU from entering deep sleep */
+	cpu_latency_qos_update_request(&core_data->pm_qos_touch_req, 100);
+	cpu_latency_qos_update_request(&core_data->pm_qos_spi_req, 100);
+
 	/* read touch data from touch device */
 	ret = hw_ops->event_handler(core_data, ts_event);
 	if (!core_data->tools_ctrl_sync)
@@ -1403,6 +1407,9 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 		}
 	}
 
+	cpu_latency_qos_update_request(&core_data->pm_qos_spi_req, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_update_request(&core_data->pm_qos_touch_req, PM_QOS_DEFAULT_VALUE);
+
 	return IRQ_HANDLED;
 }
 
@@ -1422,6 +1429,15 @@ static int goodix_ts_irq_setup(struct goodix_ts_core *core_data)
 		ts_err("failed get irq num %d", core_data->irq);
 		return -EINVAL;
 	}
+
+	core_data->pm_qos_spi_req.type = PM_QOS_REQ_AFFINE_IRQ;
+	core_data->pm_qos_spi_req.irq = core_data->bus->irq;
+	irq_set_perf_affinity(core_data->pm_qos_spi_req.irq, IRQF_PERF_AFFINE);
+	cpu_latency_qos_add_request(&core_data->pm_qos_spi_req, PM_QOS_DEFAULT_VALUE);
+
+	core_data->pm_qos_touch_req.type = PM_QOS_REQ_AFFINE_IRQ;
+	core_data->pm_qos_touch_req.irq = core_data->irq;
+	cpu_latency_qos_add_request(&core_data->pm_qos_touch_req, PM_QOS_DEFAULT_VALUE);
 
 	ts_info("IRQ:%u,flags:%d", core_data->irq, (int)ts_bdata->irq_flags);
 	ret = devm_request_threaded_irq(&core_data->pdev->dev, core_data->irq,
@@ -3188,6 +3204,8 @@ static int goodix_ts_remove(struct platform_device *pdev)
 		goodix_ts_debugfs_exit(core_data);
 #endif
 	}
+	cpu_latency_qos_request_active(&core_data->pm_qos_touch_req);
+	cpu_latency_qos_request_active(&core_data->pm_qos_spi_req);
 
 	return 0;
 }
