@@ -186,6 +186,7 @@ int geni_spi_get_master_irq(struct spi_device *spi_slv)
 
 	return mas->irq;
 }
+EXPORT_SYMBOL(geni_spi_get_master_irq);
 
 static struct spi_master *get_spi_master(struct device *dev)
 {
