@@ -14,6 +14,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/completion.h>
+#include <linux/pm_qos.h>
 
 #include <linux/of_irq.h>
 #include <linux/proc_fs.h>
@@ -392,6 +393,7 @@ struct goodix_bus_interface {
 		    unsigned int len);
 	int (*write)(struct device *dev, unsigned int addr, unsigned char *data,
 		     unsigned int len);
+	int irq;
 };
 
 struct goodix_ts_hw_ops {
@@ -523,6 +525,8 @@ struct goodix_ts_core {
 	int power_status;
 	bool tp_pm_suspend;
 	struct completion pm_resume_completion;
+	struct pm_qos_request pm_qos_touch_req;
+	struct pm_qos_request pm_qos_spi_req;
 };
 
 /* external module structures */
