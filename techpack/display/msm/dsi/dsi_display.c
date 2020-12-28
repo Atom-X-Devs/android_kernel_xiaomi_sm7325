@@ -57,6 +57,8 @@ static const struct of_device_id dsi_display_dt_match[] = {
 	{}
 };
 
+static unsigned int cur_refresh_rate = 60;
+
 #ifdef CONFIG_MACH_XIAOMI
 char *mi_dsi_display_get_cmdline_panel_info(struct dsi_display *display)
 {
@@ -8423,6 +8425,11 @@ static void dsi_display_panel_id_notification(struct dsi_display *display)
 	}
 }
 
+unsigned int dsi_panel_get_refresh_rate(void)
+{
+	return READ_ONCE(cur_refresh_rate);
+}
+
 int dsi_display_enable(struct dsi_display *display)
 {
 	int rc = 0;
@@ -8490,6 +8497,7 @@ int dsi_display_enable(struct dsi_display *display)
 	mutex_lock(&display->display_lock);
 
 	mode = display->panel->cur_mode;
+	WRITE_ONCE(cur_refresh_rate, mode->timing.refresh_rate);
 
 	if (mode->dsi_mode_flags & DSI_MODE_FLAG_DMS) {
 		rc = dsi_panel_post_switch(display->panel);
