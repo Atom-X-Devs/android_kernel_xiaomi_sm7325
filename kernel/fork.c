@@ -97,6 +97,7 @@
 #include <linux/stackleak.h>
 #include <linux/scs.h>
 #include <linux/simple_lmk.h>
+#include <linux/devfreq_boost.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -2415,6 +2416,12 @@ long _do_fork(struct kernel_clone_args *args)
 	struct task_struct *p;
 	int trace = 0;
 	long nr;
+
+	/* Boost DDR bus to the max for 50 ms when userspace launches an app */
+	if (task_is_zygote(current) && df_boost_within_input(1500)) {
+		devfreq_boost_kick_max(DEVFREQ_MSM_LLCCBW, 50);
+		devfreq_boost_kick_max(DEVFREQ_MSM_CPUBW, 50);
+	}
 
 	/*
 	 * Determine whether and which event to report to ptracer.  When

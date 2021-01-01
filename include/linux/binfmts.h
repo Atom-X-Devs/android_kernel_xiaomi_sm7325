@@ -143,6 +143,7 @@ extern int copy_strings_kernel(int argc, const char *const *argv,
 extern void install_exec_creds(struct linux_binprm *bprm);
 extern void set_binfmt(struct linux_binfmt *new);
 extern ssize_t read_code(struct file *, unsigned long, loff_t, size_t);
+extern bool task_is_zygote(struct task_struct *p);
 
 extern int do_execve(struct filename *,
 		     const char __user * const __user *,
