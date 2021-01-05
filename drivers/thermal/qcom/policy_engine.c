@@ -12,8 +12,6 @@
 #include <linux/of_address.h>
 #include <linux/interrupt.h>
 
-#include "../thermal_core.h"
-
 #define PE_SENS_DRIVER		"policy-engine-sensor"
 #define PE_INT_ENABLE_OFFSET	0x530
 #define PE_STATUS_OFFSET	0x590
@@ -92,7 +90,8 @@ static irqreturn_t pe_handle_irq(int irq, void *data)
 	if (pe_sens->tz_dev && (val >= pe_sens->high_thresh ||
 			val <= pe_sens->low_thresh)) {
 		mutex_unlock(&pe_sens->mutex);
-		of_thermal_handle_trip_temp(pe_sens->dev, pe_sens->tz_dev, val);
+		thermal_zone_device_update(pe_sens->tz_dev,
+				THERMAL_TRIP_VIOLATED);
 	} else
 		mutex_unlock(&pe_sens->mutex);
 
