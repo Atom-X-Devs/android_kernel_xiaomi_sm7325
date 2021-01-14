@@ -2739,8 +2739,7 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 	struct file *file = vma->vm_file;
 	struct address_space *mapping = file->f_mapping;
 	pgoff_t last_pgoff = start_pgoff;
-	unsigned long address = vmf->address;
-	unsigned long flags = vmf->flags;
+	unsigned long addr;
 	XA_STATE(xas, &mapping->i_pages, start_pgoff);
 	struct page *head, *page;
 	unsigned int mmap_miss = READ_ONCE(file->f_ra.mmap_miss);
@@ -2756,8 +2755,8 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 		goto out;
 	}
 
-	vmf->address = vma->vm_start + ((start_pgoff - vma->vm_pgoff) << PAGE_SHIFT);
-	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address, &vmf->ptl);
+	addr = vma->vm_start + ((start_pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, addr, &vmf->ptl);
 	do {
 		page = find_subpage(head, xas.xa_index);
 		if (PageHWPoison(page))
@@ -2766,7 +2765,7 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 		if (mmap_miss > 0)
 			mmap_miss--;
 
-		vmf->address += (xas.xa_index - last_pgoff) << PAGE_SHIFT;
+		addr += (xas.xa_index - last_pgoff) << PAGE_SHIFT;
 		vmf->pte += xas.xa_index - last_pgoff;
 		last_pgoff = xas.xa_index;
 
@@ -2774,16 +2773,12 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 			goto unlock;
 
 		/* We're about to handle the fault */
-		if (vmf->address == address) {
-			vmf->flags &= ~FAULT_FLAG_PREFAULT;
+		if (vmf->address == addr)
 			ret = VM_FAULT_NOPAGE;
-		} else {
-			vmf->flags |= FAULT_FLAG_PREFAULT;
-		}
 
-		do_set_pte(vmf, page);
+		do_set_pte(vmf, page, addr);
 		/* no need to invalidate: a not-present page won't be cached */
-		update_mmu_cache(vma, vmf->address, vmf->pte);
+		update_mmu_cache(vma, addr, vmf->pte);
 		unlock_page(head);
 		continue;
 unlock:
@@ -2793,8 +2788,6 @@ unlock:
 	pte_unmap_unlock(vmf->pte, vmf->ptl);
 out:
 	rcu_read_unlock();
-	vmf->flags = flags;
-	vmf->address = address;
 	WRITE_ONCE(file->f_ra.mmap_miss, mmap_miss);
 	return ret;
 }
