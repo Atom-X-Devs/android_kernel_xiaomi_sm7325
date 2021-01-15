@@ -394,6 +394,8 @@ struct adreno_power_ops {
  */
 struct adreno_gpu_core {
 	enum adreno_gpurev gpurev;
+	/** @chipid: Unique GPU chipid for external identification */
+	u32 chipid;
 	unsigned int core, major, minor, patchid;
 	/**
 	 * @compatible: If specified, use the compatible string to match the
