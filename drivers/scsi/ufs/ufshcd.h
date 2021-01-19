@@ -1213,7 +1213,7 @@ static inline bool ufshcd_keep_autobkops_enabled_except_suspend(
 
 static inline u8 ufshcd_wb_get_query_index(struct ufs_hba *hba)
 {
-	if (hba->dev_info.b_wb_buffer_type == WB_BUF_MODE_LU_DEDICATED)
+	if (hba->dev_info.wb_buffer_type == WB_BUF_MODE_LU_DEDICATED)
 		return hba->dev_info.wb_dedicated_lu;
 	return 0;
 }
@@ -1483,8 +1483,8 @@ static inline void ufshcd_vops_device_reset(struct ufs_hba *hba)
 		hba->vops->device_reset(hba);
 		ufshcd_set_ufs_dev_active(hba);
 		if (ufshcd_is_wb_allowed(hba)) {
-			hba->wb_enabled = false;
-			hba->wb_buf_flush_enabled = false;
+			hba->dev_info.wb_enabled = false;
+			hba->dev_info.wb_buf_flush_enabled = false;
 		}
 		ufshcd_update_reg_hist(&hba->ufs_stats.dev_reset, 0);
 	}
