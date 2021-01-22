@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -31,8 +31,10 @@
 #include "asoc/msm-cdc-pinctrl.h"
 #include "asoc/wcd-mbhc-v2.h"
 #include "codecs/wcd938x/wcd938x-mbhc.h"
+#include "codecs/wcd937x/wcd937x-mbhc.h"
 #include "codecs/wsa883x/wsa883x.h"
 #include "codecs/wcd938x/wcd938x.h"
+#include "codecs/wcd937x/wcd937x.h"
 #include "codecs/bolero/bolero-cdc.h"
 #include <dt-bindings/sound/audio-codec-port-types.h>
 #include "codecs/bolero/wsa-macro.h"
@@ -73,6 +75,8 @@
 #define WCD_MBHC_HS_V_MAX           1600
 
 #define TDM_CHANNEL_MAX		8
+
+#define MI2S_NUM_CHANNELS	2
 
 #define MSM_LL_QOS_VALUE	300 /* time in us to ensure LPM doesn't go in C3/C4 */
 
@@ -826,6 +830,40 @@ static SOC_ENUM_SINGLE_EXT_DECL(va_cdc_dma_tx_0_sample_rate,
 static SOC_ENUM_SINGLE_EXT_DECL(va_cdc_dma_tx_1_sample_rate,
 				cdc_dma_sample_rate_text);
 static SOC_ENUM_SINGLE_EXT_DECL(va_cdc_dma_tx_2_sample_rate,
+				cdc_dma_sample_rate_text);
+
+/* WCD9370 */
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc70_dma_rx_0_format, bit_format_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc70_dma_rx_1_format, bit_format_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc70_dma_rx_2_format, bit_format_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc70_dma_rx_3_format, bit_format_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc70_dma_rx_5_format, bit_format_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc70_dma_rx_0_sample_rate,
+				cdc80_dma_sample_rate_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc70_dma_rx_1_sample_rate,
+				cdc80_dma_sample_rate_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc70_dma_rx_2_sample_rate,
+				cdc80_dma_sample_rate_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc70_dma_rx_3_sample_rate,
+				cdc80_dma_sample_rate_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc70_dma_rx_5_sample_rate,
+				cdc80_dma_sample_rate_text);
+
+/* WCD9375 */
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc75_dma_rx_0_format, bit_format_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc75_dma_rx_1_format, bit_format_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc75_dma_rx_2_format, bit_format_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc75_dma_rx_3_format, bit_format_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc75_dma_rx_5_format, bit_format_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc75_dma_rx_0_sample_rate,
+				cdc_dma_sample_rate_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc75_dma_rx_1_sample_rate,
+				cdc_dma_sample_rate_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc75_dma_rx_2_sample_rate,
+				cdc_dma_sample_rate_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc75_dma_rx_3_sample_rate,
+				cdc_dma_sample_rate_text);
+static SOC_ENUM_SINGLE_EXT_DECL(rx_cdc75_dma_rx_5_sample_rate,
 				cdc_dma_sample_rate_text);
 
 /* WCD9380 */
@@ -2830,23 +2868,6 @@ static u32 get_mi2s_bits_per_sample(u32 bit_format)
 	return bit_per_sample;
 }
 
-static void update_mi2s_clk_val(int dai_id, int stream)
-{
-	u32 bit_per_sample = 0;
-
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		bit_per_sample =
-		    get_mi2s_bits_per_sample(mi2s_rx_cfg[dai_id].bit_format);
-		mi2s_clk[dai_id].clk_freq_in_hz =
-		    mi2s_rx_cfg[dai_id].sample_rate * 2 * bit_per_sample;
-	} else {
-		bit_per_sample =
-		    get_mi2s_bits_per_sample(mi2s_tx_cfg[dai_id].bit_format);
-		mi2s_clk[dai_id].clk_freq_in_hz =
-		    mi2s_tx_cfg[dai_id].sample_rate * 2 * bit_per_sample;
-	}
-}
-
 static int msm_mi2s_set_sclk(struct snd_pcm_substream *substream, bool enable)
 {
 	int ret = 0;
@@ -2860,12 +2881,6 @@ static int msm_mi2s_set_sclk(struct snd_pcm_substream *substream, bool enable)
 		dev_err(rtd->card->dev, "%s: Invalid port_id\n", __func__);
 		ret = port_id;
 		goto err;
-	}
-
-	if (enable) {
-		update_mi2s_clk_val(index, substream->stream);
-		dev_dbg(rtd->card->dev, "%s: clock rate %ul\n", __func__,
-			mi2s_clk[index].clk_freq_in_hz);
 	}
 
 	mi2s_clk[index].enable = enable;
@@ -3767,6 +3782,72 @@ static const struct snd_kcontrol_new msm_int_snd_controls[] = {
 			va_cdc_dma_tx_2_sample_rate,
 			cdc_dma_tx_sample_rate_get,
 			cdc_dma_tx_sample_rate_put),
+};
+
+static const struct snd_kcontrol_new msm_int_wcd9370_snd_controls[] = {
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_0 Format", rx_cdc70_dma_rx_0_format,
+			cdc_dma_rx_format_get, cdc_dma_rx_format_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_1 Format", rx_cdc70_dma_rx_1_format,
+			cdc_dma_rx_format_get, cdc_dma_rx_format_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_2 Format", rx_cdc70_dma_rx_2_format,
+			cdc_dma_rx_format_get, cdc_dma_rx_format_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_3 Format", rx_cdc70_dma_rx_3_format,
+			cdc_dma_rx_format_get, cdc_dma_rx_format_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_5 Format", rx_cdc70_dma_rx_5_format,
+			cdc_dma_rx_format_get, cdc_dma_rx_format_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_0 SampleRate",
+			rx_cdc70_dma_rx_0_sample_rate,
+			cdc_dma_rx_sample_rate_get,
+			cdc_dma_rx_sample_rate_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_1 SampleRate",
+			rx_cdc70_dma_rx_1_sample_rate,
+			cdc_dma_rx_sample_rate_get,
+			cdc_dma_rx_sample_rate_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_2 SampleRate",
+			rx_cdc70_dma_rx_2_sample_rate,
+			cdc_dma_rx_sample_rate_get,
+			cdc_dma_rx_sample_rate_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_3 SampleRate",
+			rx_cdc70_dma_rx_3_sample_rate,
+			cdc_dma_rx_sample_rate_get,
+			cdc_dma_rx_sample_rate_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_5 SampleRate",
+			rx_cdc70_dma_rx_5_sample_rate,
+			cdc_dma_rx_sample_rate_get,
+			cdc_dma_rx_sample_rate_put),
+};
+
+static const struct snd_kcontrol_new msm_int_wcd9375_snd_controls[] = {
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_0 Format", rx_cdc75_dma_rx_0_format,
+			cdc_dma_rx_format_get, cdc_dma_rx_format_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_1 Format", rx_cdc75_dma_rx_1_format,
+			cdc_dma_rx_format_get, cdc_dma_rx_format_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_2 Format", rx_cdc75_dma_rx_2_format,
+			cdc_dma_rx_format_get, cdc_dma_rx_format_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_3 Format", rx_cdc75_dma_rx_3_format,
+			cdc_dma_rx_format_get, cdc_dma_rx_format_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_5 Format", rx_cdc75_dma_rx_5_format,
+			cdc_dma_rx_format_get, cdc_dma_rx_format_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_0 SampleRate",
+			rx_cdc75_dma_rx_0_sample_rate,
+			cdc_dma_rx_sample_rate_get,
+			cdc_dma_rx_sample_rate_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_1 SampleRate",
+			rx_cdc75_dma_rx_1_sample_rate,
+			cdc_dma_rx_sample_rate_get,
+			cdc_dma_rx_sample_rate_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_2 SampleRate",
+			rx_cdc75_dma_rx_2_sample_rate,
+			cdc_dma_rx_sample_rate_get,
+			cdc_dma_rx_sample_rate_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_3 SampleRate",
+			rx_cdc75_dma_rx_3_sample_rate,
+			cdc_dma_rx_sample_rate_get,
+			cdc_dma_rx_sample_rate_put),
+	SOC_ENUM_EXT("RX_CDC_DMA_RX_5 SampleRate",
+			rx_cdc75_dma_rx_5_sample_rate,
+			cdc_dma_rx_sample_rate_get,
+			cdc_dma_rx_sample_rate_put),
 };
 
 static const struct snd_kcontrol_new msm_int_wcd9380_snd_controls[] = {
@@ -5278,6 +5359,7 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_card *card = rtd->card;
 	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int sample_rate = 0;
+	u32 bit_per_sample = 0;
 
 	dev_dbg(rtd->card->dev,
 		"%s: substream = %s  stream = %d, dai name %s, dai ID %d\n",
@@ -5299,39 +5381,49 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	mutex_lock(&mi2s_intf_conf[index].lock);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		sample_rate = mi2s_rx_cfg[index].sample_rate;
+		bit_per_sample =
+		    get_mi2s_bits_per_sample(mi2s_rx_cfg[index].bit_format);
 	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		sample_rate = mi2s_tx_cfg[index].sample_rate;
+		bit_per_sample =
+		    get_mi2s_bits_per_sample(mi2s_tx_cfg[index].bit_format);
 	} else {
 		pr_err("%s: invalid stream %d\n", __func__, substream->stream);
 		ret = -EINVAL;
 		goto vote_err;
 	}
 
-	if (IS_MSM_INTERFACE_MI2S(index) && IS_FRACTIONAL(sample_rate)) {
-		if (pdata->lpass_audio_hw_vote == NULL) {
-			dev_err(rtd->card->dev, "%s: Invalid lpass audio hw node\n",
-				__func__);
-			ret = -EINVAL;
-			goto vote_err;
-		}
-		if (pdata->core_audio_vote_count == 0) {
-			ret = clk_prepare_enable(pdata->lpass_audio_hw_vote);
-			if (ret < 0) {
-				dev_err(rtd->card->dev, "%s: audio vote error\n",
-					__func__);
-				goto vote_err;
-			}
-		}
-		pdata->core_audio_vote_count++;
-		mi2s_intf_conf[index].audio_core_vote = true;
-	}
-
 	if (++mi2s_intf_conf[index].ref_cnt == 1) {
+		if (IS_MSM_INTERFACE_MI2S(index) && IS_FRACTIONAL(sample_rate)) {
+			if (pdata->lpass_audio_hw_vote == NULL) {
+				dev_err(rtd->card->dev, "%s: Invalid lpass audio hw node\n",
+					__func__);
+				ret = -EINVAL;
+				goto clean_up;
+			}
+			if (pdata->core_audio_vote_count == 0) {
+				ret = clk_prepare_enable(pdata->lpass_audio_hw_vote);
+				if (ret < 0) {
+					dev_err(rtd->card->dev, "%s: audio vote error\n",
+						__func__);
+					goto clean_up;
+				}
+			}
+			pdata->core_audio_vote_count++;
+			mi2s_intf_conf[index].audio_core_vote = true;
+		}
+
 		/* Check if msm needs to provide the clock to the interface */
 		if (!mi2s_intf_conf[index].msm_is_mi2s_master) {
 			mi2s_clk[index].clk_id = mi2s_ebit_clk[index];
 			fmt = SND_SOC_DAIFMT_CBM_CFM;
 		}
+
+		mi2s_clk[index].clk_freq_in_hz = (sample_rate *
+					MI2S_NUM_CHANNELS * bit_per_sample);
+		dev_dbg(rtd->card->dev, "%s: clock rate %ul\n", __func__,
+			mi2s_clk[index].clk_freq_in_hz);
+
 		ret = msm_mi2s_set_sclk(substream, true);
 		if (ret < 0) {
 			dev_err(rtd->card->dev,
@@ -5407,8 +5499,8 @@ static void msm_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 		if (ret < 0)
 			pr_err("%s:clock disable failed for MI2S (%d); ret=%d\n",
 				__func__, index, ret);
+		mi2s_disable_audio_vote(substream);
 	}
-	mi2s_disable_audio_vote(substream);
 	mutex_unlock(&mi2s_intf_conf[index].lock);
 }
 
@@ -7407,6 +7499,7 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 	struct msm_asoc_mach_data *pdata;
 	int ret = 0;
 	void *mbhc_calibration;
+	bool is_wcd937x = false;
 
 	pdata = snd_soc_card_get_drvdata(card);
 	if (!pdata)
@@ -7425,15 +7518,23 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 
 	component = snd_soc_rtdcom_lookup(rtd, WCD938X_DRV_NAME);
 	if (!component) {
-		pr_err("%s component is NULL\n", __func__);
-		return -EINVAL;
+		component = snd_soc_rtdcom_lookup(rtd, WCD937X_DRV_NAME);
+		if (!component) {
+			pr_err("%s component is NULL\n", __func__);
+			return -EINVAL;
+		} else {
+			is_wcd937x = true;
+		}
 	}
 
 	mbhc_calibration = def_wcd_mbhc_cal();
 	if (!mbhc_calibration)
 		return -ENOMEM;
 	wcd_mbhc_cfg.calibration = mbhc_calibration;
-	ret = wcd938x_mbhc_hs_detect(component, &wcd_mbhc_cfg);
+	if (!is_wcd937x)
+		ret = wcd938x_mbhc_hs_detect(component, &wcd_mbhc_cfg);
+	else
+		ret = wcd937x_mbhc_hs_detect(component, &wcd_mbhc_cfg);
 	if (ret) {
 		dev_err(component->dev, "%s: mbhc hs detect failed, err:%d\n",
 			__func__, ret);
@@ -7690,6 +7791,7 @@ static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_component *component = NULL;
+	struct snd_soc_component *bolero_component = NULL;
 	struct snd_soc_dapm_context *dapm = NULL;
 	int ret = 0;
 	int codec_variant = -1;
@@ -7706,6 +7808,8 @@ static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime *rtd)
 		pr_err("%s: could not find component for bolero_codec\n",
 			__func__);
 		return ret;
+	} else {
+		bolero_component = component;
 	}
 
 	dapm = snd_soc_component_get_dapm(component);
@@ -7752,13 +7856,6 @@ static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 	card = rtd->card->snd_card;
 
-	if (strnstr(rtd->card->name, "shima", strlen(rtd->card->name)) != NULL)
-		bolero_set_port_map(component, ARRAY_SIZE(sm_port_map_shima),
-				sm_port_map_shima);
-	else
-		bolero_set_port_map(component, ARRAY_SIZE(sm_port_map),
-				sm_port_map);
-
 	if (!pdata->codec_root) {
 		entry = msm_snd_info_create_subdir(card->module, "codecs",
 						 card->proc_root);
@@ -7778,8 +7875,11 @@ static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime *rtd)
 	}
 	component = snd_soc_rtdcom_lookup(rtd, WCD938X_DRV_NAME);
 	if (!component) {
-		pr_err("%s component is NULL\n", __func__);
-		return -EINVAL;
+		component = snd_soc_rtdcom_lookup(rtd, WCD937X_DRV_NAME);
+		if (!component) {
+			pr_err("%s component is NULL\n", __func__);
+			return -EINVAL;
+		}
 	}
 	dapm = snd_soc_component_get_dapm(component);
 	card = component->card->snd_card;
@@ -7794,18 +7894,51 @@ static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_ignore_suspend(dapm, "AMIC4");
 	snd_soc_dapm_sync(dapm);
 
-	wcd938x_info_create_codec_entry(pdata->codec_root, component);
+	if (!strncmp(component->driver->name, WCD937X_DRV_NAME,
+	    strlen(WCD937X_DRV_NAME))) {
+		wcd937x_info_create_codec_entry(pdata->codec_root, component);
+		codec_variant = wcd937x_get_codec_variant(component);
+		dev_dbg(component->dev, "%s: variant %d\n",
+			 __func__, codec_variant);
+		if (codec_variant == WCD9370_VARIANT)
+			ret = snd_soc_add_component_controls(component,
+				msm_int_wcd9370_snd_controls,
+				ARRAY_SIZE(msm_int_wcd9370_snd_controls));
+		else if (codec_variant == WCD9375_VARIANT)
+			ret = snd_soc_add_component_controls(component,
+				msm_int_wcd9375_snd_controls,
+				ARRAY_SIZE(msm_int_wcd9375_snd_controls));
+		bolero_set_port_map(bolero_component,
+			ARRAY_SIZE(sm_port_map_wcd937x), sm_port_map_wcd937x);
+	} else if (!strncmp(component->driver->name, WCD938X_DRV_NAME,
+		   strlen(WCD938X_DRV_NAME))) {
+		wcd938x_info_create_codec_entry(pdata->codec_root, component);
 
-	codec_variant = wcd938x_get_codec_variant(component);
-	dev_dbg(component->dev, "%s: variant %d\n", __func__, codec_variant);
-	if (codec_variant == WCD9380)
-		ret = snd_soc_add_component_controls(component,
-					msm_int_wcd9380_snd_controls,
-					ARRAY_SIZE(msm_int_wcd9380_snd_controls));
-	else if (codec_variant == WCD9385)
-		ret = snd_soc_add_component_controls(component,
-					msm_int_wcd9385_snd_controls,
-					ARRAY_SIZE(msm_int_wcd9385_snd_controls));
+		codec_variant = wcd938x_get_codec_variant(component);
+		dev_dbg(component->dev, "%s: variant %d\n",
+			 __func__, codec_variant);
+		if (codec_variant == WCD9380)
+			ret = snd_soc_add_component_controls(component,
+				msm_int_wcd9380_snd_controls,
+				ARRAY_SIZE(msm_int_wcd9380_snd_controls));
+		else if (codec_variant == WCD9385)
+			ret = snd_soc_add_component_controls(component,
+				msm_int_wcd9385_snd_controls,
+				ARRAY_SIZE(msm_int_wcd9385_snd_controls));
+
+		if ((strnstr(rtd->card->name, "shima", strlen(rtd->card->name))
+		    != NULL) || (strnstr(rtd->card->name, "yupik",
+		    strlen(rtd->card->name)) != NULL))
+			bolero_set_port_map(bolero_component,
+				ARRAY_SIZE(sm_port_map_shima),
+				sm_port_map_shima);
+		else
+			bolero_set_port_map(bolero_component,
+				ARRAY_SIZE(sm_port_map), sm_port_map);
+	} else {
+		bolero_set_port_map(bolero_component, ARRAY_SIZE(sm_port_map),
+				 sm_port_map);
+	}
 
 	if (ret < 0) {
 		dev_err(component->dev, "%s: add codec specific snd controls failed: %d\n",
