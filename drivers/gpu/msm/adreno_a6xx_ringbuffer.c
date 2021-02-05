@@ -447,6 +447,7 @@ int a6xx_ringbuffer_submitcmd(struct adreno_device *adreno_dev,
 	struct adreno_context *drawctxt = ADRENO_CONTEXT(drawobj->context);
 	struct adreno_ringbuffer *rb = drawctxt->rb;
 	int ret = 0, numibs = 0, index = 0;
+	unsigned int cmds_onstack[SZ_256] __aligned(sizeof(long));
 	u32 *cmds;
 
 	/* Count the number of IBs (if we are not skipping) */
@@ -457,10 +458,14 @@ int a6xx_ringbuffer_submitcmd(struct adreno_device *adreno_dev,
 			numibs++;
 	}
 
-	cmds = kmalloc((A6XX_COMMAND_DWORDS + (numibs * 5)) << 2, GFP_KERNEL);
-	if (!cmds) {
-		ret = -ENOMEM;
-		goto done;
+	if (A6XX_COMMAND_DWORDS + (numibs * 5) <= ARRAY_SIZE(cmds_onstack)) {
+		cmds = cmds_onstack;
+	} else {
+		cmds = kmalloc((A6XX_COMMAND_DWORDS + (numibs * 5)) << 2, GFP_KERNEL);
+		if (!cmds) {
+			ret = -ENOMEM;
+			goto done;
+		}
 	}
 
 	cmds[index++] = cp_type7_packet(CP_NOP, 1);
@@ -547,6 +552,7 @@ done:
 	trace_kgsl_issueibcmds(device, drawctxt->base.id, numibs,
 		drawobj->timestamp, drawobj->flags, ret, drawctxt->type);
 
-	kfree(cmds);
+	if (cmds != cmds_onstack)
+		kfree(cmds);
 	return ret;
 }
