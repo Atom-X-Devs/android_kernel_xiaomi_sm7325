@@ -42,6 +42,7 @@
 #include <linux/psi.h>
 #include <linux/ramfs.h>
 #include <asm/pgalloc.h>
+#include <asm/tlbflush.h>
 #include "internal.h"
 
 #define CREATE_TRACE_POINTS
