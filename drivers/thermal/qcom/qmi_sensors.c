@@ -17,7 +17,6 @@
 #include <linux/suspend.h>
 
 #include "thermal_sensor_service_v01.h"
-#include "../thermal_core.h"
 
 #define QMI_SENS_DRIVER		"qmi-therm-sensors"
 #define QMI_TS_RESP_TOUT	msecs_to_jiffies(100)
@@ -276,8 +275,7 @@ static void qmi_ts_thresh_notify(struct work_struct *work)
 						struct qmi_sensor,
 						therm_notify_work);
 
-	of_thermal_handle_trip_temp(qmi_sens->dev, qmi_sens->tz_dev,
-				qmi_sens->last_reading);
+	thermal_zone_device_update(qmi_sens->tz_dev, THERMAL_TRIP_VIOLATED);
 };
 
 static void qmi_ts_update_temperature(struct qmi_ts_instance *ts,
