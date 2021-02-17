@@ -4293,12 +4293,15 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
  * This is needed as the returned vma is kept in memory until the call to
  * can_reuse_spf_vma() is made.
  */
-vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
-			       unsigned long address, unsigned int flags,
-			       struct vm_area_struct **vma)
+static vm_fault_t ___handle_speculative_fault(struct mm_struct *mm,
+				unsigned long address, unsigned int flags,
+				struct vm_area_struct *vma)
 {
 	struct vm_fault vmf = {
 		.address = address,
+		.pgoff = linear_page_index(vma, address),
+		.vma = vma,
+		.gfp_mask = __get_fault_gfp_mask(vma),
 	};
 	pgd_t *pgd, pgdval;
 	p4d_t *p4d, p4dval;
@@ -4309,11 +4312,6 @@ vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
 	/* Clear flags that may lead to release the mmap_sem to retry */
 	flags &= ~(FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_KILLABLE);
 	flags |= FAULT_FLAG_SPECULATIVE;
-
-	*vma = get_vma(mm, address);
-	if (!*vma)
-		return VM_FAULT_RETRY;
-	vmf.vma = *vma;
 
 	/* rmb <-> seqlock,vma_rb_erase() */
 	seq = raw_read_seqcount(&vmf.vma->vm_sequence);
@@ -4448,8 +4446,6 @@ vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
 		vmf.pte = NULL;
 	}
 
-	vmf.pgoff = linear_page_index(vmf.vma, address);
-	vmf.gfp_mask = __get_fault_gfp_mask(vmf.vma);
 	vmf.sequence = seq;
 	vmf.flags = flags;
 
@@ -4466,17 +4462,11 @@ vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
 	ret = handle_pte_fault(&vmf);
 	mem_cgroup_exit_user_fault();
 
-	/*
-	 * If there is no need to retry, don't return the vma to the caller.
-	 */
 	if (ret != VM_FAULT_RETRY) {
-		check_sync_rss_stat(current);
 		if (vma_is_anonymous(vmf.vma))
 			count_vm_event(SPECULATIVE_PGFAULT_ANON);
 		else
 			count_vm_event(SPECULATIVE_PGFAULT_FILE);
-		put_vma(vmf.vma);
-		*vma = NULL;
 	}
 
 	/*
@@ -4494,13 +4484,32 @@ out_walk:
 	return VM_FAULT_RETRY;
 
 out_segv:
-	/*
-	 * We don't return VM_FAULT_RETRY so the caller is not expected to
-	 * retrieve the fetched VMA.
-	 */
-	put_vma(vmf.vma);
-	*vma = NULL;
 	return VM_FAULT_SIGSEGV;
+}
+
+vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
+				unsigned long address, unsigned int flags,
+				struct vm_area_struct **vma)
+{
+	vm_fault_t ret;
+
+	check_sync_rss_stat(current);
+
+	*vma = get_vma(mm, address);
+	if (!*vma)
+		return VM_FAULT_RETRY;
+
+	ret = ___handle_speculative_fault(mm, address, flags, *vma);
+
+	/*
+	 * If there is no need to retry, don't return the vma to the caller.
+	 */
+	if (ret != VM_FAULT_RETRY) {
+		put_vma(*vma);
+		*vma = NULL;
+	}
+
+	return ret;
 }
 
 /*
