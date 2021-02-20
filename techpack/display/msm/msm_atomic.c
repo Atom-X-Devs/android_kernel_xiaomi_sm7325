@@ -550,10 +550,21 @@ static void complete_commit(struct msm_commit *c)
 static void _msm_drm_commit_work_cb(struct kthread_work *work)
 {
 	struct msm_commit *c = container_of(work, typeof(*c), commit_work);
+	struct pm_qos_request req = {
+		.type = PM_QOS_REQ_AFFINE_CORES,
+		.cpus_affine = BIT(raw_smp_processor_id())
+	};
 
+	/*
+	 * Optimistically assume the current task won't migrate to another CPU
+	 * and restrict the current CPU to shallow idle states so that it won't
+	 * take too long to resume after waiting for the prior commit to finish.
+	 */
+	cpu_latency_qos_add_request(&req, 100);
 	SDE_ATRACE_BEGIN("complete_commit");
 	complete_commit(c);
 	SDE_ATRACE_END("complete_commit");
+	cpu_latency_qos_remove_request(&req);
 
 	if (c->nonblock) {
 		/* Offload the cleanup onto little CPUs (an unbound wq) */
