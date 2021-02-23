@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # scripts/dtc makefile
 
+# *** Also keep .gitignore in sync when changing ***
 hostprogs-$(CONFIG_DTC) := dtc fdtoverlay
 ifeq ($(DTC_EXT),)
 always		:= $(hostprogs-y)
