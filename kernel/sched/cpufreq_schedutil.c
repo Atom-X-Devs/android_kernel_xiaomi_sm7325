@@ -204,23 +204,11 @@ static void sugov_calc_avg_cap(struct sugov_policy *sg_policy, u64 curr_ws,
 	sg_policy->last_ws = curr_ws;
 }
 
-static void sugov_fast_switch(struct sugov_policy *sg_policy, u64 time,
-			      unsigned int next_freq)
+static void sugov_deferred_update(struct sugov_policy *sg_policy)
 {
-	if (sugov_update_next_freq(sg_policy, time, next_freq)) {
-		sugov_track_cycles(sg_policy, sg_policy->policy->cur, time);
-		cpufreq_driver_fast_switch(sg_policy->policy, next_freq);
-	}
-}
-
-static void sugov_deferred_update(struct sugov_policy *sg_policy, u64 time,
-				  unsigned int next_freq)
-{
-	if (!sugov_update_next_freq(sg_policy, time, next_freq))
-		return;
-
 	if (use_pelt())
 		sg_policy->work_in_progress = true;
+
 	walt_irq_work_queue(&sg_policy->irq_work);
 }
 
@@ -647,16 +635,20 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 		sg_policy->cached_raw_freq = 0;
 	}
 
+	if (!sugov_update_next_freq(sg_policy, time, next_f))
+		return;
+
 	/*
 	 * This code runs under rq->lock for the target CPU, so it won't run
 	 * concurrently on two different CPUs for the same target and it is not
 	 * necessary to acquire the lock in the fast switch case.
 	 */
 	if (sg_policy->policy->fast_switch_enabled) {
-		sugov_fast_switch(sg_policy, time, next_f);
+		sugov_track_cycles(sg_policy, sg_policy->policy->cur, time);
+		cpufreq_driver_fast_switch(sg_policy->policy, next_f);
 	} else {
 		raw_spin_lock(&sg_policy->update_lock);
-		sugov_deferred_update(sg_policy, time, next_f);
+		sugov_deferred_update(sg_policy);
 		raw_spin_unlock(&sg_policy->update_lock);
 	}
 }
@@ -752,12 +744,16 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 	    !(flags & SCHED_CPUFREQ_CONTINUE)) {
 		next_f = sugov_next_freq_shared(sg_cpu, time);
 
-		if (sg_policy->policy->fast_switch_enabled)
-			sugov_fast_switch(sg_policy, time, next_f);
-		else
-			sugov_deferred_update(sg_policy, time, next_f);
-	}
+		if (!sugov_update_next_freq(sg_policy, time, next_f))
+			goto unlock;
 
+		if (sg_policy->policy->fast_switch_enabled) {
+			sugov_track_cycles(sg_policy, sg_policy->policy->cur, time);
+			cpufreq_driver_fast_switch(sg_policy->policy, next_f);
+		} else
+			sugov_deferred_update(sg_policy);
+	}
+unlock:
 	raw_spin_unlock(&sg_policy->update_lock);
 }
 
@@ -1275,8 +1271,7 @@ static void sugov_limits(struct cpufreq_policy *policy)
 	if (!policy->fast_switch_enabled) {
 		mutex_lock(&sg_policy->work_lock);
 		raw_spin_lock_irqsave(&sg_policy->update_lock, flags);
-		sugov_track_cycles(sg_policy, sg_policy->policy->cur,
-				   ktime_get_ns());
+		sugov_track_cycles(sg_policy, sg_policy->policy->cur, ktime_get_ns());
 		raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
 		cpufreq_policy_apply_limits(policy);
 		mutex_unlock(&sg_policy->work_lock);
@@ -1291,7 +1286,8 @@ static void sugov_limits(struct cpufreq_policy *policy)
 		 */
 		freq = cpufreq_driver_resolve_freq(policy, freq);
 		sg_policy->cached_raw_freq = freq;
-		sugov_fast_switch(sg_policy, now, freq);
+		sugov_track_cycles(sg_policy, sg_policy->policy->cur, ktime_get_ns());
+		cpufreq_driver_fast_switch(sg_policy->policy, freq);
 		raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
 	}
 
