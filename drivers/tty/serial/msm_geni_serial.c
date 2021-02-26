@@ -3484,14 +3484,7 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 
 	ret = uart_add_one_port(drv, uport);
 	if (ret)
-		dev_err(&pdev->dev, "Failed to register uart_port: %d\n",
-				ret);
-	/*
-	 * Remove proxy vote from QUP core which was kept from common driver
-	 * probe on behalf of earlycon
-	 */
-	if (dev_port->is_console)
-		geni_se_remove_earlycon_icc_vote(dev_port->wrapper_dev);
+		dev_err(&pdev->dev, "Failed to register uart_port: %d\n", ret);
 
 	if (strcmp(id->compatible, "qcom,msm-geni-console") == 0)
 		snprintf(boot_marker, sizeof(boot_marker),
