@@ -125,6 +125,8 @@ int a6xx_ringbuffer_submit(struct adreno_ringbuffer *rb,
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 	int ret = 0;
 	unsigned long flags;
+	bool write = false;
+	unsigned int val;
 
 	adreno_get_submit_time(adreno_dev, rb, time);
 	adreno_profile_submit_time(time);
@@ -144,9 +146,8 @@ int a6xx_ringbuffer_submit(struct adreno_ringbuffer *rb,
 	if (adreno_in_preempt_state(adreno_dev, ADRENO_PREEMPT_NONE)) {
 		if (adreno_dev->cur_rb == rb) {
 			kgsl_pwrscale_busy(device);
-			ret = a6xx_fenced_write(adreno_dev,
-				A6XX_CP_RB_WPTR, rb->_wptr,
-				FENCE_STATUS_WRITEDROPPED0_MASK);
+			write = true;
+			val = rb->_wptr;
 			rb->skip_inline_wptr = false;
 		}
 	} else {
@@ -156,6 +157,14 @@ int a6xx_ringbuffer_submit(struct adreno_ringbuffer *rb,
 
 	rb->wptr = rb->_wptr;
 	spin_unlock_irqrestore(&rb->preempt_lock, flags);
+
+	/*
+	 * Ensure the write posted after a possible
+	 * GMU wakeup (write could have dropped during wakeup)
+	 */
+	if (write)
+		ret = a6xx_fenced_write(adreno_dev, A6XX_CP_RB_WPTR, val,
+				FENCE_STATUS_WRITEDROPPED0_MASK);
 
 	if (ret) {
 		/*

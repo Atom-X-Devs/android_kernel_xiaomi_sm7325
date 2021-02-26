@@ -214,7 +214,11 @@ int a6xx_fenced_write(struct adreno_device *adreno_dev, u32 offset,
 			break;
 
 		/* Wait a small amount of time before trying again */
-		udelay(GMU_CORE_WAKEUP_DELAY_US);
+		if (in_atomic())
+			udelay(GMU_CORE_WAKEUP_DELAY_US);
+		else
+			usleep_range(GMU_CORE_WAKEUP_DELAY_US,
+				     3 * GMU_CORE_WAKEUP_DELAY_US);
 
 		/* Try to write the fenced register again */
 		kgsl_regwrite(device, offset, value);
