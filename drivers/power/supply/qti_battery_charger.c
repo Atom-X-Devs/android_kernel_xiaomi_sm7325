@@ -587,6 +587,7 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 
 		break;
 	case BC_SET_NOTIFY_REQ:
+	case BC_SHUTDOWN_NOTIFY:
 		/* Always ACK response for notify request */
 		ack_set = true;
 		break;
