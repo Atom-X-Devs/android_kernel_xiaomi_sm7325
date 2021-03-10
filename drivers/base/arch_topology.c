@@ -33,7 +33,7 @@ __weak bool arch_freq_counters_available(const struct cpumask *cpus)
 {
 	return false;
 }
-DEFINE_PER_CPU(unsigned long, freq_scale) = SCHED_CAPACITY_SCALE;
+DEFINE_PER_CPU(unsigned long, arch_freq_scale) = SCHED_CAPACITY_SCALE;
 DEFINE_PER_CPU(unsigned long, max_cpu_freq);
 DEFINE_PER_CPU(unsigned long, max_freq_scale) = SCHED_CAPACITY_SCALE;
 
@@ -59,7 +59,7 @@ void arch_set_freq_scale(const struct cpumask *cpus, unsigned long cur_freq,
 	trace_android_vh_arch_set_freq_scale((struct cpumask *)cpus, cur_freq, max_freq, &scale);
 
 	for_each_cpu(i, cpus){
-		per_cpu(freq_scale, i) = scale;
+		per_cpu(arch_freq_scale, i) = scale;
 		per_cpu(max_cpu_freq, i) = max_freq;
 	}
 }
