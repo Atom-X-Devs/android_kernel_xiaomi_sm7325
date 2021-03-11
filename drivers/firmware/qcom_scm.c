@@ -350,7 +350,7 @@ int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus)
 		.arginfo = QCOM_SCM_ARGS(2),
 	};
 
-	if (!cpus || (cpus && cpumask_empty(cpus)))
+	if (!cpus || cpumask_empty(cpus))
 		return -EINVAL;
 
 	for_each_cpu(cpu, cpus) {
