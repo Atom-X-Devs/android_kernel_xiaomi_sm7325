@@ -63,6 +63,9 @@ struct erofs_sb_info {
 	/* current strategy of how to use managed cache */
 	unsigned char cache_strategy;
 
+	/* strategy of sync decompression (false - auto, true - force on) */
+	bool readahead_sync_decompress;
+
 	/* pseudo inode to manage cached pages */
 	struct inode *managed_cache;
 #endif	/* CONFIG_EROFS_FS_ZIP */
