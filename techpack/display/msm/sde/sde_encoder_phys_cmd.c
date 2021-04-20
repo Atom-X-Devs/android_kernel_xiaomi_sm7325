@@ -1192,10 +1192,7 @@ static bool sde_encoder_phys_cmd_is_autorefresh_enabled(
 		ret = hw_pp->ops.get_autorefresh(hw_pp, &cfg);
 	}
 
-	if (ret)
-		return false;
-
-	return cfg.enable;
+	return ret ? false : cfg.enable;
 }
 
 static void sde_encoder_phys_cmd_connect_te(
@@ -1314,6 +1311,7 @@ static void sde_encoder_phys_cmd_disable(struct sde_encoder_phys *phys_enc)
 			sde_encoder_helper_phys_disable(phys_enc, NULL);
 	}
 
+	memset(&cmd_enc->autorefresh.cfg, 0, sizeof(struct sde_hw_autorefresh));
 	phys_enc->enable_state = SDE_ENC_DISABLED;
 }
 
