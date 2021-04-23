@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2010-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2021, The Linux Foundation. All rights reserved.
  */
 
 #ifndef __KGSL_PWRSCALE_H
@@ -100,5 +100,10 @@ int kgsl_busmon_target(struct device *dev, unsigned long *freq, u32 flags);
 int kgsl_busmon_get_dev_status(struct device *dev,
 			struct devfreq_dev_status *stat);
 int kgsl_busmon_get_cur_freq(struct device *dev, unsigned long *freq);
+
+int msm_adreno_tz_init(void);
+void msm_adreno_tz_exit(void);
+int devfreq_gpubw_init(void);
+void devfreq_gpubw_exit(void);
 
 #endif
