@@ -1193,8 +1193,7 @@ static int32_t __cam_req_mgr_find_slot_for_req(
 		}
 		__cam_req_mgr_dec_idx(&idx, 1, in_q->num_slots);
 	}
-
-	if ((i >= in_q->num_slots) || (idx >= in_q->num_slots))
+	if (i >= in_q->num_slots)
 		idx = -1;
 
 	return idx;
@@ -3066,15 +3065,6 @@ static bool cam_req_mgr_cb_notify_err(
 		goto end;
 	}
 
-	if (link->req.in_q->num_slots > MAX_REQ_SLOTS) {
-		CAM_ERR(CAM_CRM,
-			"invalid MAX slot %d link %d link_hdl 0x%x err_info %d req %lld",
-			link->req.in_q->num_slots, err_info->link_hdl, link,
-			err_info->error, err_info->req_id);
-		rc = false;
-		goto end;
-	}
-
 	idx = __cam_req_mgr_find_slot_for_req(
 			link->req.in_q, err_info->req_id);
 	if (idx < 0) {
@@ -3085,14 +3075,6 @@ static bool cam_req_mgr_cb_notify_err(
 		goto end;
 	}
 
-	if ((err_info->error != CRM_KMD_ERR_BUBBLE) ||
-		(!err_info->req_id)) {
-		CAM_ERR(CAM_CRM,
-			"invalid param: Err %d link_hdl %d link 0x%x req %lld",
-			err_info->error, err_info->link_hdl, link, err_info->req_id);
-		rc = false;
-		goto end;
-	}
 	tmp_slot = &link->req.in_q->slot[idx];
 
 	/* Incrementing slot idx to find if request in the slot

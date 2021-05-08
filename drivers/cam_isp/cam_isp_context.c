@@ -2466,7 +2466,7 @@ static int __cam_isp_ctx_handle_error(struct cam_isp_context *ctx_isp,
 
 	uint32_t error_type = error_event_data->error_type;
 
-	CAM_INFO(CAM_ISP, "Enter error_type = %d", error_type);
+	CAM_DBG(CAM_ISP, "Enter error_type = %d", error_type);
 
 	if ((error_type == CAM_ISP_HW_ERROR_OVERFLOW) ||
 		(error_type == CAM_ISP_HW_ERROR_BUSIF_OVERFLOW) ||
