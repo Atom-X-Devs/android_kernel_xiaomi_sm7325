@@ -99,6 +99,11 @@
 		interrupts = <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
+
+	qcom,cpufreq-cdev {
+		compatible = "qcom,cpufreq-cdev";
+		qcom,cpus = <&CPU0 &CPU4 &CPU7>;
+	};
 };
 
 &qmi_tmd {
