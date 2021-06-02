@@ -46,6 +46,7 @@
 #include <linux/livepatch.h>
 #include <linux/cgroup.h>
 #include <linux/audit.h>
+#include <linux/oom.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/signal.h>
@@ -55,6 +56,9 @@
 #include <asm/unistd.h>
 #include <asm/siginfo.h>
 #include <asm/cacheflush.h>
+
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/signal.h>
 
 /*
  * SLAB caches for signal bits.
@@ -1411,8 +1415,16 @@ int group_send_sig_info(int sig, struct kernel_siginfo *info,
 	ret = check_kill_permission(sig, info, p);
 	rcu_read_unlock();
 
-	if (!ret && sig)
+	if (!ret && sig) {
 		ret = do_send_sig_info(sig, info, p, type);
+		if (!ret && sig == SIGKILL) {
+			bool reap = false;
+
+			trace_android_vh_process_killed(current, &reap);
+			if (reap)
+				add_to_oom_reaper(p);
+		}
+	}
 
 	return ret;
 }

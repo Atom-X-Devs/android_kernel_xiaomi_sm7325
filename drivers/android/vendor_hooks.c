@@ -23,6 +23,7 @@
 #include <trace/hooks/sys.h>
 #include <trace/hooks/cpuidle.h>
 #include <trace/hooks/pm_domain.h>
+#include <trace/hooks/signal.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -41,6 +42,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_prepare_prio_fork);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_finish_prio_fork);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_user_nice);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_setscheduler);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_process_killed);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_wait_start);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_wait_finish);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rwsem_read_wait_start);
