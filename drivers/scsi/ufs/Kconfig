@@ -196,3 +196,9 @@ config SCSI_UFS_CRYPTO_QTI
 	 Enable Vendor Crypto Engine Support in UFS
 	 Enabling this allows kernel to use UFS crypto operations defined
 	 and implemented by QTI.
+
+config SCSI_SKHPB
+	bool "Activate HPB Host-aware Performance Booster"
+	depends on (SCSI_UFSHCD || SCSI_UFSHCD_QTI)
+	help
+	  Activate or deactive SKHPB driver
