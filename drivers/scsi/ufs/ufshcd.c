@@ -51,6 +51,7 @@
 #include "ufs-sysfs.h"
 #include "ufs_bsg.h"
 #include "ufshcd-crypto.h"
+#include <linux/proc_fs.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ufs.h>
@@ -125,6 +126,190 @@
 		       __len > 4 ? DUMP_PREFIX_OFFSET : DUMP_PREFIX_NONE,\
 		       16, 4, buf, __len, false);                        \
 } while (0)
+
+#if defined(CONFIG_SCSI_UFSHCD_QTI)
+static int proc_show_hba_show(struct seq_file *file, void *data)
+{
+	struct ufs_hba *hba = PDE_DATA(file_inode(file->file));
+
+	seq_printf(file, "hba->outstanding_tasks = 0x%x\n",
+			(u32)hba->outstanding_tasks);
+	seq_printf(file, "hba->outstanding_reqs = 0x%x\n",
+			(u32)hba->outstanding_reqs);
+
+	seq_printf(file, "hba->capabilities = 0x%x\n", hba->capabilities);
+	seq_printf(file, "hba->nutrs = %d\n", hba->nutrs);
+	seq_printf(file, "hba->nutmrs = %d\n", hba->nutmrs);
+	seq_printf(file, "hba->ufs_version = 0x%x\n", hba->ufs_version);
+	seq_printf(file, "hba->irq = 0x%x\n", hba->irq);
+	seq_printf(file, "hba->auto_bkops_enabled = %d\n",
+			hba->auto_bkops_enabled);
+
+	seq_printf(file, "hba->ufshcd_state = 0x%x\n", hba->ufshcd_state);
+	seq_printf(file, "hba->clk_gating.state = 0x%x\n",
+			hba->clk_gating.state);
+	seq_printf(file, "hba->eh_flags = 0x%x\n", hba->eh_flags);
+	seq_printf(file, "hba->intr_mask = 0x%x\n", hba->intr_mask);
+	seq_printf(file, "hba->ee_ctrl_mask = 0x%x\n", hba->ee_ctrl_mask);
+
+	seq_printf(file, "hba->errors = 0x%x\n", hba->errors);
+	seq_printf(file, "hba->uic_error = 0x%x\n", hba->uic_error);
+	seq_printf(file, "hba->saved_err = 0x%x\n", hba->saved_err);
+	seq_printf(file, "hba->saved_uic_err = 0x%x\n", hba->saved_uic_err);
+
+	seq_printf(file, "power_mode_change_cnt = %d\n",
+			hba->ufs_stats.power_mode_change_cnt);
+	seq_printf(file, "hibern8_exit_cnt = %d\n",
+			hba->ufs_stats.hibern8_exit_cnt);
+
+	seq_printf(file, "pa_err_cnt_total = %d\n",
+			hba->ufs_stats.pa_err_cnt_total);
+	seq_printf(file, "pa_lane_0_err_cnt = %d\n",
+			hba->ufs_stats.pa_err_cnt[UFS_EC_PA_LANE_0]);
+	seq_printf(file, "pa_lane_1_err_cnt = %d\n",
+			hba->ufs_stats.pa_err_cnt[UFS_EC_PA_LANE_1]);
+	seq_printf(file, "pa_line_reset_err_cnt = %d\n",
+			hba->ufs_stats.pa_err_cnt[UFS_EC_PA_LINE_RESET]);
+	seq_printf(file, "dl_err_cnt_total = %d\n",
+			hba->ufs_stats.dl_err_cnt_total);
+	seq_printf(file, "dl_nac_received_err_cnt = %d\n",
+			hba->ufs_stats.dl_err_cnt[UFS_EC_DL_NAC_RECEIVED]);
+	seq_printf(file, "dl_tcx_replay_timer_expired_err_cnt = %d\n",
+	hba->ufs_stats.dl_err_cnt[UFS_EC_DL_TCx_REPLAY_TIMER_EXPIRED]);
+	seq_printf(file, "dl_afcx_request_timer_expired_err_cnt = %d\n",
+	hba->ufs_stats.dl_err_cnt[UFS_EC_DL_AFCx_REQUEST_TIMER_EXPIRED]);
+	seq_printf(file, "dl_fcx_protection_timer_expired_err_cnt = %d\n",
+	hba->ufs_stats.dl_err_cnt[UFS_EC_DL_FCx_PROTECT_TIMER_EXPIRED]);
+	seq_printf(file, "dl_crc_err_cnt = %d\n",
+			hba->ufs_stats.dl_err_cnt[UFS_EC_DL_CRC_ERROR]);
+	seq_printf(file, "dll_rx_buffer_overflow_err_cnt = %d\n",
+		   hba->ufs_stats.dl_err_cnt[UFS_EC_DL_RX_BUFFER_OVERFLOW]);
+	seq_printf(file, "dl_max_frame_length_exceeded_err_cnt = %d\n",
+		hba->ufs_stats.dl_err_cnt[UFS_EC_DL_MAX_FRAME_LENGTH_EXCEEDED]);
+	seq_printf(file, "dl_wrong_sequence_number_err_cnt = %d\n",
+		   hba->ufs_stats.dl_err_cnt[UFS_EC_DL_WRONG_SEQUENCE_NUMBER]);
+	seq_printf(file, "dl_afc_frame_syntax_err_cnt = %d\n",
+		   hba->ufs_stats.dl_err_cnt[UFS_EC_DL_AFC_FRAME_SYNTAX_ERROR]);
+	seq_printf(file, "dl_nac_frame_syntax_err_cnt = %d\n",
+		   hba->ufs_stats.dl_err_cnt[UFS_EC_DL_NAC_FRAME_SYNTAX_ERROR]);
+	seq_printf(file, "dl_eof_syntax_err_cnt = %d\n",
+		   hba->ufs_stats.dl_err_cnt[UFS_EC_DL_EOF_SYNTAX_ERROR]);
+	seq_printf(file, "dl_frame_syntax_err_cnt = %d\n",
+		   hba->ufs_stats.dl_err_cnt[UFS_EC_DL_FRAME_SYNTAX_ERROR]);
+	seq_printf(file, "dl_bad_ctrl_symbol_type_err_cnt = %d\n",
+		   hba->ufs_stats.dl_err_cnt[UFS_EC_DL_BAD_CTRL_SYMBOL_TYPE]);
+	seq_printf(file, "dl_pa_init_err_cnt = %d\n",
+		   hba->ufs_stats.dl_err_cnt[UFS_EC_DL_PA_INIT_ERROR]);
+	seq_printf(file, "dl_pa_error_ind_received = %d\n",
+		   hba->ufs_stats.dl_err_cnt[UFS_EC_DL_PA_ERROR_IND_RECEIVED]);
+	seq_printf(file, "dme_err_cnt = %d\n", hba->ufs_stats.dme_err_cnt);
+
+	return 0;
+}
+
+static int proc_show_hba_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_show_hba_show, inode->i_private);
+}
+
+static const struct file_operations proc_show_hba_fops = {
+	.open		= proc_show_hba_open,
+	.read		= seq_read,
+};
+#endif
+
+static int ufs_debug_clk;
+
+static ssize_t ufs_debug_clk_write(struct file *filp, const char *ubuf,
+				 size_t cnt, loff_t *data)
+{
+	char buf[64] = {0};
+	long val = 0;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, cnt))
+		return -EFAULT;
+
+	if (buf[0] == '0')
+		val = 0;
+	else if (buf[0] == '1')
+		val = 1;
+
+	ufs_debug_clk = val;
+
+	return cnt;
+}
+
+static int ufs_debug_clk_show(struct seq_file *file, void *data)
+{
+	seq_printf(file, "%d\n", ufs_debug_clk);
+	return 0;
+}
+
+static int ufs_debug_clk_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ufs_debug_clk_show, inode->i_private);
+}
+
+static const struct file_operations ufs_debug_clk_fops = {
+	.open = ufs_debug_clk_open,
+	.read = seq_read,
+	.write = ufs_debug_clk_write,
+};
+
+static void create_ufs_debug_clk(struct ufs_hba *hba)
+{
+	struct proc_dir_entry *pdentry, *de;
+
+	if (!hba) {
+		pr_err("%s: NULL hba, exiting\n", __func__);
+		return;
+	}
+
+	pdentry = proc_mkdir(dev_name(hba->dev), NULL);
+
+	if (IS_ERR(pdentry))
+		goto err_no_root;
+	if (!pdentry) {
+		dev_err(hba->dev,
+			"%s: NULL procfs root directory, exiting\n", __func__);
+		goto err_no_root;
+	}
+
+	de = proc_create_data("ufs_debug_clk", 0600,
+					   pdentry, &ufs_debug_clk_fops, hba);
+	if (!de) {
+		dev_err(hba->dev, "%s:	failed to create ufs_debug_clk in procfs\n",
+			__func__);
+	}
+
+#if defined(CONFIG_SCSI_UFSHCD_QTI)
+	de = proc_create_data("show_hba", 0400,
+					   pdentry, &proc_show_hba_fops, hba);
+	if (!de) {
+		dev_err(hba->dev, "%s:  failed to create show_hba in procfs\n",
+			__func__);
+		goto err_state;
+	}
+#endif
+
+	return;
+
+#if defined(CONFIG_SCSI_UFSHCD_QTI)
+err_state:
+	remove_proc_entry("err_state", pdentry);
+	remove_proc_entry(dev_name(hba->dev), NULL);
+	pdentry = NULL;
+#endif
+err_no_root:
+	dev_err(hba->dev, "%s: failed to initialize procfs\n", __func__);
+}
+
+static void remove_ufs_debug_clk(struct ufs_hba *hba)
+{
+	remove_proc_entry(dev_name(hba->dev), NULL);
+}
 
 int ufshcd_dump_regs(struct ufs_hba *hba, size_t offset, size_t len,
 		     const char *prefix)
@@ -250,7 +435,36 @@ static struct ufs_dev_fix ufs_fixups[] = {
 	UFS_FIX(UFS_VENDOR_SAMSUNG, "KLUDG4UHDB-B2D1",
 		UFS_DEVICE_QUIRK_PA_HIBER8TIME),
 #endif
+#if defined(CONFIG_SCSI_SKHPB)
+	UFS_FIX(UFS_VENDOR_SKHYNIX, "H28S",
+		SKHPB_QUIRK_PURGE_HINT_INFO_WHEN_SLEEP),
 
+	UFS_FIX(UFS_VENDOR_SKHYNIX, "H9HQ15ACPMA",
+		SKHPB_QUIRK_PURGE_HINT_INFO_WHEN_SLEEP),
+	UFS_FIX(UFS_VENDOR_SKHYNIX, "H9HQ15AECMA",
+		SKHPB_QUIRK_PURGE_HINT_INFO_WHEN_SLEEP),
+	UFS_FIX(UFS_VENDOR_SKHYNIX, "H9HQ15AECMM",
+		SKHPB_QUIRK_PURGE_HINT_INFO_WHEN_SLEEP),
+	UFS_FIX(UFS_VENDOR_SKHYNIX, "H9HQ15AFAMA",
+		SKHPB_QUIRK_PURGE_HINT_INFO_WHEN_SLEEP),
+	UFS_FIX(UFS_VENDOR_SKHYNIX, "H9HQ15AFAMM",
+		SKHPB_QUIRK_PURGE_HINT_INFO_WHEN_SLEEP),
+	UFS_FIX(UFS_VENDOR_SKHYNIX, "H9HQ15AJAMM",
+		SKHPB_QUIRK_PURGE_HINT_INFO_WHEN_SLEEP),
+
+	UFS_FIX(UFS_VENDOR_SKHYNIX, "H9HQ21AECMM",
+		SKHPB_QUIRK_PURGE_HINT_INFO_WHEN_SLEEP),
+	UFS_FIX(UFS_VENDOR_SKHYNIX, "H9HQ21AECMZ",
+		SKHPB_QUIRK_PURGE_HINT_INFO_WHEN_SLEEP),
+	UFS_FIX(UFS_VENDOR_SKHYNIX, "H9HQ21AFAMM",
+		SKHPB_QUIRK_PURGE_HINT_INFO_WHEN_SLEEP),
+	UFS_FIX(UFS_VENDOR_SKHYNIX, "H9HQ21AFAMZ",
+		SKHPB_QUIRK_PURGE_HINT_INFO_WHEN_SLEEP),
+	UFS_FIX(UFS_VENDOR_SKHYNIX, "H9HQ21AJAMM",
+		SKHPB_QUIRK_PURGE_HINT_INFO_WHEN_SLEEP),
+	UFS_FIX(UFS_VENDOR_SKHYNIX, "H9HQ21AHDMM",
+		SKHPB_QUIRK_PURGE_HINT_INFO_WHEN_SLEEP),
+#endif
 	END_FIX
 };
 
@@ -2561,6 +2775,12 @@ static int ufshcd_comp_scsi_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		ufshcd_prepare_req_desc_hdr(lrbp, &upiu_flags,
 						lrbp->cmd->sc_data_direction);
 		ufshcd_prepare_utp_scsi_cmd_upiu(lrbp, upiu_flags);
+#ifdef CONFIG_SCSI_SKHPB
+		if (hba->skhpb_state == SKHPB_PRESENT &&
+			hba->issue_ioctl == false) {
+			skhpb_prep_fn(hba, lrbp);
+		}
+#endif
 	} else {
 		ret = -EINVAL;
 	}
@@ -2962,8 +3182,13 @@ static inline void ufshcd_init_query(struct ufs_hba *hba,
 	(*request)->upiu_req.selector = selector;
 }
 
+#ifdef CONFIG_SCSI_SKHPB
+int ufshcd_query_flag_retry(struct ufs_hba *hba,
+	enum query_opcode opcode, enum flag_idn idn, u8 index, bool *flag_res)
+#else
 static int ufshcd_query_flag_retry(struct ufs_hba *hba,
 	enum query_opcode opcode, enum flag_idn idn, u8 index, bool *flag_res)
+#endif
 {
 	int ret;
 	int retries;
@@ -4970,7 +5195,11 @@ static int ufshcd_slave_configure(struct scsi_device *sdev)
 
 	if (ufshcd_is_rpm_autosuspend_allowed(hba))
 		sdev->rpm_autosuspend = 1;
-
+#ifdef CONFIG_SCSI_SKHPB
+	if (hba->dev_info.wmanufacturerid == UFS_VENDOR_SKHYNIX)
+		if (sdev->lun < UFS_UPIU_MAX_GENERAL_LUN)
+			hba->sdev_ufs_lu[sdev->lun] = sdev;
+#endif
 	return 0;
 }
 
@@ -5099,6 +5328,11 @@ ufshcd_transfer_rsp_status(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 				if (schedule_work(&hba->eeh_work))
 					pm_runtime_get_noresume(hba->dev);
 			}
+#ifdef CONFIG_SCSI_SKHPB
+			if (hba->skhpb_state == SKHPB_PRESENT &&
+					scsi_status == SAM_STAT_GOOD)
+				skhpb_rsp_upiu(hba, lrbp);
+#endif
 			break;
 		case UPIU_TRANSACTION_REJECT_UPIU:
 			/* TODO: handle Reject UPIU Response */
@@ -6733,6 +6967,12 @@ out:
 	hba->req_abort_count = 0;
 	ufshcd_update_reg_hist(&hba->ufs_stats.dev_reset, (u32)err);
 	if (!err) {
+#ifdef CONFIG_SCSI_SKHPB
+	if (hba->skhpb_state == SKHPB_PRESENT)
+		hba->skhpb_state = SKHPB_RESET;
+	schedule_delayed_work(&hba->skhpb_init_work,
+						  msecs_to_jiffies(10));
+#endif
 		err = SUCCESS;
 	} else {
 		dev_err(hba->dev, "%s: failed with err %d\n", __func__, err);
@@ -7956,6 +8196,11 @@ reinit:
 	ufshcd_set_active_icc_lvl(hba);
 
 	ufshcd_wb_config(hba);
+
+#ifdef CONFIG_SCSI_SKHPB
+	if (hba->dev_info.wmanufacturerid == UFS_VENDOR_SKHYNIX)
+		schedule_delayed_work(&hba->skhpb_init_work, 0);
+#endif
 	/* Enable Auto-Hibernate if configured */
 	ufshcd_auto_hibern8_enable(hba);
 
@@ -8334,8 +8579,9 @@ static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
 				clk_disable_unprepare(clki->clk);
 			}
 			clki->enabled = on;
-			dev_dbg(hba->dev, "%s: clk: %s %sabled\n", __func__,
-					clki->name, on ? "en" : "dis");
+			if (ufs_debug_clk)
+				dev_err(hba->dev, "%s: clk: %s %sabled\n", __func__,
+						clki->name, on ? "en" : "dis");
 		}
 	}
 
@@ -8806,7 +9052,7 @@ static void ufshcd_hba_vreg_set_hpm(struct ufs_hba *hba)
 static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
 	int ret = 0;
-	enum ufs_pm_level pm_lvl;
+	enum ufs_pm_level pm_lvl = UFS_PM_LVL_0;
 	enum ufs_dev_pwr_mode req_dev_pwr_mode;
 	enum uic_link_state req_link_state;
 
@@ -8821,6 +9067,9 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 		req_link_state = UIC_LINK_OFF_STATE;
 	}
 
+	if (ufs_debug_clk)
+		dev_err(hba->dev, "%s pm_op:%d, pm_lvl:%d\n", __func__, pm_op, pm_lvl);
+
 	ret = ufshcd_crypto_suspend(hba, pm_op);
 	if (ret)
 		goto out;
@@ -8831,6 +9080,10 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	 */
 	ufshcd_hold(hba, false);
 	hba->clk_gating.is_suspended = true;
+#ifdef CONFIG_SCSI_SKHPB
+	if (hba->dev_info.wmanufacturerid == UFS_VENDOR_SKHYNIX)
+	    skhpb_suspend(hba);
+#endif
 
 	if (hba->clk_scaling.is_allowed) {
 		cancel_work_sync(&hba->clk_scaling.suspend_work);
@@ -8963,6 +9216,9 @@ out:
 
 	hba->pm_op_in_progress = 0;
 
+	if (ufs_debug_clk)
+		dev_err(hba->dev, "%s ret:%d,\n", __func__, ret);
+
 	if (ret)
 		ufshcd_update_reg_hist(&hba->ufs_stats.suspend_err, (u32)ret);
 	return ret;
@@ -9081,6 +9337,10 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 		cancel_delayed_work(&hba->rpm_dev_flush_recheck_work);
 	}
 
+#ifdef CONFIG_SCSI_SKHPB
+	if (hba->dev_info.wmanufacturerid == UFS_VENDOR_SKHYNIX)
+	    skhpb_resume(hba);
+#endif
 	/* Schedule clock gating in case of no access to UFS device yet */
 	ufshcd_release(hba);
 
@@ -9337,6 +9597,12 @@ void ufshcd_remove(struct ufs_hba *hba)
 {
 	ufs_bsg_remove(hba);
 	ufs_sysfs_remove_nodes(hba->dev);
+
+#ifdef CONFIG_SCSI_SKHPB
+	if (hba->dev_info.wmanufacturerid == UFS_VENDOR_SKHYNIX)
+		skhpb_release(hba, SKHPB_NEED_INIT);
+#endif
+
 	scsi_remove_host(hba->host);
 	destroy_workqueue(hba->eh_wq);
 	/* disable interrupts */
@@ -9348,6 +9614,7 @@ void ufshcd_remove(struct ufs_hba *hba)
 	if (ufshcd_is_clkscaling_supported(hba))
 		device_remove_file(hba->dev, &hba->clk_scaling.enable_attr);
 	ufshcd_hba_exit(hba);
+	remove_ufs_debug_clk(hba);
 }
 EXPORT_SYMBOL_GPL(ufshcd_remove);
 
@@ -9608,7 +9875,11 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	 */
 	ufshcd_set_ufs_dev_active(hba);
 
+#ifdef CONFIG_SCSI_SKHPB
+	ufshcd_init_hpb(hba);
+#endif
 	async_schedule(ufshcd_async_scan, hba);
+	create_ufs_debug_clk(hba);
 	ufs_sysfs_add_nodes(hba->dev);
 
 	return 0;

@@ -71,6 +71,7 @@
 #define CHANGE_DEFINITION     0x40
 #define WRITE_SAME            0x41
 #define UNMAP		      0x42
+#define READ_CD               0xbe
 #define READ_TOC              0x43
 #define READ_HEADER           0x44
 #define GET_EVENT_STATUS_NOTIFICATION 0x4a
