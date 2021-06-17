@@ -144,9 +144,12 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 
 	vm_ops = sde_vm_get_ops(sde_kms);
 	if (vm_ops && vm_ops->vm_owns_hw && !vm_ops->vm_owns_hw(sde_kms)) {
+		sde_vm_unlock(sde_kms);
 		SDE_DEBUG("skipping bl update due to HW unavailablity\n");
 		goto done;
 	}
+
+	sde_vm_unlock(sde_kms);
 
 	if (c_conn->ops.set_backlight) {
 		/* skip notifying user space if bl is 0 */
@@ -168,7 +171,6 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 	}
 
 done:
-	sde_vm_unlock(sde_kms);
 
 	return rc;
 }
