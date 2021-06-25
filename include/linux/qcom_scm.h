@@ -216,7 +216,8 @@ extern int qcom_scm_get_tz_feat_id_version(u64 feat_id, u64 *version);
 extern int qcom_scm_register_qsee_log_buf(phys_addr_t buf, size_t len);
 extern int qcom_scm_query_encrypted_log_feature(u64 *enabled);
 extern int qcom_scm_request_encrypted_log(phys_addr_t buf, size_t len,
-						uint32_t log_id);
+		uint32_t log_id, bool is_full_encrypted_tz_logs_supported,
+		bool is_full_encrypted_tz_logs_enabled);
 extern int qcom_scm_invoke_smc_legacy(phys_addr_t in_buf, size_t in_buf_size,
 		phys_addr_t out_buf, size_t out_buf_size, int32_t *result,
 		u64 *response_type, unsigned int *data);
@@ -421,7 +422,8 @@ static inline int qcom_scm_register_qsee_log_buf(phys_addr_t buf, size_t len)
 static inline int qcom_scm_query_encrypted_log_feature(u64 *enabled)
 		{ return -ENODEV; }
 static inline int qcom_scm_request_encrypted_log(phys_addr_t buf, size_t len,
-						uint32_t log_id)
+		uint32_t log_id, bool is_full_encrypted_tz_logs_supported,
+		bool is_full_encrypted_tz_logs_enabled)
 		{ return -ENODEV; }
 static inline int qcom_scm_invoke_smc_legacy(phys_addr_t in_buf, size_t in_buf_size,
 		phys_addr_t out_buf, size_t out_buf_size, int32_t *result,
