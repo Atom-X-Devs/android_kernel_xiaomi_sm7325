@@ -123,15 +123,7 @@ int slim_do_transfer(struct slim_controller *ctrl, struct slim_msg_txn *txn)
 		 txn->mc <= SLIM_MSG_MC_RECONFIGURE_NOW))
 		clk_pause_msg = true;
 
-	if (!clk_pause_msg) {
-		ret = pm_runtime_get_sync(ctrl->dev);
-		if (ctrl->sched.clk_state != SLIM_CLK_ACTIVE) {
-			dev_err(ctrl->dev, "ctrl wrong state:%d, ret:%d\n",
-				ctrl->sched.clk_state, ret);
-			goto slim_xfer_err;
-		}
-	}
-	/* Initialize tid to invalid value */
+	/* Initialize tid to invalid value as zero*/
 	txn->tid = 0;
 	need_tid = slim_tid_txn(txn->mt, txn->mc);
 
@@ -145,6 +137,16 @@ int slim_do_transfer(struct slim_controller *ctrl, struct slim_msg_txn *txn)
 		else
 			txn->comp = txn->comp;
 	}
+
+	if (!clk_pause_msg) {
+		ret = pm_runtime_get_sync(ctrl->dev);
+		if (ctrl->sched.clk_state != SLIM_CLK_ACTIVE) {
+			dev_err(ctrl->dev, "ctrl wrong state:%d, ret:%d\n",
+				ctrl->sched.clk_state, ret);
+			goto slim_xfer_err;
+		}
+	}
+
 
 	ret = ctrl->xfer_msg(ctrl, txn);
 	if (ret == -ETIMEDOUT) {
@@ -165,7 +167,7 @@ int slim_do_transfer(struct slim_controller *ctrl, struct slim_msg_txn *txn)
 			txn->mt, txn->mc, txn->la, ret);
 
 slim_xfer_err:
-	if (!clk_pause_msg && (txn->tid == 0  || ret == -ETIMEDOUT)) {
+	if (!clk_pause_msg && (txn->tid == 0 || ret == -ETIMEDOUT)) {
 		/*
 		 * remove runtime-pm vote if this was TX only, or
 		 * if there was error during this transaction
