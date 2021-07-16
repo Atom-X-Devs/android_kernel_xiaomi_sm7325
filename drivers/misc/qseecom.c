@@ -2533,6 +2533,7 @@ static int __qseecom_reentrancy_process_incomplete_cmd(
 						lstnr);
 			rc = -ERESTARTSYS;
 			ptr_svc = NULL;
+			table = NULL;
 			status = QSEOS_RESULT_FAILURE;
 			goto err_resp;
 		}
