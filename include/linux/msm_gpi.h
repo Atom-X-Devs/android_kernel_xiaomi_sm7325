@@ -179,8 +179,8 @@ enum msm_gpi_tre_type {
 #define MSM_GPI_RING_PHYS_ADDR_UPPER(ptr) 0
 #endif
 
-/* Static GPII */
-#define STATIC_GPII_BMSK (0x2)
+/* Static GPII here uses bit5 bit4 bit3 bit2 bit1(xxx1 111x) */
+#define STATIC_GPII_BMSK (0x1e)
 #define STATIC_GPII_SHFT (0x1)
 #define GPI_EV_PRIORITY_BMSK (0x1)
 
