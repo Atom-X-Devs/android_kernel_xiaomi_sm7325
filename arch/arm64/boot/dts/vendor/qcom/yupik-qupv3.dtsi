@@ -61,6 +61,7 @@
 		qcom,gpii-mask = <0x7f>;
 		qcom,ev-factor = <2>;
 		qcom,iommu-dma-addr-pool = <0x100000 0x100000>;
+		dma-coherent;
 		qcom,gpi-ee-offset = <0x10000>;
 		status = "ok";
 	};
@@ -402,6 +403,7 @@
 		qcom,gpii-mask = <0x1e>;
 		qcom,ev-factor = <2>;
 		qcom,iommu-dma-addr-pool = <0x100000 0x100000>;
+		dma-coherent;
 		qcom,gpi-ee-offset = <0x10000>;
 		qcom,le-vm;
 		status = "ok";
