@@ -551,6 +551,7 @@ static struct snd_soc_codec_conf *msm_codec_conf;
 static struct snd_soc_card snd_soc_card_bengal_msm;
 static int dmic_0_1_gpio_cnt;
 static int dmic_2_3_gpio_cnt;
+static u32 wcd_datalane_mismatch;
 
 static void *def_wcd_mbhc_cal(void);
 static void *def_rouleur_mbhc_cal(void);
@@ -4354,7 +4355,11 @@ static int msm_int_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_ignore_suspend(dapm, "AMIC4");
 	snd_soc_dapm_sync(dapm);
 
-	if (!strncmp(component->driver->name, ROULEUR_DRV_NAME,
+	if (wcd_datalane_mismatch) {
+		bolero_set_port_map(component,
+				ARRAY_SIZE(sm_port_map_khaje),
+				sm_port_map_khaje);
+	} else if (!strncmp(component->driver->name, ROULEUR_DRV_NAME,
 						strlen(ROULEUR_DRV_NAME))) {
 		rouleur_info_create_codec_entry(pdata->codec_root, component);
 		bolero_set_port_map(bolero_component, ARRAY_SIZE(sm_port_map_rouleur), sm_port_map_rouleur);
@@ -5387,7 +5392,6 @@ static struct snd_soc_dai_link msm_rx_tx_cdc_dma_be_dai_links[] = {
 		.ops = &msm_cdc_dma_be_ops,
 		SND_SOC_DAILINK_REG(rx_dma_rx0),
 		.init = &msm_int_audrx_init,
-		.num_codecs = ARRAY_SIZE(rx_dma_rx0_codecs),
 	},
 	{
 		.name = LPASS_BE_RX_CDC_DMA_RX_1,
@@ -5403,7 +5407,6 @@ static struct snd_soc_dai_link msm_rx_tx_cdc_dma_be_dai_links[] = {
 		.ignore_suspend = 1,
 		.ops = &msm_cdc_dma_be_ops,
 		SND_SOC_DAILINK_REG(rx_dma_rx1),
-		.num_codecs = ARRAY_SIZE(rx_dma_rx1_codecs),
 	},
 	{
 		.name = LPASS_BE_RX_CDC_DMA_RX_2,
@@ -5419,7 +5422,6 @@ static struct snd_soc_dai_link msm_rx_tx_cdc_dma_be_dai_links[] = {
 		.ignore_suspend = 1,
 		.ops = &msm_cdc_dma_be_ops,
 		SND_SOC_DAILINK_REG(rx_dma_rx2),
-		.num_codecs = ARRAY_SIZE(rx_dma_rx2_codecs),
 	},
 	{
 		.name = LPASS_BE_RX_CDC_DMA_RX_3,
@@ -5435,7 +5437,6 @@ static struct snd_soc_dai_link msm_rx_tx_cdc_dma_be_dai_links[] = {
 		.ignore_suspend = 1,
 		.ops = &msm_cdc_dma_be_ops,
 		SND_SOC_DAILINK_REG(rx_dma_rx3),
-		.num_codecs = ARRAY_SIZE(rx_dma_rx3_codecs),
 	},
 	/* TX CDC DMA Backend DAI Links */
 	{
@@ -5448,7 +5449,6 @@ static struct snd_soc_dai_link msm_rx_tx_cdc_dma_be_dai_links[] = {
 		.ignore_suspend = 1,
 		.ops = &msm_cdc_dma_be_ops,
 		SND_SOC_DAILINK_REG(tx_dma_tx3),
-		.num_codecs = ARRAY_SIZE(tx_dma_tx3_codecs),
 	},
 	{
 		.name = LPASS_BE_TX_CDC_DMA_TX_4,
@@ -5460,7 +5460,6 @@ static struct snd_soc_dai_link msm_rx_tx_cdc_dma_be_dai_links[] = {
 		.ignore_suspend = 1,
 		.ops = &msm_cdc_dma_be_ops,
 		SND_SOC_DAILINK_REG(tx_dma_tx4),
-		.num_codecs = ARRAY_SIZE(tx_dma_tx4_codecs),
 	},
 };
 
@@ -5530,10 +5529,12 @@ static struct snd_soc_dai_link msm_bengal_dai_links[
 static int msm_populate_dai_link_component_of_node(
 					struct snd_soc_card *card)
 {
-	int i, index, ret = 0;
+	int i, j, index, ret = 0;
 	struct device *cdev = card->dev;
 	struct snd_soc_dai_link *dai_link = card->dai_link;
 	struct device_node *np;
+	int codecs_enabled = 0;
+	struct snd_soc_dai_link_component *codecs_comp = NULL;
 
 	if (!cdev) {
 		dev_err(cdev, "%s: Sound card device memory NULL\n", __func__);
@@ -5592,23 +5593,76 @@ static int msm_populate_dai_link_component_of_node(
 		}
 
 		/* populate codec_of_node for snd card dai links */
-		if (dai_link[i].codecs->name && !dai_link[i].codecs->of_node) {
-			index = of_property_match_string(cdev->of_node,
-						 "asoc-codec-names",
-						 dai_link[i].codecs->name);
-			if (index < 0)
-				continue;
-			np = of_parse_phandle(cdev->of_node, "asoc-codec",
-					      index);
-			if (!np) {
-				dev_err(cdev,
-				"%s: retrieving phandle for codec %s failed\n",
-				__func__, dai_link[i].codecs->name);
-				ret = -ENODEV;
-				goto err;
+		if (dai_link[i].num_codecs > 0) {
+			for (j = 0; j < dai_link[i].num_codecs; j++) {
+				if (dai_link[i].codecs[j].of_node ||
+						!dai_link[i].codecs[j].name)
+					continue;
+
+				index = of_property_match_string(cdev->of_node,
+						"asoc-codec-names",
+						dai_link[i].codecs[j].name);
+				if (index < 0)
+					continue;
+				np = of_parse_phandle(cdev->of_node,
+						      "asoc-codec",
+						      index);
+				if (!np) {
+					dev_err(cdev, "%s: retrieving phandle for codec %s failed\n",
+						__func__,
+						dai_link[i].codecs[j].name);
+					ret = -ENODEV;
+					goto err;
+				}
+				dai_link[i].codecs[j].of_node = np;
+				dai_link[i].codecs[j].name = NULL;
 			}
-			dai_link[i].codecs->of_node = np;
-			dai_link[i].codecs->name = NULL;
+		}
+	}
+
+	/* In multi-codec scenario, check if codecs are enabled for this platform */
+	for (i = 0; i < card->num_links; i++) {
+		codecs_enabled = 0;
+		if (dai_link[i].num_codecs > 1) {
+			for (j = 0; j < dai_link[i].num_codecs; j++) {
+				if (!dai_link[i].codecs[j].of_node)
+					continue;
+
+				np = dai_link[i].codecs[j].of_node;
+				if (!of_device_is_available(np)) {
+					dev_err(cdev, "%s: codec is disabled: %s\n",
+						__func__,
+						np->full_name);
+					dai_link[i].codecs[j].of_node = NULL;
+					continue;
+				}
+				codecs_enabled++;
+			}
+			if (codecs_enabled > 0 &&
+				codecs_enabled < dai_link[i].num_codecs) {
+				codecs_comp = devm_kzalloc(cdev,
+					sizeof(struct snd_soc_dai_link_component)
+					* codecs_enabled, GFP_KERNEL);
+				if (!codecs_comp) {
+					dev_err(cdev, "%s: %s dailink codec component alloc failed\n",
+						__func__, dai_link[i].name);
+					ret = -ENOMEM;
+					goto err;
+				}
+				index = 0;
+				for (j = 0; j < dai_link[i].num_codecs; j++) {
+					if(dai_link[i].codecs[j].of_node) {
+						codecs_comp[index].of_node =
+						dai_link[i].codecs[j].of_node;
+						codecs_comp[index].dai_name =
+						dai_link[i].codecs[j].dai_name;
+						codecs_comp[index].name = NULL;
+						index++;
+					}
+				}
+				dai_link[i].codecs = codecs_comp;
+				dai_link[i].num_codecs = codecs_enabled;
+			}
 		}
 	}
 
@@ -6107,6 +6161,10 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 		ret = -EPROBE_DEFER;
 		goto err;
 	}
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+			"qcom,wcd-datalane-mismatch",
+			&wcd_datalane_mismatch);
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret == -EPROBE_DEFER) {
