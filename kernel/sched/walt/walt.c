@@ -46,9 +46,14 @@ static bool use_cycle_counter;
 static DEFINE_MUTEX(cluster_lock);
 static atomic64_t walt_irq_work_lastq_ws;
 static u64 walt_load_reported_window;
+static DEFINE_PER_CPU(atomic64_t, prev_group_runnable_sum) = ATOMIC64_INIT(0);
+static DEFINE_PER_CPU(atomic64_t, cycles) = ATOMIC64_INIT(0);
+static DEFINE_PER_CPU(atomic64_t, last_cc_update) = ATOMIC64_INIT(0);
 
 static struct irq_work walt_cpufreq_irq_work;
 static struct irq_work walt_migration_irq_work;
+static DEFINE_RAW_SPINLOCK(speedchange_cpumask_lock);
+static cpumask_t speedchange_cpumask = CPU_MASK_NONE;
 
 u64 sched_ktime_clock(void)
 {
@@ -80,6 +85,22 @@ static int __init sched_init_ops(void)
 	return 0;
 }
 late_initcall(sched_init_ops);
+
+static inline void
+walt_commit_prev_group_run_sum(struct rq *rq)
+{
+	u64 val;
+
+	val = rq->wrq.grp_time.prev_runnable_sum;
+	val = (val << 32) | rq->wrq.prev_runnable_sum;
+	atomic64_set(&per_cpu(prev_group_runnable_sum, cpu_of(rq)), val);
+}
+
+u64
+walt_get_prev_group_run_sum(struct rq *rq)
+{
+	return (u64) atomic64_read(&per_cpu(prev_group_runnable_sum, cpu_of(rq)));
+}
 
 static void acquire_rq_locks_irqsave(const cpumask_t *cpus,
 				     unsigned long *flags)
@@ -395,21 +416,19 @@ update_window_start(struct rq *rq, u64 wallclock, int event)
 	return old_window_start;
 }
 
-/*
- * Assumes rq_lock is held and wallclock was recorded in the same critical
- * section as this function's invocation.
- */
+#define THRESH_CC_UPDATE (2 * NSEC_PER_USEC)
 static inline u64 read_cycle_counter(int cpu, u64 wallclock)
 {
-	struct rq *rq = cpu_rq(cpu);
+	u64 delta;
 
-	if (rq->wrq.last_cc_update != wallclock) {
-		rq->wrq.cycles =
-			cpu_cycle_counter_cb.get_cpu_cycle_counter(cpu);
-		rq->wrq.last_cc_update = wallclock;
+	delta = wallclock - atomic64_read(&per_cpu(last_cc_update, cpu));
+	if (delta > THRESH_CC_UPDATE) {
+		atomic64_set(&per_cpu(cycles, cpu),
+			cpu_cycle_counter_cb.get_cpu_cycle_counter(cpu));
+		atomic64_set(&per_cpu(last_cc_update, cpu), wallclock);
 	}
 
-	return rq->wrq.cycles;
+	return atomic64_read(&per_cpu(cycles, cpu));
 }
 
 static void update_task_cpu_cycles(struct task_struct *p, int cpu,
@@ -722,6 +741,8 @@ static inline void account_load_subtractions(struct rq *rq)
 		ls[i].subs = 0;
 		ls[i].new_subs = 0;
 	}
+
+	walt_commit_prev_group_run_sum(rq);
 
 	SCHED_BUG_ON((s64)rq->wrq.prev_runnable_sum < 0);
 	SCHED_BUG_ON((s64)rq->wrq.curr_runnable_sum < 0);
@@ -1058,6 +1079,9 @@ void fixup_busy_time(struct task_struct *p, int new_cpu)
 
 	migrate_top_tasks(p, src_rq, dest_rq);
 
+	walt_commit_prev_group_run_sum(src_rq);
+	walt_commit_prev_group_run_sum(dest_rq);
+
 	if (!same_freq_domain(new_cpu, task_cpu(p))) {
 		src_rq->wrq.notif_pending = true;
 		dest_rq->wrq.notif_pending = true;
@@ -1075,6 +1099,352 @@ void fixup_busy_time(struct task_struct *p, int new_cpu)
 
 	if (pstate == TASK_WAKING)
 		double_rq_unlock(src_rq, dest_rq);
+}
+
+static void
+migrate_prepare_top_tasks(struct task_struct *p, struct rq *src_rq)
+{
+	int index;
+	int top_index;
+	u32 curr_window = p->wts.curr_window;
+	u32 prev_window = p->wts.prev_window;
+	u8 src = src_rq->wrq.curr_table;
+	u8 *src_table;
+
+	if (curr_window) {
+		src_table = src_rq->wrq.top_tasks[src];
+		index = load_to_index(curr_window);
+		src_table[index] -= 1;
+
+		if (!src_table[index])
+			__clear_bit(NUM_LOAD_INDICES - index - 1,
+				src_rq->wrq.top_tasks_bitmap[src]);
+
+
+		top_index = src_rq->wrq.curr_top;
+		if (index == top_index && !src_table[index])
+			src_rq->wrq.curr_top = get_top_index(
+				src_rq->wrq.top_tasks_bitmap[src], top_index);
+	}
+
+	if (prev_window) {
+		src = 1 - src;
+		src_table = src_rq->wrq.top_tasks[src];
+		index = load_to_index(prev_window);
+		src_table[index] -= 1;
+
+		if (!src_table[index])
+			__clear_bit(NUM_LOAD_INDICES - index - 1,
+				src_rq->wrq.top_tasks_bitmap[src]);
+
+		top_index = src_rq->wrq.prev_top;
+		if (index == top_index && !src_table[index])
+			src_rq->wrq.prev_top = get_top_index(
+				src_rq->wrq.top_tasks_bitmap[src], top_index);
+	}
+}
+
+static void
+migrate_finish_top_tasks(struct task_struct *p, struct rq *dst_rq)
+{
+	int index;
+	u32 curr_window = p->wts.curr_window;
+	u32 prev_window = p->wts.prev_window;
+	u8 dst = dst_rq->wrq.curr_table;
+	u8 *dst_table;
+
+	if (curr_window) {
+		dst_table = dst_rq->wrq.top_tasks[dst];
+		index = load_to_index(curr_window);
+		dst_table[index] += 1;
+
+		if (dst_table[index] == 1)
+			__set_bit(NUM_LOAD_INDICES - index - 1,
+				dst_rq->wrq.top_tasks_bitmap[dst]);
+
+		if (index > dst_rq->wrq.curr_top)
+			dst_rq->wrq.curr_top = index;
+	}
+
+	if (prev_window) {
+		dst = 1 - dst;
+		dst_table = dst_rq->wrq.top_tasks[dst];
+		index = load_to_index(prev_window);
+		dst_table[index] += 1;
+
+		if (dst_table[index] == 1)
+			__set_bit(NUM_LOAD_INDICES - index - 1,
+				dst_rq->wrq.top_tasks_bitmap[dst]);
+
+		if (index > dst_rq->wrq.prev_top)
+			dst_rq->wrq.prev_top = index;
+	}
+}
+
+void walt_prepare_migrate(struct task_struct *p,
+			int src_cpu, int new_cpu, bool locked)
+{
+	struct rq *src_rq = cpu_rq(src_cpu);
+	struct walt_related_thread_group *grp;
+	u64 *src_curr_runnable_sum;
+	u64 *src_prev_runnable_sum;
+	u64 *src_nt_curr_runnable_sum;
+	u64 *src_nt_prev_runnable_sum;
+	u64 wallclock;
+	bool new_task;
+	long pstate;
+
+	if (!p->on_rq && p->state != TASK_WAKING)
+		return;
+
+        pstate = p->state;
+
+	BUG_ON(!irqs_disabled());
+	WARN_ON(src_cpu == new_cpu);
+
+	if (pstate == TASK_WAKING) {
+		/*
+		 * Is there any contribution? zero? If yes, get rid
+		 * of extra overhead since there is nothing to move
+		 * between CPUs.
+		 *
+		 * In that case what we need is to update a task with
+		 * a new CPU's cycle counter and nothing more.
+		 */
+		if (!p->wts.curr_window && !p->wts.prev_window) {
+			update_task_cpu_cycles(p, new_cpu, sched_ktime_clock());
+			return;
+		}
+	}
+
+	if (!locked)
+		raw_spin_lock(&src_rq->lock);
+
+	lockdep_assert_held(&src_rq->lock);
+	wallclock = sched_ktime_clock();
+
+	walt_update_task_ravg(task_rq(p)->curr, task_rq(p),
+			 TASK_UPDATE, wallclock, 0);
+	walt_update_task_ravg(p, task_rq(p), TASK_MIGRATE,
+			 wallclock, 0);
+
+	update_task_cpu_cycles(p, new_cpu, wallclock);
+
+	/*
+	 * When a task is migrating during the wakeup, adjust
+	 * the task's contribution towards cumulative window
+	 * demand.
+	 */
+	if (pstate == TASK_WAKING && p->wts.last_sleep_ts >=
+			src_rq->wrq.window_start) {
+		walt_fixup_cum_window_demand(src_rq, -(s64)p->wts.demand_scaled);
+		p->flags |= PF_MIGRATE_CUM_ADJ_TASK;
+	}
+
+	new_task = is_new_task(p);
+	/* Protected by rq_lock */
+	grp = p->wts.grp;
+
+	/*
+	 * For frequency aggregation, we continue to do migration fixups
+	 * even for intra cluster migrations. This is because, the aggregated
+	 * load has to reported on a single CPU regardless.
+	 */
+	if (grp) {
+		struct group_cpu_time *cpu_time;
+
+		cpu_time = &src_rq->wrq.grp_time;
+		src_curr_runnable_sum = &cpu_time->curr_runnable_sum;
+		src_prev_runnable_sum = &cpu_time->prev_runnable_sum;
+		src_nt_curr_runnable_sum = &cpu_time->nt_curr_runnable_sum;
+		src_nt_prev_runnable_sum = &cpu_time->nt_prev_runnable_sum;
+
+		if (p->wts.curr_window) {
+			*src_curr_runnable_sum -= p->wts.curr_window;
+			if (new_task)
+				*src_nt_curr_runnable_sum -=
+							p->wts.curr_window;
+		}
+
+		if (p->wts.prev_window) {
+			*src_prev_runnable_sum -= p->wts.prev_window;
+			if (new_task)
+				*src_nt_prev_runnable_sum -=
+							p->wts.prev_window;
+		}
+	} else if (!same_freq_domain(src_cpu, new_cpu)) {
+		src_rq->wrq.curr_runnable_sum -=
+			p->wts.curr_window_cpu[src_cpu];
+		src_rq->wrq.prev_runnable_sum -=
+			p->wts.prev_window_cpu[src_cpu];
+
+		if (new_task) {
+			src_rq->wrq.nt_curr_runnable_sum -=
+				p->wts.curr_window_cpu[src_cpu];
+			src_rq->wrq.nt_prev_runnable_sum -=
+				p->wts.prev_window_cpu[src_cpu];
+		}
+
+		p->wts.curr_window_cpu[src_cpu] = 0;
+		p->wts.prev_window_cpu[src_cpu] = 0;
+
+		update_cluster_load_subtractions(p, src_cpu,
+			src_rq->wrq.window_start, new_task);
+	}
+
+	if ((s64) src_rq->wrq.prev_runnable_sum < 0) {
+		src_rq->wrq.prev_runnable_sum = 0;
+		WARN_ON(1);
+	}
+
+	if ((s64) src_rq->wrq.curr_runnable_sum < 0) {
+		src_rq->wrq.curr_runnable_sum = 0;
+		WARN_ON(1);
+	}
+
+	if ((s64) src_rq->wrq.nt_prev_runnable_sum < 0) {
+		src_rq->wrq.nt_prev_runnable_sum = 0;
+		WARN_ON(1);
+	}
+
+	if ((s64) src_rq->wrq.nt_curr_runnable_sum < 0) {
+		src_rq->wrq.nt_curr_runnable_sum = 0;
+		WARN_ON(1);
+	}
+
+	walt_commit_prev_group_run_sum(src_rq);
+	migrate_prepare_top_tasks(p, src_rq);
+
+	if (is_ed_enabled()) {
+		if (p == src_rq->wrq.ed_task) {
+			p->flags |= PF_MIGRATE_ED_TASK;
+			src_rq->wrq.ed_task = NULL;
+		}
+	}
+
+	if (!locked)
+		raw_spin_unlock(&src_rq->lock);
+}
+
+void walt_finish_migrate(struct task_struct *p,
+			int src_cpu, int new_cpu, bool locked)
+{
+	struct rq *dest_rq = cpu_rq(new_cpu);
+	struct walt_related_thread_group *grp;
+	u64 *dst_curr_runnable_sum;
+	u64 *dst_prev_runnable_sum;
+	u64 *dst_nt_curr_runnable_sum;
+	u64 *dst_nt_prev_runnable_sum;
+	u64 wallclock;
+	bool new_task;
+	long pstate;
+
+	if (!p->on_rq && p->state != TASK_WAKING)
+		return;
+
+	pstate = p->state;
+
+	BUG_ON(!irqs_disabled());
+	WARN_ON(src_cpu == new_cpu);
+
+	if (!locked)
+		raw_spin_lock(&dest_rq->lock);
+
+	lockdep_assert_held(&dest_rq->lock);
+	wallclock = sched_ktime_clock();
+
+	walt_update_task_ravg(dest_rq->curr, dest_rq,
+			 TASK_UPDATE, wallclock, 0);
+	walt_update_task_ravg(p, dest_rq, TASK_MIGRATE,
+			 wallclock, 0);
+
+	/*
+	 * When a task is migrating during the wakeup, adjust
+	 * the task's contribution towards cumulative window
+	 * demand.
+	 */
+	if (pstate == TASK_WAKING &&
+			p->flags & PF_MIGRATE_CUM_ADJ_TASK) {
+		walt_fixup_cum_window_demand(dest_rq, p->wts.demand_scaled);
+		p->flags &= ~PF_MIGRATE_CUM_ADJ_TASK;
+	}
+
+	new_task = is_new_task(p);
+	/* Protected by rq_lock */
+	grp = p->wts.grp;
+
+	/*
+	 * For frequency aggregation, we continue to do migration fixups
+	 * even for intra cluster migrations. This is because, the aggregated
+	 * load has to reported on a single CPU regardless.
+	 */
+	if (grp) {
+		struct group_cpu_time *cpu_time;
+
+		cpu_time = &dest_rq->wrq.grp_time;
+		dst_curr_runnable_sum = &cpu_time->curr_runnable_sum;
+		dst_prev_runnable_sum = &cpu_time->prev_runnable_sum;
+		dst_nt_curr_runnable_sum = &cpu_time->nt_curr_runnable_sum;
+		dst_nt_prev_runnable_sum = &cpu_time->nt_prev_runnable_sum;
+
+		if (p->wts.curr_window) {
+			*dst_curr_runnable_sum += p->wts.curr_window;
+			if (new_task)
+				*dst_nt_curr_runnable_sum +=
+					p->wts.curr_window;
+		}
+
+		if (p->wts.prev_window) {
+			*dst_prev_runnable_sum += p->wts.prev_window;
+			if (new_task)
+				*dst_nt_prev_runnable_sum +=
+					p->wts.prev_window;
+		}
+	} else if (!same_freq_domain(src_cpu, new_cpu)) {
+		p->wts.curr_window_cpu[new_cpu] = p->wts.curr_window;
+		p->wts.prev_window_cpu[new_cpu] = p->wts.prev_window;
+
+		dest_rq->wrq.curr_runnable_sum += p->wts.curr_window;
+		dest_rq->wrq.prev_runnable_sum += p->wts.prev_window;
+
+		if (new_task) {
+			dest_rq->wrq.nt_curr_runnable_sum +=
+				p->wts.curr_window;
+			dest_rq->wrq.nt_prev_runnable_sum +=
+				p->wts.prev_window;
+		}
+	}
+
+	walt_commit_prev_group_run_sum(dest_rq);
+	migrate_finish_top_tasks(p, dest_rq);
+
+	if (!same_freq_domain(src_cpu, new_cpu)) {
+		/*
+		 * If walt_cpufreq_irq_work has been recently queued
+		 * and is in a pending state, do not push a migration
+		 * job, because all magic will have been done anyway.
+		 */
+		if (!(smp_load_acquire(&walt_cpufreq_irq_work.flags) &
+				IRQ_WORK_PENDING)) {
+			raw_spin_lock(&speedchange_cpumask_lock);
+			cpumask_set_cpu(src_cpu, &speedchange_cpumask);
+			cpumask_set_cpu(new_cpu, &speedchange_cpumask);
+			raw_spin_unlock(&speedchange_cpumask_lock);
+			irq_work_queue(&walt_migration_irq_work);
+		}
+	}
+
+	if (is_ed_enabled()) {
+		if (p->flags & PF_MIGRATE_ED_TASK) {
+			dest_rq->wrq.ed_task = p;
+			p->flags &= ~PF_MIGRATE_ED_TASK;
+		} else if (is_ed_task(p, wallclock)) {
+			dest_rq->wrq.ed_task = p;
+		}
+	}
+
+	if (!locked)
+		raw_spin_unlock(&dest_rq->lock);
 }
 
 void set_window_start(struct rq *rq)
@@ -1774,7 +2144,7 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 		 */
 		if (mark_start > window_start) {
 			*curr_runnable_sum = scale_exec_time(irqtime, rq);
-			return;
+			goto done;
 		}
 
 		/*
@@ -1795,6 +2165,8 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 	}
 
 done:
+        walt_commit_prev_group_run_sum(rq);
+
 	if (!is_idle_task(p))
 		update_top_tasks(p, rq, old_curr_window,
 					new_window, full_window);
@@ -2129,6 +2501,25 @@ update_task_rq_cpu_cycles(struct task_struct *p, struct rq *rq, int event,
 			time_delta = wallclock - p->wts.mark_start;
 		SCHED_BUG_ON((s64)time_delta < 0);
 
+		/*
+		 * It can happen when a time between two updates
+		 * (for example TASK_UPDATE) is very short. The reason
+		 * is a read_cycle_counter function now can return
+		 * a previous/same CC value if a last read was within
+		 * a THRESH_CC_UPDATE threshold.
+		 *
+		 * In that particular scenario use current CPU OPP
+		 * to scale such task's delta contributions which
+		 * are smaller than THRESH_CC_UPDATE interval.
+		 *
+		 * The aim of using a current frequency is because:
+		 *   - an estimated one can be zero;
+		 *   - we do not want to lose samples due to that.
+		 */
+		if (unlikely(!cycles_delta)) {
+			cycles_delta = sched_cpu_legacy_freq(cpu);
+			time_delta = 1;
+		}
 		rq->wrq.task_exec_scale = DIV64_U64_ROUNDUP(cycles_delta *
 				arch_scale_cpu_capacity(cpu),
 				time_delta *
@@ -3379,6 +3770,7 @@ static void transfer_busy_time(struct rq *rq,
 	p->wts.curr_window_cpu[cpu] = p->wts.curr_window;
 	p->wts.prev_window_cpu[cpu] = p->wts.prev_window;
 
+	walt_commit_prev_group_run_sum(rq);
 	trace_sched_migration_update_sum(p, migrate_type, rq);
 }
 
@@ -3401,6 +3793,116 @@ u64 get_rtgb_active_time(void)
 		return now - grp->start_ts;
 
 	return 0;
+}
+
+static inline void
+walt_irq_work_migration(struct irq_work *irq_work)
+{
+	struct walt_sched_cluster *cluster;
+	bool is_asym_migration = false;
+	cpumask_t tmp_mask;
+	u64 total_grp_load = 0, min_cluster_grp_load = 0;
+	int cpu;
+	struct cpumask freq_match_cpus;
+
+	if (sysctl_sched_asym_cap_sibling_freq_match_en &&
+		!cpumask_empty(&asym_freq_match_cpus))
+		cpumask_copy(&freq_match_cpus, &asym_freq_match_cpus);
+	else
+		cpumask_copy(&freq_match_cpus, &asym_cap_sibling_cpus);
+
+	raw_spin_lock(&speedchange_cpumask_lock);
+	tmp_mask = speedchange_cpumask;
+	cpumask_clear(&speedchange_cpumask);
+	raw_spin_unlock(&speedchange_cpumask_lock);
+
+	/*
+	 * walt_irq_work_migration can be run simultaneously
+	 * on different cores. That is why a tmp_mask may become
+	 * empty for one of them. Thus, if there are no CPUs
+	 * to check than we are done.
+	 */
+	if (!cpumask_weight(&tmp_mask))
+		return;
+
+	for_each_sched_cluster(cluster) {
+		u64 aggr_grp_load = 0;
+		u64 wc;
+		cpumask_t cluster_online_cpus;
+		unsigned int num_cpus, i = 1;
+		struct rq *rq;
+		int level;
+
+		level = 0;
+		for_each_cpu(cpu, &cluster->cpus) {
+			if (level == 0)
+				raw_spin_lock(&cpu_rq(cpu)->lock);
+			else
+				raw_spin_lock_nested(&cpu_rq(cpu)->lock, level);
+			level++;
+		}
+
+		wc = sched_ktime_clock();
+		raw_spin_lock(&cluster->load_lock);
+
+		for_each_cpu(cpu, &cluster->cpus) {
+			rq = cpu_rq(cpu);
+			if (rq->curr) {
+				walt_update_task_ravg(rq->curr, rq,
+						TASK_UPDATE, wc, 0);
+				account_load_subtractions(rq);
+				aggr_grp_load += rq->wrq.grp_time.prev_runnable_sum;
+			}
+
+			if (cpumask_test_cpu(cpu, &freq_match_cpus) &&
+				cpumask_test_cpu(cpu, &tmp_mask)) {
+					is_asym_migration = true;
+					cpumask_clear_cpu(cpu, &tmp_mask);
+			}
+		}
+
+		cluster->aggr_grp_load = aggr_grp_load;
+		total_grp_load += aggr_grp_load;
+
+		if (is_min_capacity_cluster(cluster))
+			min_cluster_grp_load = aggr_grp_load;
+		raw_spin_unlock(&cluster->load_lock);
+
+		if (total_grp_load) {
+			if (cpumask_weight(&freq_match_cpus)) {
+				u64 big_grp_load =
+					  total_grp_load - min_cluster_grp_load;
+
+				for_each_cpu(cpu, &freq_match_cpus)
+					cpu_cluster(cpu)->aggr_grp_load = big_grp_load;
+			}
+			rtgb_active = is_rtgb_active();
+		} else {
+			rtgb_active = false;
+		}
+
+		cpumask_and(&cluster_online_cpus, &cluster->cpus, cpu_online_mask);
+		num_cpus = cpumask_weight(&cluster_online_cpus);
+
+		for_each_cpu(cpu, &cluster->cpus) {
+			int flag = SCHED_CPUFREQ_WALT;
+
+			if (cpumask_test_cpu(cpu, &tmp_mask))
+				flag |= SCHED_CPUFREQ_INTERCLUSTER_MIG;
+
+			if (is_asym_migration && cpumask_test_cpu(cpu, &freq_match_cpus))
+				flag |= SCHED_CPUFREQ_INTERCLUSTER_MIG;
+
+			if (i != num_cpus)
+				flag |= SCHED_CPUFREQ_CONTINUE;
+
+			cpufreq_update_util(cpu_rq(cpu), flag);
+			i++;
+		}
+
+		for_each_cpu(cpu, &cluster->cpus)
+			raw_spin_unlock(&cpu_rq(cpu)->lock);
+	}
 }
 
 static void walt_init_window_dep(void);
@@ -3446,13 +3948,12 @@ static void walt_update_irqload(struct rq *rq)
  * Runs in hard-irq context. This should ideally run just after the latest
  * window roll-over.
  */
-void walt_irq_work(struct irq_work *irq_work)
+void walt_irq_work_roll_over(struct irq_work *irq_work)
 {
 	struct walt_sched_cluster *cluster;
 	struct rq *rq;
 	int cpu;
 	u64 wc;
-	bool is_migration = false, is_asym_migration = false;
 	u64 total_grp_load = 0, min_cluster_grp_load = 0;
 	int level = 0;
 	u64 cur_jiffies_ts;
@@ -3464,10 +3965,6 @@ void walt_irq_work(struct irq_work *irq_work)
 		cpumask_copy(&freq_match_cpus, &asym_freq_match_cpus);
 	else
 		cpumask_copy(&freq_match_cpus, &asym_cap_sibling_cpus);
-
-	/* Am I the window rollover work or the migration work? */
-	if (irq_work == &walt_migration_irq_work)
-		is_migration = true;
 
 	for_each_cpu(cpu, cpu_possible_mask) {
 		if (level == 0)
@@ -3494,11 +3991,6 @@ void walt_irq_work(struct irq_work *irq_work)
 				aggr_grp_load +=
 					rq->wrq.grp_time.prev_runnable_sum;
 			}
-			if (is_migration && rq->wrq.notif_pending &&
-				cpumask_test_cpu(cpu, &freq_match_cpus)) {
-				is_asym_migration = true;
-				rq->wrq.notif_pending = false;
-			}
 		}
 
 		cluster->aggr_grp_load = aggr_grp_load;
@@ -3522,7 +4014,7 @@ void walt_irq_work(struct irq_work *irq_work)
 		rtgb_active = false;
 	}
 
-	if (!is_migration && sysctl_sched_user_hint && time_after(jiffies,
+	if (sysctl_sched_user_hint && time_after(jiffies,
 						sched_user_hint_reset_time))
 		sysctl_sched_user_hint = 0;
 
@@ -3534,30 +4026,16 @@ void walt_irq_work(struct irq_work *irq_work)
 						cpu_online_mask);
 		num_cpus = cpumask_weight(&cluster_online_cpus);
 		for_each_cpu(cpu, &cluster_online_cpus) {
-			int flag = SCHED_CPUFREQ_WALT;
-
 			rq = cpu_rq(cpu);
 
-			if (is_migration) {
-				if (rq->wrq.notif_pending) {
-					flag |= SCHED_CPUFREQ_INTERCLUSTER_MIG;
-					rq->wrq.notif_pending = false;
-				}
-			}
-
-			if (is_asym_migration && cpumask_test_cpu(cpu,
-							&freq_match_cpus))
-				flag |= SCHED_CPUFREQ_INTERCLUSTER_MIG;
-
 			if (i == num_cpus)
-				cpufreq_update_util(cpu_rq(cpu), flag);
+				cpufreq_update_util(cpu_rq(cpu), SCHED_CPUFREQ_WALT);
 			else
-				cpufreq_update_util(cpu_rq(cpu), flag |
+				cpufreq_update_util(cpu_rq(cpu), SCHED_CPUFREQ_WALT |
 							SCHED_CPUFREQ_CONTINUE);
 			i++;
 
-			if (!is_migration)
-				walt_update_irqload(rq);
+			walt_update_irqload(rq);
 		}
 	}
 
@@ -3572,30 +4050,27 @@ void walt_irq_work(struct irq_work *irq_work)
 	 * window roll over. Otherwise the CPU counters (prs and crs) are
 	 * not rolled over properly as mark_start > window_start.
 	 */
-	if (!is_migration) {
-		spin_lock_irqsave(&sched_ravg_window_lock, flags);
+	spin_lock_irqsave(&sched_ravg_window_lock, flags);
 
-		if ((sched_ravg_window != new_sched_ravg_window) &&
-		    (wc < this_rq()->wrq.window_start + new_sched_ravg_window)) {
-			sched_ravg_window_change_time = sched_ktime_clock();
-			printk_deferred("ALERT: changing window size from %u to %u at %lu\n",
-					sched_ravg_window,
-					new_sched_ravg_window,
-					sched_ravg_window_change_time);
-			trace_sched_ravg_window_change(sched_ravg_window,
-					new_sched_ravg_window,
-					sched_ravg_window_change_time);
-			sched_ravg_window = new_sched_ravg_window;
-			walt_tunables_fixup();
-		}
-		spin_unlock_irqrestore(&sched_ravg_window_lock, flags);
+	if ((sched_ravg_window != new_sched_ravg_window) &&
+	    (wc < this_rq()->wrq.window_start + new_sched_ravg_window)) {
+		sched_ravg_window_change_time = sched_ktime_clock();
+		printk_deferred("ALERT: changing window size from %u to %u at %lu\n",
+				sched_ravg_window,
+				new_sched_ravg_window,
+				sched_ravg_window_change_time);
+		trace_sched_ravg_window_change(sched_ravg_window,
+				new_sched_ravg_window,
+				sched_ravg_window_change_time);
+		sched_ravg_window = new_sched_ravg_window;
+		walt_tunables_fixup();
 	}
+	spin_unlock_irqrestore(&sched_ravg_window_lock, flags);
 
 	for_each_cpu(cpu, cpu_possible_mask)
 		raw_spin_unlock(&cpu_rq(cpu)->lock);
 
-	if (!is_migration)
-		core_ctl_check(this_rq()->wrq.window_start);
+	core_ctl_check(this_rq()->wrq.window_start);
 }
 
 void walt_rotation_checkpoint(int nr_big)
@@ -3744,8 +4219,8 @@ static void walt_init_window_dep(void)
 
 static void walt_init_once(void)
 {
-	init_irq_work(&walt_migration_irq_work, walt_irq_work);
-	init_irq_work(&walt_cpufreq_irq_work, walt_irq_work);
+	init_irq_work(&walt_migration_irq_work, walt_irq_work_migration);
+	init_irq_work(&walt_cpufreq_irq_work, walt_irq_work_roll_over);
 	walt_rotate_work_init();
 	walt_init_window_dep();
 }
@@ -3788,8 +4263,6 @@ void walt_sched_init_rq(struct rq *rq)
 	rq->wrq.curr_table = 0;
 	rq->wrq.prev_top = 0;
 	rq->wrq.curr_top = 0;
-	rq->wrq.last_cc_update = 0;
-	rq->wrq.cycles = 0;
 	for (j = 0; j < NUM_TRACKED_WINDOWS; j++) {
 		memset(&rq->wrq.load_subs[j], 0,
 				sizeof(struct load_subtractions));
