@@ -40,6 +40,7 @@ extern u32 sched_get_init_task_load(struct task_struct *p);
 extern void core_ctl_check(u64 wallclock);
 extern int sched_set_boost(int enable);
 extern int sched_isolate_count(const cpumask_t *mask, bool include_offline);
+extern u64 walt_get_prev_group_run_sum(struct rq *rq);
 
 extern struct list_head cluster_head;
 #define for_each_sched_cluster(cluster) \
