@@ -486,3 +486,5 @@
 # 438 reserved for pidfd_getfd
 # 439 reserved for faccessat2
 440	common	process_madvise			sys_process_madvise
+# 447 reserved for memfd_secret
+448	common	process_mrelease		sys_process_mrelease
