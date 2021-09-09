@@ -922,7 +922,7 @@ void sde_connector_helper_bridge_disable(struct drm_connector *connector)
 {
 	int rc;
 	struct sde_connector *c_conn = NULL;
-	struct dsi_display *display;
+	struct dsi_display *display = NULL;
 	bool poms_pending = false;
 	struct sde_kms *sde_kms;
 
@@ -956,6 +956,7 @@ void sde_connector_helper_bridge_disable(struct drm_connector *connector)
 	}
 
 	c_conn->allow_bl_update = false;
+	display->panel->bl_config.allow_bl_update = false;
 }
 
 void sde_connector_helper_bridge_enable(struct drm_connector *connector)
@@ -991,6 +992,7 @@ void sde_connector_helper_bridge_enable(struct drm_connector *connector)
 		backlight_update_status(c_conn->bl_device);
 	}
 	c_conn->panel_dead = false;
+	display->panel->bl_config.allow_bl_update = true;
 }
 
 int sde_connector_clk_ctrl(struct drm_connector *connector, bool enable)
