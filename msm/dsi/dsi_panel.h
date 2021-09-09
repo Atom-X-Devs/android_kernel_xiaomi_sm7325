@@ -126,6 +126,8 @@ struct dsi_backlight_config {
 	u32 bl_scale;
 	u32 bl_scale_sv;
 	bool bl_inverted_dbv;
+	bool allow_bl_update;
+	u32 real_bl_level;
 
 	int en_gpio;
 	/* PWM params */
@@ -203,6 +205,12 @@ struct dsi_panel_ops {
 	int (*parse_power_cfg)(struct dsi_panel *panel);
 };
 
+enum dsi_doze_mode_type {
+	DSI_DOZE_MODE_NOLP,
+	DSI_DOZE_MODE_LP_LBM,
+	DSI_DOZE_MODE_LP_HBM,
+};
+
 struct dsi_panel {
 	const char *name;
 	const char *type;
@@ -268,6 +276,9 @@ struct dsi_panel {
 	u32 tlmm_gpio_count;
 
 	struct dsi_panel_ops panel_ops;
+
+	enum dsi_doze_mode_type doze_mode_active;
+	enum dsi_doze_mode_type doze_mode_requested;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
