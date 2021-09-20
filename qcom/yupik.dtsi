@@ -3141,7 +3141,6 @@
 
 	llcc_bw_opp_table: llcc-bw-opp-table {
 		compatible = "operating-points-v2";
-		BW_OPP_ENTRY(  150, 16); /*  2288 MB/s */
 		BW_OPP_ENTRY(  300, 16); /*  4577 MB/s */
 		BW_OPP_ENTRY(  466, 16); /*  7110 MB/s */
 		BW_OPP_ENTRY(  600, 16); /*  9155 MB/s */
@@ -3451,7 +3450,7 @@
 			qcom,target-dev = <&cpu4_cpu_llcc_latfloor>;
 			qcom,cpulist = <&CPU4 &CPU5 &CPU6 &CPU7>;
 			qcom,core-dev-table =
-				< 1900800 MHZ_TO_MBPS( 150, 16) >,
+				< 1900800 MHZ_TO_MBPS( 300, 16) >,
 				< 2707200 MHZ_TO_MBPS( 600, 16) >;
 		};
 
