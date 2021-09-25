@@ -65,9 +65,10 @@ obj-$(CONFIG_ARM_SDE_INTERFACE)		+= sdei.o
 obj-$(CONFIG_ARM64_SSBD)		+= ssbd.o
 obj-$(CONFIG_ARM64_PTR_AUTH)		+= pointer_auth.o
 obj-$(CONFIG_SHADOW_CALL_STACK)		+= scs.o
+obj-y			          	+= vdso-wrap.o
+obj-$(CONFIG_COMPAT_VDSO)		+= vdso32-wrap.o
 
-obj-y					+= vdso/ probes/
-obj-$(CONFIG_COMPAT_VDSO)		+= vdso32/
+obj-y					+= probes/
 head-y					:= head.o
 extra-y					+= $(head-y) vmlinux.lds
 
