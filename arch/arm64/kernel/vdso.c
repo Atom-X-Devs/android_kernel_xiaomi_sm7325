@@ -327,9 +327,7 @@ int aarch32_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		goto out;
 
 	if (IS_ENABLED(CONFIG_COMPAT_VDSO)) {
-		ret = __setup_additional_pages(VDSO_ABI_AA32,
-					       mm,
-					       bprm,
+		ret = __setup_additional_pages(VDSO_ABI_AA32, mm, bprm,
 					       uses_interp);
 
 		if (ret)
@@ -373,8 +371,7 @@ static int __init vdso_init(void)
 }
 arch_initcall(vdso_init);
 
-int arch_setup_additional_pages(struct linux_binprm *bprm,
-				int uses_interp)
+int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
 	int ret;
@@ -382,11 +379,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	if (down_write_killable(&mm->mmap_sem))
 		return -EINTR;
 
-	ret = __setup_additional_pages(VDSO_ABI_AA64,
-				       mm,
-				       bprm,
-				       uses_interp);
-
+	ret = __setup_additional_pages(VDSO_ABI_AA64, mm, bprm, uses_interp);
 	up_write(&mm->mmap_sem);
 
 	return ret;
