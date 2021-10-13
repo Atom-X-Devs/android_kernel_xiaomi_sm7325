@@ -3805,13 +3805,14 @@ static int hdd_wlan_register_pm_qos_notifier(struct hdd_context *hdd_ctx)
 {
 	int ret;
 
+	qdf_spinlock_create(&hdd_ctx->pm_qos_lock);
+
 	/* if gRuntimePM is 1 then feature is enabled without CXPC */
 	if (hdd_ctx->config->runtime_pm != hdd_runtime_pm_dynamic) {
 		hdd_debug("Dynamic Runtime PM disabled");
 		return 0;
 	}
 
-	qdf_spinlock_create(&hdd_ctx->pm_qos_lock);
 	hdd_ctx->pm_qos_notifier.notifier_call = wlan_hdd_pm_qos_notify;
 	ret = dev_pm_qos_add_notifier(hdd_ctx->parent_dev,
 				  &hdd_ctx->pm_qos_notifier, DEV_PM_QOS_RESUME_LATENCY);
@@ -3838,6 +3839,7 @@ static void hdd_wlan_unregister_pm_qos_notifier(struct hdd_context *hdd_ctx)
 
 	if (hdd_ctx->config->runtime_pm != hdd_runtime_pm_dynamic) {
 		hdd_debug("Dynamic Runtime PM disabled");
+		qdf_spinlock_destroy(&hdd_ctx->pm_qos_lock);
 		return;
 	}
 
