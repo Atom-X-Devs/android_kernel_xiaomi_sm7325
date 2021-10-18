@@ -2717,7 +2717,7 @@ static int aw8624_parse_dt(struct device *dev, struct aw8624 *aw8624,
 		pr_debug
 		    ("%s: %d  effect->pattern_length=%d  effect->pattern=%d \n",
 		     __func__, __LINE__, effect->pattern_length,
-		     (int)effect->pattern);
+		     (uintptr_t)effect->pattern);
 
 		effect->play_rate_us = config->play_rate_us;
 
