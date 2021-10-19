@@ -759,7 +759,8 @@ KBUILD_CFLAGS	+= -mllvm -polly \
 		   -mllvm -polly-vectorizer=stripmine
 
 ifeq ($(shell test $(CONFIG_CLANG_VERSION) -gt 130000; echo $$?),0)
-KBUILD_CFLAGS	+= -mllvm -polly-loopfusion-greedy=1
+KBUILD_CFLAGS	+= -mllvm -polly-loopfusion-greedy=1 \
+		   -mllvm -polly-reschedule=1
 else
 KBUILD_CFLAGS	+= -mllvm -polly-opt-fusion=max
 endif
