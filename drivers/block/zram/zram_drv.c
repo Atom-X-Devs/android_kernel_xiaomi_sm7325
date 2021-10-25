@@ -1808,7 +1808,6 @@ static void zram_reset_device(struct zram *zram)
 	set_capacity(zram->disk, 0);
 	part_stat_set_all(&zram->disk->part0, 0);
 
-	up_write(&zram->init_lock);
 	/* I/O operation under all of CPU are done so let's free */
 	zram_meta_free(zram, zram->disksize);
 	zram->disksize = 0;
@@ -1821,6 +1820,7 @@ static void zram_reset_device(struct zram *zram)
 	if (IS_ENABLED(CONFIG_ZRAM_MULTI_COMP))
 		comp_algorithm_set(zram, ZRAM_SECONDARY_ZCOMP,
 				   default_comp_algs[ZRAM_SECONDARY_ZCOMP]);
+	up_write(&zram->init_lock);
 }
 
 static ssize_t disksize_store(struct device *dev,
