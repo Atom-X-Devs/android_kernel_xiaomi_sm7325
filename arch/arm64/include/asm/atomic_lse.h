@@ -11,12 +11,12 @@
 #define __ASM_ATOMIC_LSE_H
 
 #define ATOMIC_OP(op, asm_op)						\
-static inline void __lse_atomic_##op(int i, atomic_t *v)			\
+static inline void __lse_atomic_##op(int i, atomic_t *v)		\
 {									\
 	asm volatile(							\
 	__LSE_PREAMBLE							\
-"	prfm	pstl1strm, %[v]\n"					\
-"	" #asm_op "	%w[i], %[v]\n"					\
+	"	prfm	pstl1strm, %[v]\n"				\
+	"	" #asm_op "	%w[i], %[v]\n"				\
 	: [i] "+r" (i), [v] "+Q" (v->counter)				\
 	: "r" (v));							\
 }
@@ -33,8 +33,8 @@ static inline int __lse_atomic_fetch_##op##name(int i, atomic_t *v)	\
 {									\
 	asm volatile(							\
 	__LSE_PREAMBLE							\
-"	prfm	pstl1strm, %[v]\n"					\
-"	" #asm_op #mb "	%w[i], %w[i], %[v]"				\
+	"	prfm	pstl1strm, %[v]\n"				\
+	"	" #asm_op #mb "	%w[i], %w[i], %[v]"			\
 	: [i] "+r" (i), [v] "+Q" (v->counter)				\
 	: "r" (v)							\
 	: cl);								\
@@ -137,7 +137,7 @@ static inline int __lse_atomic_sub_return##name(int i, atomic_t *v)	\
 	"	add	%w[i], %w[i], %w[tmp]"				\
 	: [i] "+&r" (i), [v] "+Q" (v->counter), [tmp] "=&r" (tmp)	\
 	: "r" (v)							\
-	: cl);							\
+	: cl);								\
 									\
 	return i;							\
 }
@@ -176,8 +176,8 @@ static inline void __lse_atomic64_##op(s64 i, atomic64_t *v)		\
 {									\
 	asm volatile(							\
 	__LSE_PREAMBLE							\
-"	prfm	pstl1strm, %[v]\n"					\
-"	" #asm_op "	%[i], %[v]\n"					\
+	"	prfm	pstl1strm, %[v]\n"				\
+	"	" #asm_op "	%[i], %[v]\n"				\
 	: [i] "+r" (i), [v] "+Q" (v->counter)				\
 	: "r" (v));							\
 }
@@ -194,8 +194,8 @@ static inline long __lse_atomic64_fetch_##op##name(s64 i, atomic64_t *v)\
 {									\
 	asm volatile(							\
 	__LSE_PREAMBLE							\
-"	prfm	pstl1strm, %[v]\n"					\
-"	" #asm_op #mb "	%[i], %[i], %[v]"				\
+	"	prfm	pstl1strm, %[v]\n"				\
+	"	" #asm_op #mb "	%[i], %[i], %[v]"			\
 	: [i] "+r" (i), [v] "+Q" (v->counter)				\
 	: "r" (v)							\
 	: cl);								\
@@ -286,7 +286,7 @@ static inline void __lse_atomic64_sub(s64 i, atomic64_t *v)
 }
 
 #define ATOMIC64_OP_SUB_RETURN(name, mb, cl...)				\
-static inline long __lse_atomic64_sub_return##name(s64 i, atomic64_t *v)	\
+static inline long __lse_atomic64_sub_return##name(s64 i, atomic64_t *v)\
 {									\
 	unsigned long tmp;						\
 									\
