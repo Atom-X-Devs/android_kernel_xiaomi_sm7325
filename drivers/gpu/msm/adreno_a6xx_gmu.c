@@ -2932,7 +2932,8 @@ static int a6xx_boot(struct adreno_device *adreno_dev)
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 	int ret;
 
-	WARN_ON(test_bit(GMU_PRIV_GPU_STARTED, &gmu->flags));
+	if (WARN_ON(test_bit(GMU_PRIV_GPU_STARTED, &gmu->flags)))
+		return 0;
 
 	trace_kgsl_pwr_request_state(device, KGSL_STATE_ACTIVE);
 
@@ -2964,8 +2965,12 @@ static int a6xx_first_boot(struct adreno_device *adreno_dev)
 	int ret;
 	unsigned long priv = 0;
 
-	if (test_bit(GMU_PRIV_FIRST_BOOT_DONE, &gmu->flags))
-		return a6xx_boot(adreno_dev);
+	if (test_bit(GMU_PRIV_FIRST_BOOT_DONE, &gmu->flags)) {
+		if (!test_bit(GMU_PRIV_GPU_STARTED, &gmu->flags))
+			return a6xx_boot(adreno_dev);
+
+		return 0;
+	}
 
 	place_marker("M - DRIVER ADRENO Init");
 
