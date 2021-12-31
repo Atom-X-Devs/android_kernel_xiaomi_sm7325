@@ -1802,7 +1802,9 @@ static int __init thermal_init(void)
 	if (result)
 		pr_warn("Thermal: Can not register suspend notifier, return %d\n",
 			result);
+#ifdef CONFIG_DEBUG_FS
 	thermal_debug_init();
+#endif
 
 	return 0;
 
@@ -1828,7 +1830,9 @@ static void thermal_exit(void)
 	destroy_workqueue(thermal_passive_wq);
 	genetlink_exit();
 	class_unregister(&thermal_class);
+#ifdef CONFIG_DEBUG_FS
 	thermal_debug_exit();
+#endif
 	thermal_unregister_governors();
 	ida_destroy(&thermal_tz_ida);
 	ida_destroy(&thermal_cdev_ida);
