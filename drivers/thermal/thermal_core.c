@@ -2013,7 +2013,9 @@ static int __init thermal_init(void)
 	if (result)
 		pr_warn("Thermal: Can not register suspend notifier, return %d\n",
 			result);
+#ifdef CONFIG_DEBUG_FS
 	thermal_debug_init();
+#endif
 
 #ifdef CONFIG_MACH_XIAOMI
 	result = of_parse_thermal_message();
@@ -2054,7 +2056,9 @@ static void thermal_exit(void)
 	destroy_thermal_message_node();
 #endif
 	class_unregister(&thermal_class);
+#ifdef CONFIG_DEBUG_FS
 	thermal_debug_exit();
+#endif
 	thermal_unregister_governors();
 	ida_destroy(&thermal_tz_ida);
 	ida_destroy(&thermal_cdev_ida);
