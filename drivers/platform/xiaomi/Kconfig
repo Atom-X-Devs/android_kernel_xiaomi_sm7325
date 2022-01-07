@@ -1,0 +1,22 @@
+menu "Xiaomi board selection"
+
+config MACH_XIAOMI
+	bool "Support for Xiaomi products"
+	depends on ARCH_QCOM
+	help
+	  Support for Xiaomi products.
+
+config MACH_XIAOMI_SM7325
+	bool "Support for Xiaomi SM7325 (Yupik) platform devices."
+	depends on ARCH_YUPIK
+	select MACH_XIAOMI
+	help
+	  Support for Xiaomi SM7325 (Yupik) platform devices.
+
+config MACH_XIAOMI_LISA
+	bool "Support for Xiaomi 11 lite 5G NE (lisa) board"
+	select MACH_XIAOMI_SM7325
+	help
+	  Support for Xiaomi 11 lite 5G NE (lisa) board.
+
+endmenu
