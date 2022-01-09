@@ -71,10 +71,10 @@ endif
 CPPFLAGS_vmlinux.lds := -DTEXT_START="$(ZTEXTADDR)" -DBSS_START="$(ZBSSADDR)"
 
 compress-$(CONFIG_KERNEL_GZIP) = gzip
-compress-$(CONFIG_KERNEL_LZO)  = lzo
-compress-$(CONFIG_KERNEL_LZMA) = lzma
-compress-$(CONFIG_KERNEL_XZ)   = xzkern
-compress-$(CONFIG_KERNEL_LZ4)  = lz4
+compress-$(CONFIG_KERNEL_LZO)  = lzo_with_size
+compress-$(CONFIG_KERNEL_LZMA) = lzma_with_size
+compress-$(CONFIG_KERNEL_XZ)   = xzkern_with_size
+compress-$(CONFIG_KERNEL_LZ4)  = lz4_with_size
 
 # Borrowed libfdt files for the ATAG compatibility mode
 
