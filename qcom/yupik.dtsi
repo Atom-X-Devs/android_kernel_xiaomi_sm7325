@@ -3775,7 +3775,7 @@
 			qcom,can-sleep;
 		};
 
-		qcom,pmr735a-debug@5 {
+		pmr735a_debug: qcom,pmr735a-debug@5 {
 			compatible = "qcom,spmi-pmic";
 			reg = <4 SPMI_USID>;
 			#address-cells = <2>;
