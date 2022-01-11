@@ -36,6 +36,43 @@
 };
 
 /*
+ * PMR735a specific diff for xiaomi sm7325 platform
+ */
+&pmr735a_debug {
+	status = "disabled";
+};
+
+&pmr735a_spmi {
+	status = "disabled";
+};
+
+&pmr735a_temp_alarm {
+	status = "disabled";
+};
+
+&apps_rsc {
+	rpmh-regulator-ldoe2 {
+		status = "disabled";
+	};
+
+	rpmh-regulator-ldoe3 {
+		status = "disabled";
+	};
+
+	rpmh-regulator-ldoe4 {
+		status = "disabled";
+	};
+
+	rpmh-regulator-ldoe5 {
+		status = "disabled";
+	};
+
+	rpmh-regulator-ldoe6 {
+		status = "disabled";
+	};
+};
+
+/*
  * PM8350c specific diff for xiaomi sm7325 platform
  */
 &pm8350c_flash {
