@@ -327,7 +327,12 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 	spin_lock(&dwc->lock);
 }
 
+#ifdef CONFIG_MACH_XIAOMI
+#define DWC_CMD_TIMEOUT 6000
+#else
 #define DWC_CMD_TIMEOUT 5000
+#endif
+
 /**
  * dwc3_send_gadget_generic_command - issue a generic command for the controller
  * @dwc: pointer to the controller context
