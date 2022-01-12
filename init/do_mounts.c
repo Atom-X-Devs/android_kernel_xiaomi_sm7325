@@ -274,6 +274,10 @@ dev_t name_to_dev_t(const char *name)
 
 	if (strlen(name) > 31)
 		goto fail;
+#ifdef CONFIG_MACH_XIAOMI
+	if (strnstr(name, "block", strlen(name)))
+		name += 6;
+#endif
 	strcpy(s, name);
 	for (p = s; *p; p++)
 		if (*p == '/')
