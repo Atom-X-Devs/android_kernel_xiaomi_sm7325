@@ -2820,6 +2820,10 @@ int cgroup_migrate(struct task_struct *leader, bool threadgroup,
 	return cgroup_migrate_execute(mgctx);
 }
 
+#ifdef CONFIG_MACH_XIAOMI
+#define PATH_LEN 1024
+#endif
+
 /**
  * cgroup_attach_task - attach a task or a whole threadgroup to a cgroup
  * @dst_cgrp: the cgroup to attach to
@@ -2834,6 +2838,9 @@ int cgroup_attach_task(struct cgroup *dst_cgrp, struct task_struct *leader,
 	DEFINE_CGROUP_MGCTX(mgctx);
 	struct task_struct *task;
 	int ret;
+#ifdef CONFIG_MACH_XIAOMI
+	char dst_path[PATH_LEN];
+#endif
 
 	ret = cgroup_migrate_vet_dst(dst_cgrp);
 	if (ret)
@@ -2858,8 +2865,15 @@ int cgroup_attach_task(struct cgroup *dst_cgrp, struct task_struct *leader,
 
 	cgroup_migrate_finish(&mgctx);
 
-	if (!ret)
+	if (!ret) {
+#ifndef CONFIG_MACH_XIAOMI
 		TRACE_CGROUP_PATH(attach_task, dst_cgrp, leader, threadgroup);
+#else
+		memset(dst_path, 0, sizeof(dst_path));
+		cgroup_path(dst_cgrp, dst_path, PATH_LEN);
+		trace_cgroup_attach_task(dst_cgrp, dst_path, leader, threadgroup);
+#endif
+	}
 
 	return ret;
 }
