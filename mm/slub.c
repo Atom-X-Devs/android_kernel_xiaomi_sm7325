@@ -6240,7 +6240,7 @@ static int sysfs_slab_alias(struct kmem_cache *s, const char *name)
 	return 0;
 }
 
-#ifdef CONFIG_QCOM_MINIDUMP_PANIC_DUMP
+#if defined (CONFIG_QCOM_MINIDUMP_PANIC_DUMP) && defined(CONFIG_SLUB_DEBUG)
 static ssize_t slab_owner_filter_write(struct file *file,
 					  const char __user *ubuf,
 					  size_t count, loff_t *offset)
@@ -6366,7 +6366,7 @@ static int __init slab_sysfs_init(void)
 		kfree(al);
 	}
 
-#ifdef CONFIG_QCOM_MINIDUMP_PANIC_DUMP
+#if defined (CONFIG_QCOM_MINIDUMP_PANIC_DUMP) && defined(CONFIG_SLUB_DEBUG)
 	if (slub_debug) {
 		int i;
 
