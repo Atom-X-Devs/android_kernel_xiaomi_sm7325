@@ -2340,7 +2340,12 @@ static void change_pageblock_range(struct page *pageblock_page,
  * is worse than movable allocations stealing from unmovable and reclaimable
  * pageblocks.
  */
+#ifndef CONFIG_MACH_XIAOMI
 static bool can_steal_fallback(unsigned int order, int start_mt)
+#else
+static bool can_steal_fallback(unsigned int order, int start_mt,
+				int fallback_type, unsigned int start_order)
+#endif
 {
 	/*
 	 * Leaving this order check is intended, although there is
@@ -2352,10 +2357,26 @@ static bool can_steal_fallback(unsigned int order, int start_mt)
 	if (order >= pageblock_order)
 		return true;
 
+#ifndef CONFIG_MACH_XIAOMI
 	if (order >= pageblock_order / 2 ||
 		start_mt == MIGRATE_RECLAIMABLE ||
 		start_mt == MIGRATE_UNMOVABLE ||
 		page_group_by_mobility_disabled)
+#else
+	// don't let unmovable allocations cause migrations simply because of free pages
+	if ((start_mt != MIGRATE_UNMOVABLE &&
+		order >= pageblock_order / 2) ||
+	// only steal reclaimable page blocks for unmovable allocations
+		(start_mt == MIGRATE_UNMOVABLE &&
+		fallback_type != MIGRATE_MOVABLE &&
+		order >= pageblock_order / 2) ||
+	// reclaimable can steal aggressively
+		start_mt == MIGRATE_RECLAIMABLE ||
+	// allow unmovable allocs up to 64K without migrating blocks
+		(start_mt == MIGRATE_UNMOVABLE &&
+		start_order >= 5) ||
+		page_group_by_mobility_disabled)
+#endif
 		return true;
 
 	return false;
@@ -2517,8 +2538,14 @@ single_page:
  * we can steal other freepages all together. This would help to reduce
  * fragmentation due to mixed migratetype pages in one pageblock.
  */
+#ifndef CONFIG_MACH_XIAOMI
 int find_suitable_fallback(struct free_area *area, unsigned int order,
 			int migratetype, bool only_stealable, bool *can_steal)
+#else
+int find_suitable_fallback(struct free_area *area, unsigned int order,
+			int migratetype, bool only_stealable, bool *can_steal,
+			unsigned int start_order)
+#endif
 {
 	int i;
 	int fallback_mt;
@@ -2535,7 +2562,11 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
 		if (free_area_empty(area, fallback_mt))
 			continue;
 
+#ifndef CONFIG_MACH_XIAOMI
 		if (can_steal_fallback(order, migratetype))
+#else
+		if (can_steal_fallback(order, migratetype, fallback_mt, start_order))
+#endif
 			*can_steal = true;
 
 		if (!only_stealable)
@@ -2703,8 +2734,13 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype,
 	for (current_order = MAX_ORDER - 1; current_order >= min_order;
 				--current_order) {
 		area = &(zone->free_area[current_order]);
+#ifndef CONFIG_MACH_XIAOMI
 		fallback_mt = find_suitable_fallback(area, current_order,
 				start_migratetype, false, &can_steal);
+#else
+		fallback_mt = find_suitable_fallback(area, current_order,
+				start_migratetype, false, &can_steal, order);
+#endif
 		if (fallback_mt == -1)
 			continue;
 
@@ -2729,8 +2765,13 @@ find_smallest:
 	for (current_order = order; current_order < MAX_ORDER;
 							current_order++) {
 		area = &(zone->free_area[current_order]);
+#ifndef CONFIG_MACH_XIAOMI
 		fallback_mt = find_suitable_fallback(area, current_order,
 				start_migratetype, false, &can_steal);
+#else
+		fallback_mt = find_suitable_fallback(area, current_order,
+				start_migratetype, false, &can_steal, order);
+#endif
 		if (fallback_mt != -1)
 			break;
 	}
