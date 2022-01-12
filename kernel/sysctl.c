@@ -133,6 +133,9 @@ static unsigned long zero_ul;
 static unsigned long one_ul = 1;
 static unsigned long long_max = LONG_MAX;
 static int one_hundred = 100;
+#ifdef CONFIG_MACH_XIAOMI
+static int two_hundred = 200;
+#endif
 static int one_thousand = 1000;
 #ifdef CONFIG_QCOM_HYP_CORE_CTL
 static int five_hundred = 500;
@@ -1776,7 +1779,11 @@ static struct ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
+#ifndef CONFIG_MACH_XIAOMI
 		.extra2		= &one_hundred,
+#else
+		.extra2		= &two_hundred,
+#endif
 	},
 	{
 		.procname       = "want_old_faultaround_pte",
@@ -1854,6 +1861,15 @@ static struct ctl_table vm_table[] = {
 		.mode		= 0200,
 		.proc_handler	= sysctl_compaction_handler,
 	},
+#ifdef CONFIG_MACH_XIAOMI
+	{
+		.procname	= "reclaim_pages",
+		.data		= &sysctl_reclaim_pages,
+		.maxlen		= sizeof(sysctl_reclaim_pages),
+		.mode		= 0200,
+		.proc_handler	= sysctl_reclaim_pages_handler,
+	},
+#endif
 	{
 		.procname	= "extfrag_threshold",
 		.data		= &sysctl_extfrag_threshold,
