@@ -1902,9 +1902,13 @@ static enum compact_result __compact_finished(struct compact_control *cc)
 		 * Job done if allocation would steal freepages from
 		 * other migratetype buddy lists.
 		 */
+#ifndef CONFIG_MACH_XIAOMI
 		if (find_suitable_fallback(area, order, migratetype,
 						true, &can_steal) != -1) {
-
+#else
+		if (find_suitable_fallback(area, order, migratetype,
+						true, &can_steal, cc->order) != -1) {
+#endif
 			/* movable pages are OK in any pageblock */
 			if (migratetype == MIGRATE_MOVABLE)
 				return COMPACT_SUCCESS;
