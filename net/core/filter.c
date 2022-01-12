@@ -8398,6 +8398,19 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 	case offsetof(struct bpf_sock_ops, sk):
 		SOCK_OPS_GET_SK();
 		break;
+#ifdef CONFIG_MACH_XIAOMI
+	case offsetof(struct bpf_sock_ops, sk_uid):
+		SOCK_OPS_GET_FIELD(sk_uid, sk_uid, struct sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, voip_daddr):
+		SOCK_OPS_GET_FIELD(voip_daddr, sk_daddr, struct sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, voip_dport):
+		SOCK_OPS_GET_FIELD(voip_dport, sk_dport, struct sock);
+		break;
+#endif
 	}
 	return insn - insn_buf;
 }
