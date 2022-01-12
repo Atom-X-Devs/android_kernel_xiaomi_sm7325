@@ -992,6 +992,10 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	int (*getfrag)(void *, char *, int, int, int, struct sk_buff *);
 	struct sk_buff *skb;
 	struct ip_options_data opt_copy;
+#ifdef CONFIG_MACH_XIAOMI
+	__be16 tmp_dport;
+	__be32 tmp_daddr;
+#endif
 
 	if (len > 0xFFFF)
 		return -EMSGSIZE;
@@ -1036,6 +1040,15 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 		daddr = usin->sin_addr.s_addr;
 		dport = usin->sin_port;
+#ifdef CONFIG_MACH_XIAOMI
+		tmp_dport = sk->sk_dport;
+		tmp_daddr = sk->sk_daddr;
+		sk->sk_dport = dport;
+		sk->sk_daddr = daddr;
+		udp_state_bpf(sk);
+		sk->sk_dport = tmp_dport;
+		sk->sk_daddr = tmp_daddr;
+#endif
 		if (dport == 0)
 			return -EINVAL;
 	} else {
