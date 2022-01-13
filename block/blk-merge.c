@@ -918,6 +918,27 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 
 enum elv_merge blk_try_merge(struct request *rq, struct bio *bio)
 {
+#ifdef CONFIG_PERF_HUMANTASK
+	enum elv_merge where;
+
+	if (blk_discard_mergable(rq))
+		where = ELEVATOR_DISCARD_MERGE;
+	else if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector)
+		where = ELEVATOR_BACK_MERGE;
+	else if (blk_rq_pos(rq) - bio_sectors(bio) == bio->bi_iter.bi_sector)
+		where = ELEVATOR_FRONT_MERGE;
+	else
+		where = ELEVATOR_NO_MERGE;
+
+	if (bio->human_task) {
+		if (where && where != ELEVATOR_DISCARD_MERGE) {
+			rq->ioprio = 0;
+			bio->bi_ioprio = 0;
+		}
+	}
+
+	return where;
+#else
 	if (blk_discard_mergable(rq))
 		return ELEVATOR_DISCARD_MERGE;
 	else if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector)
@@ -925,4 +946,5 @@ enum elv_merge blk_try_merge(struct request *rq, struct bio *bio)
 	else if (blk_rq_pos(rq) - bio_sectors(bio) == bio->bi_iter.bi_sector)
 		return ELEVATOR_FRONT_MERGE;
 	return ELEVATOR_NO_MERGE;
+#endif
 }

@@ -20,3 +20,11 @@ config MACH_XIAOMI_LISA
 	  Support for Xiaomi 11 lite 5G NE (lisa) board.
 
 endmenu
+
+comment "Xiaomi Features"
+
+config PERF_HUMANTASK
+	bool "enable feature humantask"
+	depends on MACH_XIAOMI
+	help
+	  support switch on/off of sched humantask.
