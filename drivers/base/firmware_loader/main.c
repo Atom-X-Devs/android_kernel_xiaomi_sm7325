@@ -445,6 +445,9 @@ static int fw_decompress_xz(struct device *dev, struct fw_priv *fw_priv,
 static char fw_path_para[256];
 static const char * const fw_path[] = {
 	fw_path_para,
+#ifdef CONFIG_MACH_XIAOMI
+	"/vendor/firmware",
+#endif
 	"/lib/firmware/updates/" UTS_RELEASE,
 	"/lib/firmware/updates",
 	"/lib/firmware/" UTS_RELEASE,
@@ -798,10 +801,12 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 #endif
 
 	if (ret) {
+#ifndef CONFIG_MACH_XIAOMI
 		if (!(opt_flags & FW_OPT_NO_WARN))
 			dev_warn(device,
 				 "Direct firmware load for %s failed with error %d\n",
 				 name, ret);
+#endif
 		ret = firmware_fallback_sysfs(fw, name, device, opt_flags, ret);
 	} else
 		ret = assign_fw(fw, device, opt_flags);
