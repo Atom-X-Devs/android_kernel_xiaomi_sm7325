@@ -26,3 +26,11 @@ config MACH_XIAOMI_REDWOOD
 	  Support for Poco X5 PRO 5G (redwood) board.
 
 endmenu
+
+comment "Xiaomi Features"
+
+config PERF_HUMANTASK
+	bool "enable feature humantask"
+	depends on MACH_XIAOMI
+	help
+	  support switch on/off of sched humantask.
