@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0
+
+#
+# Goodix touchscreen driver configuration
+#
+menuconfig TOUCHSCREEN_GOODIX_BRL
+	tristate "Goodix berlin touchscreen"
+	depends on SPI_MASTER
+	help
+	  Say Y here if you have a Goodix berlin series touch
+	  controller connected via SPI bus to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here.
+
+config TOUCHSCREEN_GOODIX_BRL_QGKI
+	bool "Goodix QGKI interface support"
+	depends on TOUCHSCREEN_GOODIX_BRL
+	help
+	  Say Y here to enable goodix panel's QGKI interface.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_GOODIX_BRL_TOOLS
+	tristate "Goodix debug tools support"
+	depends on TOUCHSCREEN_GOODIX_BRL
+	help
+	  Say Y here to enable debug tools
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here.
+
+config TOUCHSCREEN_GOODIX_BRL_GESTURE
+	tristate "Goodix gesture support"
+	depends on TOUCHSCREEN_GOODIX_BRL
+	help
+	  Say Y to enable gesture
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here.
