@@ -401,7 +401,20 @@ static struct msm_cvp_smem *msm_cvp_session_get_smem(struct msm_cvp_inst *inst,
 			mutex_unlock(&inst->dma_cache.lock);
 			return NULL;
 		}
+#ifndef CONFIG_MACH_XIAOMI
 		goto exit2;
+#else
+		mutex_lock(&inst->dma_cache.lock);
+		if (atomic_dec_and_test(&smem->refcount)) {
+			// deinit it in msm_cvp_session_add_smem
+			CLEAR_USE_BITMAP(smem->bitmap_index, inst);
+			print_smem(CVP_MEM, "Map dereference",
+				inst, smem);
+		}
+		mutex_unlock(&inst->dma_cache.lock);
+
+		smem = NULL;
+#endif
 	}
 
 	return smem;
