@@ -149,6 +149,9 @@
 };
 
 &dsi_k9d_36_02_0a_dsc_cmd {
+	qcom,ulps-enabled;
+	qcom,suspend-ulps-enabled;
+
 	qcom,esd-check-enabled;
 	qcom,esd-aod-check-enabled;
 
@@ -166,6 +169,9 @@
 };
 
 &dsi_k9d_42_0d_0b_dsc_cmd {
+	qcom,ulps-enabled;
+	qcom,suspend-ulps-enabled;
+
 	qcom,esd-check-enabled;
 	qcom,esd-aod-check-enabled;
 
