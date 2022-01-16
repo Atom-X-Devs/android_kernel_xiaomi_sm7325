@@ -22,10 +22,18 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/spmi.h>
+#ifdef CONFIG_MACH_XIAOMI
+#include <linux/nmi.h>
+#include <linux/sched/debug.h>
+#endif
 #include <linux/input/qpnp-power-on.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
+
+#ifdef CONFIG_MACH_XIAOMI
+#include <uapi/linux/sched/types.h>
+#endif
 
 #define PMIC_VER_8941				0x01
 #define PMIC_VERSION_REG			0x0105
@@ -130,6 +138,10 @@ enum qpnp_pon_version {
 #define QPNP_PON_KPDPWR_RESIN_BARK_N_SET	BIT(5)
 #define QPNP_PON_GEN3_RESIN_N_SET		BIT(6)
 #define QPNP_PON_GEN3_KPDPWR_N_SET		BIT(7)
+#ifdef CONFIG_MACH_XIAOMI
+#define QPNP_PON_KPDPWR_RESIN_N_SET		(QPNP_PON_GEN3_RESIN_N_SET | \
+							QPNP_PON_GEN3_KPDPWR_N_SET)
+#endif
 
 #define QPNP_PON_WD_EN				BIT(7)
 #define QPNP_PON_RESET_EN			BIT(7)
@@ -166,6 +178,10 @@ enum qpnp_pon_version {
 #define QPNP_PON_BUFFER_SIZE			9
 
 #define QPNP_POFF_REASON_UVLO			13
+
+#ifdef CONFIG_MACH_XIAOMI
+#define QPNP_PON_KPDPWR_RESIN_RESET_TIME	400
+#endif
 
 enum pon_type {
 	PON_KPDPWR	 = PON_POWER_ON_TYPE_KPDPWR,
@@ -217,6 +233,9 @@ struct qpnp_pon {
 	struct mutex		restore_lock;
 	struct delayed_work	bark_work;
 	struct dentry		*debugfs;
+#ifdef CONFIG_MACH_XIAOMI
+	struct task_struct	*longpress_task;
+#endif
 	u16			base;
 	u16			pbs_base;
 	u8			subtype;
@@ -244,6 +263,9 @@ struct qpnp_pon {
 	bool			kpdpwr_dbc_enable;
 	bool			resin_pon_reset;
 	ktime_t			kpdpwr_last_release_time;
+#ifdef CONFIG_MACH_XIAOMI
+	ktime_t			time_kpdpwr_bark;
+#endif
 	bool			legacy_hard_reset_offset;
 	bool			log_kpd_event;
 };
@@ -1060,6 +1082,30 @@ static int qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	return 0;
 }
 
+#ifdef CONFIG_MACH_XIAOMI
+static int longpress_kthread(void *_pon)
+{
+#ifdef CONFIG_MTD_BLOCK2MTD
+	struct qpnp_pon *pon = _pon;
+	ktime_t time_to_S2, time_S2;
+
+	dev_info(pon->dev, "Long press: Start to run longpress_kthread ");
+
+	long_press();
+
+	time_S2 = pon->pon_cfg->s2_timer;
+	time_to_S2 = time_S2 - ktime_ms_delta(ktime_get(), pon->time_kpdpwr_bark);
+
+	if (time_to_S2 > 0)
+		mdelay(time_to_S2);
+
+	machine_restart("lp_kthread");
+#endif
+
+	return 0;
+}
+#endif
+
 static irqreturn_t qpnp_kpdpwr_irq(int irq, void *_pon)
 {
 	int rc;
@@ -1074,6 +1120,15 @@ static irqreturn_t qpnp_kpdpwr_irq(int irq, void *_pon)
 
 static irqreturn_t qpnp_kpdpwr_bark_irq(int irq, void *_pon)
 {
+#ifdef CONFIG_MACH_XIAOMI
+	struct qpnp_pon *pon = _pon;
+	dev_err(pon->dev, "Enter in kpdpwr irq !");
+
+	kthread_unpark(pon->longpress_task);
+	wake_up_process(pon->longpress_task);
+	pon->time_kpdpwr_bark = ktime_get();
+#endif
+
 	return IRQ_HANDLED;
 }
 
@@ -1475,12 +1530,24 @@ static int qpnp_pon_config_kpdpwr_init(struct qpnp_pon *pon,
 
 	cfg->use_bark = of_property_read_bool(node, "qcom,use-bark");
 	if (cfg->use_bark) {
+#ifdef CONFIG_MACH_XIAOMI
+		struct sched_param param = {
+			.sched_priority = MAX_RT_PRIO - 1
+		};
+#endif
 		cfg->bark_irq = platform_get_irq_byname(pdev, "kpdpwr-bark");
+#ifdef CONFIG_MACH_XIAOMI
+		pon->longpress_task = kthread_create(longpress_kthread, pon, "longpress");
+#endif
 		if (cfg->bark_irq < 0) {
 			dev_err(pon->dev, "Unable to get kpdpwr-bark irq, rc=%d\n",
 				cfg->bark_irq);
 			return cfg->bark_irq;
 		}
+#ifdef CONFIG_MACH_XIAOMI
+		sched_setscheduler(pon->longpress_task, SCHED_FIFO, &param);
+		kthread_park(pon->longpress_task);
+#endif
 	}
 
 	if (pon->pon_ver == QPNP_PON_GEN1_V1) {
@@ -2360,6 +2427,68 @@ static int qpnp_pon_parse_dt_power_off_config(struct qpnp_pon *pon)
 	return 0;
 }
 
+#ifdef CONFIG_MACH_XIAOMI
+static int debug_pon_on_off_reg(struct qpnp_pon *pon)
+{
+	int rc = 0;
+	uint pon_sts = 0;
+	int i = 0;
+	char str_buf[256] = "";
+	char reg[16] = "";
+
+	for (i = QPNP_PON_REASON1(pon); i <= QPNP_S3_RESET_REASON(pon) + 1; i++) {
+		rc = regmap_read(pon->regmap, i, &pon_sts);
+		if (rc) {
+			dev_err(pon->dev,
+					"Unable to read PON_RESASON1 reg rc: %d\n",
+					rc);
+			return rc;
+		}
+		snprintf(reg, sizeof(reg), "0x%x:0x%x ", i, pon_sts);
+		strlcat(str_buf, reg, sizeof(str_buf));
+	}
+
+	if (to_spmi_device(pon->dev->parent)->usid)
+		goto print_log;
+
+	rc = regmap_read(pon->regmap, QPNP_PON_KPDPWR_S2_CNTL(pon), &pon_sts);
+	if (rc) {
+		dev_err(pon->dev,
+				"Unable to read PON_RESASON1 reg rc: %d\n",
+				rc);
+		return rc;
+	}
+	snprintf(reg, sizeof(reg), "0x%x:0x%x ", QPNP_PON_KPDPWR_S2_CNTL(pon), pon_sts);
+	strlcat(str_buf, reg, sizeof(str_buf));
+
+	rc = regmap_read(pon->regmap, QPNP_PON_KPDPWR_RESIN_S2_CNTL(pon), &pon_sts);
+	if (rc) {
+		dev_err(pon->dev,
+				"Unable to read PON_RESASON1 reg rc: %d\n",
+				rc);
+		return rc;
+	}
+	snprintf(reg, sizeof(reg), "0x%x:0x%x ", QPNP_PON_KPDPWR_RESIN_S2_CNTL(pon), pon_sts);
+	strlcat(str_buf, reg, sizeof(str_buf));
+
+	rc = regmap_read(pon->regmap, QPNP_PON_PS_HOLD_RST_CTL(pon), &pon_sts);
+	if (rc) {
+		dev_err(pon->dev,
+				"Unable to read PON_RESASON1 reg rc: %d\n",
+				rc);
+		return rc;
+	}
+	snprintf(reg, sizeof(reg), "0x%x:0x%x ", QPNP_PON_PS_HOLD_RST_CTL(pon), pon_sts);
+	strlcat(str_buf, reg, sizeof(str_buf));
+
+print_log:
+	strlcat(str_buf, "\n", sizeof(str_buf));
+	printk(str_buf);
+
+	return rc;
+}
+#endif
+
 static int qpnp_pon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -2456,12 +2585,24 @@ static int qpnp_pon_probe(struct platform_device *pdev)
 		return rc;
 	}
 
+#ifndef CONFIG_MACH_XIAOMI
 	rc = qpnp_pon_get_dbc(pon, &pon->dbc_time_us);
 	if (rc)
 		return rc;
+#endif
 
 	pon->kpdpwr_dbc_enable = of_property_read_bool(dev->of_node,
 						"qcom,kpdpwr-sw-debounce");
+
+#ifdef CONFIG_MACH_XIAOMI
+	if (pon->kpdpwr_dbc_enable) {
+		pr_info("use kpdpwr-sw-debounce\n");
+	} else {
+		rc = qpnp_pon_get_dbc(pon, &pon->dbc_time_us);
+		if (rc)
+			return rc;
+	}
+#endif
 
 	pon->store_hard_reset_reason = of_property_read_bool(dev->of_node,
 					"qcom,store-hard-reset-reason");
@@ -2502,6 +2643,9 @@ static int qpnp_pon_probe(struct platform_device *pdev)
 	if (modem_reset)
 		modem_reset_dev = pon;
 
+#ifdef CONFIG_MACH_XIAOMI
+	debug_pon_on_off_reg(pon);
+#endif
 	qpnp_pon_debugfs_init(pon);
 
 	return 0;
