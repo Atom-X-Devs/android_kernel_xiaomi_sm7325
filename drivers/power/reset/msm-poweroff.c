@@ -60,8 +60,13 @@ static struct nvmem_cell *nvmem_cell;
 static int download_mode = 1;
 static struct kobject dload_kobj;
 
+#ifndef CONFIG_MACH_XIAOMI
 static int in_panic;
 static int dload_type = SCM_DLOAD_FULLDUMP;
+#else
+static int in_panic = 0;
+static int dload_type = SCM_DLOAD_BOTHDUMPS;
+#endif
 static void *dload_mode_addr;
 static bool dload_mode_enabled;
 static void *emergency_dload_mode_addr;
@@ -431,6 +436,11 @@ static void msm_restart_prepare(const char *cmd)
 	else
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
 
+#ifdef CONFIG_MACH_XIAOMI
+	if (in_panic) {
+		reason = PON_RESTART_REASON_PANIC;
+	} else
+#endif
 	if (cmd != NULL) {
 		if (!strncmp(cmd, "bootloader", 10)) {
 			reason = PON_RESTART_REASON_BOOTLOADER;
@@ -461,15 +471,32 @@ static void msm_restart_prepare(const char *cmd)
 		} else if (!strncmp(cmd, "edl", 3)) {
 			enable_emergency_dload_mode();
 		} else {
+#ifdef CONFIG_MACH_XIAOMI
+			reason = PON_RESTART_REASON_NORMAL;
+#endif
 			__raw_writel(0x77665501, restart_reason);
 		}
 
+#ifndef CONFIG_MACH_XIAOMI
 		if (reason && nvmem_cell)
 			nvmem_cell_write(nvmem_cell, &reason, sizeof(reason));
 		else
 			qpnp_pon_set_restart_reason(
 				(enum pon_restart_reason)reason);
+#else
+	} else {
+		reason = PON_RESTART_REASON_NORMAL;
+		__raw_writel(0x77665501, restart_reason);
+#endif
 	}
+
+#ifdef CONFIG_MACH_XIAOMI
+	if (reason && nvmem_cell)
+		nvmem_cell_write(nvmem_cell, &reason, sizeof(reason));
+	else
+		qpnp_pon_set_restart_reason(
+			(enum pon_restart_reason)reason);
+#endif
 
 	/*outer_flush_all is not supported by 64bit kernel*/
 #ifndef CONFIG_ARM64

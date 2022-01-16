@@ -18,6 +18,10 @@ struct qcom_reboot_reason {
 	struct device *dev;
 	struct notifier_block reboot_nb;
 	struct nvmem_cell *nvmem_cell;
+#ifdef CONFIG_MACH_XIAOMI
+	struct notifier_block panic_nb;
+	struct notifier_block restart_nb;
+#endif
 };
 
 struct poweroff_reason {
@@ -32,8 +36,22 @@ static struct poweroff_reason reasons[] = {
 	{ "dm-verity device corrupted",	0x04 },
 	{ "dm-verity enforcing",	0x05 },
 	{ "keys clear",			0x06 },
+#ifdef CONFIG_MACH_XIAOMI
+	{ "panic",			0x21 },
+	{ NULL,				0x20 },
+#endif
 	{}
 };
+
+#ifdef CONFIG_MACH_XIAOMI
+static struct poweroff_reason restart_reasons[] = {
+	{ "lp_kthread",			0x28 },
+	{ NULL,				0x00 }, //end loop flag, not reset reason
+};
+
+#define RESTART_REASON_PANIC  6
+#define RESTART_REASON_NORMAL 7
+#endif
 
 static int qcom_reboot_reason_reboot(struct notifier_block *this,
 				     unsigned long event, void *ptr)
@@ -43,19 +61,79 @@ static int qcom_reboot_reason_reboot(struct notifier_block *this,
 		struct qcom_reboot_reason, reboot_nb);
 	struct poweroff_reason *reason;
 
-	if (!cmd)
+	if (!cmd) {
+#ifdef CONFIG_MACH_XIAOMI
+		nvmem_cell_write(reboot->nvmem_cell,
+				 &reasons[RESTART_REASON_NORMAL].pon_reason,
+				 sizeof(reasons[RESTART_REASON_NORMAL].pon_reason));
+#endif
 		return NOTIFY_OK;
+	}
 	for (reason = reasons; reason->cmd; reason++) {
 		if (!strcmp(cmd, reason->cmd)) {
 			nvmem_cell_write(reboot->nvmem_cell,
 					 &reason->pon_reason,
 					 sizeof(reason->pon_reason));
+#ifndef CONFIG_MACH_XIAOMI
 			break;
+#else
+			return NOTIFY_OK;
+#endif
+		}
+	}
+
+#ifdef CONFIG_MACH_XIAOMI
+	nvmem_cell_write(reboot->nvmem_cell,
+			&reason->pon_reason,
+			sizeof(reason->pon_reason));
+#endif
+
+	return NOTIFY_OK;
+}
+
+#ifdef CONFIG_MACH_XIAOMI
+/*
+ * 	this function only used in restart chain for limited reset reasons
+ * 	eg: long press power key kthread, because it cannot trigger
+ *	reboot chain to set reset reason
+*/
+static int qcom_restart_reason_reboot(struct notifier_block *this,
+				     unsigned long event, void *ptr)
+{
+	char *cmd = ptr;
+	struct qcom_reboot_reason *reboot = container_of(this,
+		struct qcom_reboot_reason, restart_nb);
+	struct poweroff_reason *reason;
+
+	if (!cmd)
+		return NOTIFY_OK;
+
+	for (reason = restart_reasons; reason->cmd; reason++) {
+		if (!strcmp(cmd, reason->cmd)) {
+			nvmem_cell_write(reboot->nvmem_cell,
+					 &reason->pon_reason,
+					 sizeof(reason->pon_reason));
+			pr_info("restart reason: %s\n", cmd);
+			return NOTIFY_OK;
 		}
 	}
 
 	return NOTIFY_OK;
 }
+
+static int panic_prep_restart(struct notifier_block *this,
+			      unsigned long event, void *ptr)
+{
+	struct qcom_reboot_reason *reboot = container_of(this,
+	struct qcom_reboot_reason, panic_nb);
+
+	nvmem_cell_write(reboot->nvmem_cell,
+			&reasons[RESTART_REASON_PANIC].pon_reason,
+			sizeof(reasons[RESTART_REASON_PANIC].pon_reason));
+
+	return NOTIFY_DONE;
+}
+#endif
 
 static int qcom_reboot_reason_probe(struct platform_device *pdev)
 {
@@ -78,6 +156,17 @@ static int qcom_reboot_reason_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, reboot);
 
+#ifdef CONFIG_MACH_XIAOMI
+	reboot->panic_nb.notifier_call = panic_prep_restart;
+	reboot->panic_nb.priority = INT_MAX;
+	atomic_notifier_chain_register(&panic_notifier_list, &reboot->panic_nb);
+
+	/*register restart chain for set restart reason*/
+	reboot->restart_nb.notifier_call = qcom_restart_reason_reboot;
+	reboot->restart_nb.priority = 200;
+	register_restart_handler(&reboot->restart_nb);
+#endif
+
 	return 0;
 }
 
@@ -85,7 +174,13 @@ static int qcom_reboot_reason_remove(struct platform_device *pdev)
 {
 	struct qcom_reboot_reason *reboot = platform_get_drvdata(pdev);
 
+#ifdef CONFIG_MACH_XIAOMI
+	atomic_notifier_chain_unregister(&panic_notifier_list, &reboot->panic_nb);
+#endif
 	unregister_reboot_notifier(&reboot->reboot_nb);
+#ifdef CONFIG_MACH_XIAOMI
+	unregister_restart_handler(&reboot->restart_nb);
+#endif
 
 	return 0;
 }
