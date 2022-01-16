@@ -38,7 +38,11 @@ struct qcom_dload {
 static bool enable_dump =
 	IS_ENABLED(CONFIG_POWER_RESET_QCOM_DOWNLOAD_MODE_DEFAULT);
 static enum qcom_download_mode current_download_mode = QCOM_DOWNLOAD_NODUMP;
+#ifndef CONFIG_MACH_XIAOMI
 static enum qcom_download_mode dump_mode = QCOM_DOWNLOAD_FULLDUMP;
+#else
+static enum qcom_download_mode dump_mode = QCOM_DOWNLOAD_BOTHDUMP;
+#endif
 
 static int set_download_mode(enum qcom_download_mode mode)
 {
@@ -262,10 +266,15 @@ static int qcom_dload_reboot(struct notifier_block *this, unsigned long event,
 		set_download_mode(QCOM_DOWNLOAD_NODUMP);
 
 	if (cmd) {
+#ifdef CONFIG_MACH_XIAOMI
 		if (!strcmp(cmd, "edl"))
 			set_download_mode(QCOM_DOWNLOAD_EDL);
 		else if (!strcmp(cmd, "qcom_dload"))
 			msm_enable_dump_mode(true);
+#else
+		if (!strcmp(cmd, "qcom_dload"))
+		    msm_enable_dump_mode(true);
+#endif
 	}
 
 	if (current_download_mode != QCOM_DOWNLOAD_NODUMP)
