@@ -418,6 +418,12 @@ config QTI_BATTERY_CHARGER
 	  To compile the driver as a module, choose M here: the module will be
 	  called qti_battery_charger.
 
+config BQ2597X_BATTERY_CHARGER
+	bool "BQ2597X battery charger"
+	depends on QTI_BATTERY_CHARGER
+	help
+	  Say Y here to enable BQ2597X battery charger
+
 config CHARGER_88PM860X
 	tristate "Marvell 88PM860x Charger driver"
 	depends on MFD_88PM860X && BATTERY_88PM860X
