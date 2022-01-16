@@ -1769,7 +1769,12 @@ void a6xx_gmu_suspend(struct adreno_device *adreno_dev)
 
 	clk_bulk_disable_unprepare(gmu->num_clks, gmu->clks);
 
+#ifndef CONFIG_MACH_XIAOMI
 	a6xx_cx_regulator_disable_wait(gmu->cx_gdsc, device, 5000);
+#else
+	a6xx_cx_regulator_disable_wait(gmu->cx_gdsc, device,
+		IS_ENABLED(CONFIG_ARM_SMMU_POWER_ALWAYS_ON) ? 0 : 5000);
+#endif
 
 	a6xx_rdpm_cx_freq_update(gmu, 0);
 
