@@ -1688,6 +1688,9 @@ static int geni_se_iommu_probe(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_FASTBOOT_CMD_CTRL_UART
+extern bool is_early_cons_enabled;
+#endif
 static int geni_se_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -1786,10 +1789,44 @@ static int geni_se_probe(struct platform_device *pdev)
 
 	ret = geni_se_add_ab_ib(geni_se_dev, &geni_se_dev->wrapper_rsc);
 	if (ret) {
+#ifndef CONFIG_MACH_XIAOMI
 		dev_err(dev, "%s: Error %d during bus_bw_update\n", __func__,
+				ret);
+#else
+		dev_err(dev, "%s: Error %d during geni_se_add_ab_ib\n", __func__,
+				ret);
+#endif
+		return ret;
+	}
+
+#ifdef CONFIG_MACH_XIAOMI
+	ret = geni_se_rmv_ab_ib(geni_se_dev, &geni_se_dev->wrapper_rsc);
+	if (ret) {
+		dev_err(dev, "%s: Error %d during geni_se_rmv_ab_ib\n", __func__,
 				ret);
 		return ret;
 	}
+#endif
+
+#ifdef CONFIG_FASTBOOT_CMD_CTRL_UART
+	if (!is_early_cons_enabled) {
+		dev_info(dev, "%s: is_early_cons_enabled not true\n", __func__);
+	} else {
+		ret = geni_se_add_ab_ib(geni_se_dev, &geni_se_dev->wrapper_rsc);
+		if (ret) {
+			dev_err(dev, "%s: Error %d during geni_se_add_ab_ib\n",
+					__func__, ret);
+			return ret;
+		}
+	}
+#else
+	ret = geni_se_add_ab_ib(geni_se_dev, &geni_se_dev->wrapper_rsc);
+	if (ret) {
+		dev_err(dev, "%s: Error %d during geni_se_add_ab_ib\n", __func__,
+				ret);
+		return ret;
+	}
+#endif
 #endif
 
 	ret = of_platform_populate(dev->of_node, geni_se_dt_match, NULL, dev);
