@@ -1808,7 +1808,11 @@ static const struct msm_pingroup yupik_groups[] = {
 };
 
 static const int yupik_reserved_gpios[] = {
+#ifdef CONFIG_MACH_XIAOMI_SM7325
+	32, 33, 48, 49, 50, 51, 56, 57, 58, 59, -1
+#else
 	32, 33, 48, 49, 50, 51, -1
+#endif
 };
 static struct pinctrl_qup yupik_qup_regs[] = {
 	QUP_I3C(0, QUP_I3C_0_MODE_OFFSET),
