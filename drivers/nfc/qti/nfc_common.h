@@ -86,6 +86,9 @@
 #define ESE_SET_PWR		_IOW(NFC_MAGIC, 0x02, unsigned int)
 #define ESE_GET_PWR		_IOR(NFC_MAGIC, 0x03, unsigned int)
 #define NFC_GET_PLATFORM_TYPE	_IO(NFC_MAGIC, 0x04)
+#ifdef CONFIG_MACH_XIAOMI
+#define NFC_GET_IRQ_STATE	_IOW(NFC_MAGIC, 0x05, unsigned int)
+#endif
 
 #define DTS_IRQ_GPIO_STR	"qcom,sn-irq"
 #define DTS_VEN_GPIO_STR	"qcom,sn-ven"
