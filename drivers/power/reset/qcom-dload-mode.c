@@ -38,8 +38,12 @@ struct qcom_dload {
 static bool enable_dump =
 	IS_ENABLED(CONFIG_POWER_RESET_QCOM_DOWNLOAD_MODE_DEFAULT);
 static enum qcom_download_mode current_download_mode = QCOM_DOWNLOAD_NODUMP;
+#ifndef CONFIG_MACH_XIAOMI
 static enum qcom_download_mode dump_mode = QCOM_DOWNLOAD_FULLDUMP;
 static bool early_pcie_init_enable;
+#else
+static enum qcom_download_mode dump_mode = QCOM_DOWNLOAD_BOTHDUMP;
+#endif
 
 static int set_download_mode(enum qcom_download_mode mode)
 {
@@ -263,11 +267,13 @@ static int qcom_dload_reboot(struct notifier_block *this, unsigned long event,
 		set_download_mode(QCOM_DOWNLOAD_NODUMP);
 
 	if (cmd) {
+#ifndef CONFIG_MACH_XIAOMI
 		if (!strcmp(cmd, "edl")) {
 			early_pcie_init_enable ? set_download_mode(QCOM_EDLOAD_PCI_MODE)
 				: set_download_mode(QCOM_DOWNLOAD_EDL);
-		}
-		else if (!strcmp(cmd, "qcom_dload"))
+		} else
+#endif
+		if (!strcmp(cmd, "qcom_dload"))
 			msm_enable_dump_mode(true);
 	}
 
@@ -314,6 +320,7 @@ static void store_kaslr_offset(void)
 static void store_kaslr_offset(void) {}
 #endif /* CONFIG_RANDOMIZE_BASE */
 
+#ifndef CONFIG_MACH_XIAOMI
 static void check_pci_edl(struct device_node *np)
 {
 	void __iomem *mem;
@@ -340,6 +347,7 @@ static void check_pci_edl(struct device_node *np)
 
 	iounmap(mem);
 }
+#endif
 
 static int qcom_dload_probe(struct platform_device *pdev)
 {
@@ -370,7 +378,9 @@ static int qcom_dload_probe(struct platform_device *pdev)
 
 	poweroff->dload_dest_addr = map_prop_mem("qcom,msm-imem-dload-type");
 	store_kaslr_offset();
+#ifndef CONFIG_MACH_XIAOMI
 	check_pci_edl(pdev->dev.of_node);
+#endif
 
 	msm_enable_dump_mode(enable_dump);
 	if (!enable_dump)
