@@ -21,6 +21,10 @@
 #include <linux/firmware.h>
 #include <linux/soc/qcom/qmi.h>
 #include <linux/platform_device.h>
+#ifdef CONFIG_MACH_XIAOMI
+#include <linux/hwid.h>
+#endif
+
 #include <soc/qcom/icnss2.h>
 #include <soc/qcom/service-locator.h>
 #include <soc/qcom/service-notifier.h>
@@ -35,12 +39,22 @@
 #define WLFW_CLIENT_ID			0x4b4e454c
 #define QMI_ERR_PLAT_CCPM_CLK_INIT_FAILED	0x77
 
+#ifdef CONFIG_MACH_XIAOMI
+#define ELF_BDF_FILE_NAME_K9D		"bd_k9d.elf"
+#define ELF_BDF_FILE_NAME_K9D_GLOBAL	"bd_k9dgl.elf"
+#define ELF_BDF_FILE_NAME_K9D_INDIA	"bd_k9din.elf"
+#endif
+
 #define BDF_FILE_NAME_PREFIX		"bdwlan"
 #define ELF_BDF_FILE_NAME		"bdwlan.elf"
 #define ELF_BDF_FILE_NAME_PREFIX	"bdwlan.e"
 #define BIN_BDF_FILE_NAME		"bdwlan.bin"
 #define BIN_BDF_FILE_NAME_PREFIX	"bdwlan.b"
+#ifndef CONFIG_MACH_XIAOMI
 #define REGDB_FILE_NAME			"regdb.bin"
+#else
+#define REGDB_FILE_NAME			"regdb_xiaomi.bin"
+#endif
 #define DUMMY_BDF_FILE_NAME		"bdwlan.dmy"
 
 #define QDSS_TRACE_CONFIG_FILE "qdss_trace_config.cfg"
@@ -773,11 +787,20 @@ int icnss_qmi_get_dms_mac(struct icnss_priv *priv)
 		if (resp.resp.error == DMS_MAC_NOT_PROVISIONED) {
 			icnss_pr_err("NV MAC address is not provisioned");
 			priv->dms.nv_mac_not_prov = 1;
+#ifdef CONFIG_MACH_XIAOMI
+			ret = -resp.resp.result;
+#endif
 		} else {
 			icnss_pr_err("QMI_DMS_GET_MAC_ADDRESS_REQ_V01 failed, result: %d, err: %d\n",
 				     resp.resp.result, resp.resp.error);
+#ifdef CONFIG_MACH_XIAOMI
+			ret = -EAGAIN;
+#endif
+
 		}
+#ifndef CONFIG_MACH_XIAOMI
 		ret = -resp.resp.result;
+#endif
 		goto out;
 	}
 	if (!resp.mac_address_valid ||
@@ -931,11 +954,28 @@ static int icnss_get_bdf_file_name(struct icnss_priv *priv,
 {
 	char filename_tmp[ICNSS_MAX_FILE_NAME];
 	int ret = 0;
+#ifdef CONFIG_MACH_XIAOMI
+	int hw_platform_ver = -1;
+	uint32_t hw_country_ver = 0;
+	hw_platform_ver = get_hw_version_platform();
+	hw_country_ver = get_hw_country_version();
+#endif
 
 	switch (bdf_type) {
 	case ICNSS_BDF_ELF:
-		if (priv->board_id == 0xFF)
+		if (priv->board_id == 0xFF) {
+#ifdef CONFIG_MACH_XIAOMI
+			if (hw_platform_ver == HARDWARE_PROJECT_K9D) {
+				if ((uint32_t)CountryGlobal == hw_country_ver) {
+					snprintf(filename_tmp, filename_len, ELF_BDF_FILE_NAME_K9D_GLOBAL);
+				} else if ((uint32_t)CountryIndia == hw_country_ver) {
+					snprintf(filename_tmp, filename_len, ELF_BDF_FILE_NAME_K9D_INDIA);
+				} else
+					snprintf(filename_tmp, filename_len, ELF_BDF_FILE_NAME_K9D);
+			} else
+#endif
 			snprintf(filename_tmp, filename_len, ELF_BDF_FILE_NAME);
+		}
 		else if (priv->board_id < 0xFF)
 			snprintf(filename_tmp, filename_len,
 				 ELF_BDF_FILE_NAME_PREFIX "%02x",
