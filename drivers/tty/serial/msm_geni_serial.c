@@ -303,6 +303,7 @@ static void msm_geni_update_uart_error_code(struct msm_geni_serial_port *port,
 			"%s: uart_error_code:%d\n", __func__, port->uart_error);
 	}
 }
+
 /*
  * We are enabling the interrupts once the polling operations
  * is completed.
@@ -2904,13 +2905,33 @@ static int msm_geni_console_setup(struct console *co, char *options)
 	return uart_set_options(uport, co, baud, parity, bits, flow);
 }
 
+#ifdef CONFIG_FASTBOOT_CMD_CTRL_UART
+extern bool is_early_cons_enabled;
+#endif
+
 static int console_register(struct uart_driver *drv)
 {
+
+#ifdef CONFIG_FASTBOOT_CMD_CTRL_UART
+	if (!is_early_cons_enabled) {
+		pr_info("ignore console register\n");
+		return 0;
+	}
+#endif
+
 	return uart_register_driver(drv);
 }
 
 static void console_unregister(struct uart_driver *drv)
 {
+
+#ifdef CONFIG_FASTBOOT_CMD_CTRL_UART
+	if (!is_early_cons_enabled) {
+		pr_info("ignore console unregister\n");
+		return;
+	}
+#endif
+
 	uart_unregister_driver(drv);
 }
 
@@ -3014,6 +3035,13 @@ static void msm_geni_serial_cons_pm(struct uart_port *uport,
 		unsigned int new_state, unsigned int old_state)
 {
 	struct msm_geni_serial_port *msm_port = GET_DEV_PORT(uport);
+
+#ifdef CONFIG_FASTBOOT_CMD_CTRL_UART
+	if (!is_early_cons_enabled) {
+		pr_info("ignore console pm\n");
+		return;
+	}
+#endif
 
 	if (new_state == UART_PM_STATE_ON && old_state == UART_PM_STATE_OFF) {
 		se_geni_resources_on(&msm_port->serial_rsc);
@@ -3362,6 +3390,20 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	dev_dbg(&pdev->dev, "%s: %s\n", __func__, id->compatible);
+
+#ifdef CONFIG_FASTBOOT_CMD_CTRL_UART
+	/*
+	 * if earlycon is not enabled,
+	 * we should ignore console
+	 * driver prob
+	 */
+	if (!is_early_cons_enabled &&
+		(!strcmp(id->compatible, "qcom,msm-geni-console"))) {
+		pr_info("ignore cons prob\n");
+		return 0;
+	}
+#endif
+
 	drv = (struct uart_driver *)id->data;
 
 	if (pdev->dev.of_node) {
@@ -3512,6 +3554,28 @@ static int msm_geni_serial_remove(struct platform_device *pdev)
 	struct msm_geni_serial_port *port = platform_get_drvdata(pdev);
 	struct uart_driver *drv =
 			(struct uart_driver *)port->uport.private_data;
+#ifdef CONFIG_FASTBOOT_CMD_CTRL_UART
+	const struct of_device_id *id;
+
+	id = of_match_device(msm_geni_device_tbl, &pdev->dev);
+	if (!id) {
+		dev_err(&pdev->dev, "%s: No matching device found\n",
+				__func__);
+		return -ENODEV;
+	}
+	dev_dbg(&pdev->dev, "%s: %s\n", __func__, id->compatible);
+
+	/*
+	 * if earlycon is not enabled,
+	 * we should ignore console
+	 * driver prob
+	 */
+	if (!is_early_cons_enabled &&
+		(!strcmp(id->compatible, "qcom,msm-geni-console"))) {
+		pr_info("ignore cons remove\n");
+		return 0;
+	}
+#endif
 
 	if (!uart_console(&port->uport))
 		wakeup_source_unregister(port->geni_wake);
@@ -3552,6 +3616,28 @@ static int msm_geni_serial_runtime_suspend(struct device *dev)
 	int ret = 0;
 	u32 geni_status = geni_read_reg_nolog(port->uport.membase,
 							SE_GENI_STATUS);
+#ifdef CONFIG_FASTBOOT_CMD_CTRL_UART
+	const struct of_device_id *id;
+
+	id = of_match_device(msm_geni_device_tbl, &pdev->dev);
+	if (!id) {
+		dev_err(&pdev->dev, "%s: No matching device found\n",
+				__func__);
+		return -ENODEV;
+	}
+	dev_dbg(&pdev->dev, "%s: %s\n", __func__, id->compatible);
+
+	/*
+	 * if earlycon is not enabled,
+	 * we should ignore console
+	 * driver prob
+	 */
+	if (!is_early_cons_enabled &&
+		(!strcmp(id->compatible, "qcom,msm-geni-console"))) {
+		pr_info("ignore cons runtime suspend\n");
+		return 0;
+	}
+#endif
 
 	IPC_LOG_MSG(port->ipc_log_pwr, "%s: Start\n", __func__);
 	/* Flow off from UART only for In band sleep(IBS)
@@ -3625,6 +3711,28 @@ static int msm_geni_serial_runtime_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct msm_geni_serial_port *port = platform_get_drvdata(pdev);
 	int ret = 0;
+#ifdef CONFIG_FASTBOOT_CMD_CTRL_UART
+	const struct of_device_id *id;
+
+	id = of_match_device(msm_geni_device_tbl, &pdev->dev);
+	if (!id) {
+		dev_err(&pdev->dev, "%s: No matching device found\n",
+				__func__);
+		return -ENODEV;
+	}
+	dev_dbg(&pdev->dev, "%s: %s\n", __func__, id->compatible);
+
+	/*
+	 * if earlycon is not enabled,
+	 * we should ignore console
+	 * driver prob
+	 */
+	if (!is_early_cons_enabled &&
+		(!strcmp(id->compatible, "qcom,msm-geni-console"))) {
+		pr_info("ignore cons runtime resume\n");
+		return 0;
+	}
+#endif
 
 	/*
 	 * Do an unconditional relax followed by a stay awake in case the
@@ -3663,6 +3771,28 @@ static int msm_geni_serial_sys_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct msm_geni_serial_port *port = platform_get_drvdata(pdev);
 	struct uart_port *uport = &port->uport;
+#ifdef CONFIG_FASTBOOT_CMD_CTRL_UART
+	const struct of_device_id *id;
+
+	id = of_match_device(msm_geni_device_tbl, &pdev->dev);
+	if (!id) {
+		dev_err(&pdev->dev, "%s: No matching device found\n",
+				__func__);
+		return -ENODEV;
+	}
+	dev_dbg(&pdev->dev, "%s: %s\n", __func__, id->compatible);
+
+	/*
+	 * if earlycon is not enabled,
+	 * we should ignore console
+	 * driver prob
+	 */
+	if (!is_early_cons_enabled &&
+		(!strcmp(id->compatible, "qcom,msm-geni-console"))) {
+		pr_info("ignore cons suspend\n");
+		return 0;
+	}
+#endif
 
 	if (uart_console(uport) || port->pm_auto_suspend_disable) {
 		IPC_LOG_MSG(port->console_log, "%s start\n", __func__);
@@ -3694,6 +3824,28 @@ static int msm_geni_serial_sys_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct msm_geni_serial_port *port = platform_get_drvdata(pdev);
 	struct uart_port *uport = &port->uport;
+#ifdef CONFIG_FASTBOOT_CMD_CTRL_UART
+	const struct of_device_id *id;
+
+	id = of_match_device(msm_geni_device_tbl, &pdev->dev);
+	if (!id) {
+		dev_err(&pdev->dev, "%s: No matching device found\n",
+				__func__);
+		return -ENODEV;
+	}
+	dev_dbg(&pdev->dev, "%s: %s\n", __func__, id->compatible);
+
+	/*
+	 * if earlycon is not enabled,
+	 * we should ignore console
+	 * driver prob
+	 */
+	if (!is_early_cons_enabled &&
+		(!strcmp(id->compatible, "qcom,msm-geni-console"))) {
+		pr_info("ignore cons suspend\n");
+		return 0;
+	}
+#endif
 
 	if ((uart_console(uport) &&
 	    console_suspend_enabled && uport->suspended) ||
