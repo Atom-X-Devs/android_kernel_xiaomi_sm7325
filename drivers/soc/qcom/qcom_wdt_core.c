@@ -903,7 +903,11 @@ static int qcom_wdt_init(struct msm_watchdog_data *wdog_dd,
 	atomic_set(&wdog_dd->irq_counts_running, 0);
 	delay_time = msecs_to_jiffies(wdog_dd->pet_time);
 	wdog_dd->ops->set_bark_time(wdog_dd->bark_time, wdog_dd);
+#ifndef CONFIG_MACH_XIAOMI
 	wdog_dd->ops->set_bite_time(wdog_dd->bark_time + 3 * 1000, wdog_dd);
+#else
+	wdog_dd->ops->set_bite_time(wdog_dd->bark_time + 10 * 1000, wdog_dd);
+#endif
 	wdog_dd->panic_blk.priority = INT_MAX - 1;
 	wdog_dd->panic_blk.notifier_call = qcom_wdt_panic_handler;
 	atomic_notifier_chain_register(&panic_notifier_list,

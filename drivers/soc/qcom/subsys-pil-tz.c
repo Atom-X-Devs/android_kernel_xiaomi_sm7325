@@ -1638,18 +1638,7 @@ static struct platform_driver pil_tz_driver = {
 		.of_match_table = pil_tz_match_table,
 	},
 };
-
-static int __init pil_tz_init(void)
-{
-	return platform_driver_register(&pil_tz_driver);
-}
-module_init(pil_tz_init);
-
-static void __exit pil_tz_exit(void)
-{
-	platform_driver_unregister(&pil_tz_driver);
-}
-module_exit(pil_tz_exit);
+module_platform_driver(pil_tz_driver);
 
 MODULE_DESCRIPTION("Support for booting subsystems");
 MODULE_LICENSE("GPL v2");
