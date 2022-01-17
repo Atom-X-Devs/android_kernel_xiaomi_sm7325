@@ -23,7 +23,11 @@
 #include <soc/qcom/boot_stats.h>
 
 #define SPI_NUM_CHIPSELECT	(4)
+#ifndef CONFIG_MACH_XIAOMI
 #define SPI_XFER_TIMEOUT_MS	(250)
+#else
+#define SPI_XFER_TIMEOUT_MS	(1500)
+#endif
 #define SPI_AUTO_SUSPEND_DELAY	(250)
 /* SPI SE specific registers */
 #define SE_SPI_CPHA		(0x224)
