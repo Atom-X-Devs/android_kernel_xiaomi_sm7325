@@ -96,25 +96,42 @@ static ssize_t msm_rpmh_master_stats_print_data(char *prvbuf, ssize_t length,
 				const char *name)
 {
 	uint64_t accumulated_duration = record->accumulated_duration;
+#ifdef CONFIG_MACH_XIAOMI
+	bool is_sleep = false;
+#endif
+
 	/*
 	 * If a master is in sleep when reading the sleep stats from SMEM
 	 * adjust the accumulated sleep duration to show actual sleep time.
 	 * This ensures that the displayed stats are real when used for
 	 * the purpose of computing battery utilization.
 	 */
-	if (record->last_entered > record->last_exited)
+	if (record->last_entered > record->last_exited) {
 		accumulated_duration +=
 				(__arch_counter_get_cntvct()
 				- record->last_entered);
+#ifdef CONFIG_MACH_XIAOMI
+		is_sleep = true;
+#endif
+	}
 
 	return scnprintf(prvbuf, length, "%s\n\tVersion:0x%x\n"
 			"\tSleep Count:0x%x\n"
 			"\tSleep Last Entered At:0x%llx\n"
 			"\tSleep Last Exited At:0x%llx\n"
+#ifndef CONFIG_MACH_XIAOMI
 			"\tSleep Accumulated Duration:0x%llx\n\n",
+#else
+			"\tSleep Accumulated Duration:0x%llx\n"
+			"\tSleeping: %d\n\n",
+#endif
 			name, record->version_id, record->counts,
 			record->last_entered, record->last_exited,
+#ifndef CONFIG_MACH_XIAOMI
 			accumulated_duration);
+#else
+			accumulated_duration, is_sleep?1:0);
+#endif
 }
 
 static ssize_t msm_rpmh_master_stats_show(struct kobject *kobj,
