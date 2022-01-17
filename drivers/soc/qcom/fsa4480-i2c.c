@@ -15,6 +15,11 @@
 
 #define FSA4480_I2C_NAME	"fsa4480-driver"
 
+#ifdef CONFIG_MACH_XIAOMI
+#define DIO4480_ID_VALUE        0xF1
+#define ET7480_ID               0x00
+#define ET7480_ID_VALUE         0x88
+#endif
 #define FSA4480_SWITCH_SETTINGS 0x04
 #define FSA4480_SWITCH_CONTROL  0x05
 #define FSA4480_SWITCH_STATUS1  0x07
@@ -41,6 +46,9 @@ struct fsa4480_priv {
 	struct mutex notification_lock;
 	u32 use_powersupply;
 	int switch_control;
+#ifdef CONFIG_MACH_XIAOMI
+	bool dio4480;
+#endif
 };
 
 struct fsa4480_reg_val {
@@ -124,9 +132,15 @@ static int fsa4480_usbc_event_changed_ucsi(struct fsa4480_priv *fsa_priv,
 	if (!dev)
 		return -EINVAL;
 
+#ifndef CONFIG_MACH_XIAOMI
 	dev_dbg(dev, "%s: USB change event received, supply mode %d, usbc mode %ld, expected %d\n",
 			__func__, acc, fsa_priv->usbc_mode.counter,
 			TYPEC_ACCESSORY_AUDIO);
+#else
+	dev_dbg(dev, "%s: USB change event received, audio switch %d, supply mode %d, usbc mode %ld, expected %d\n",
+			__func__, fsa_priv->dio4480, acc, fsa_priv->usbc_mode.counter,
+			TYPEC_ACCESSORY_AUDIO);
+#endif
 
 	switch (acc) {
 	case TYPEC_ACCESSORY_AUDIO:
@@ -443,6 +457,9 @@ static int fsa4480_probe(struct i2c_client *i2c,
 	struct fsa4480_priv *fsa_priv;
 	u32 use_powersupply = 0;
 	int rc = 0;
+#ifdef CONFIG_MACH_XIAOMI
+	int reg_val = 0;
+#endif
 
 	fsa_priv = devm_kzalloc(&i2c->dev, sizeof(*fsa_priv),
 				GFP_KERNEL);
@@ -520,6 +537,19 @@ static int fsa4480_probe(struct i2c_client *i2c,
 		(struct rw_semaphore)__RWSEM_INITIALIZER
 		((fsa_priv->fsa4480_notifier).rwsem);
 	fsa_priv->fsa4480_notifier.head = NULL;
+
+#ifdef CONFIG_MACH_XIAOMI
+	regmap_read(fsa_priv->regmap, ET7480_ID, &reg_val);
+	if (reg_val == DIO4480_ID_VALUE) {
+		fsa_priv->dio4480 = true;
+		dev_dbg(fsa_priv->dev, "%s audio switch use dio4480 reg_val is %x",
+			 __func__, reg_val);
+	} else {
+		fsa_priv->dio4480 = false;
+		dev_dbg(fsa_priv->dev, "%s audio switch use et7480 reg_val is %x",
+			__func__, reg_val);
+	}
+#endif
 
 	return 0;
 
