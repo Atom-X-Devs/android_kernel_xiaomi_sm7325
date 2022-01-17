@@ -22,7 +22,11 @@
 #include <linux/pinctrl/consumer.h>
 
 #define SPI_NUM_CHIPSELECT	(4)
+#ifndef CONFIG_MACH_XIAOMI
 #define SPI_XFER_TIMEOUT_MS	(250)
+#else
+#define SPI_XFER_TIMEOUT_MS	(1500)
+#endif
 #define SPI_AUTO_SUSPEND_DELAY	(250)
 #define SPI_XFER_TIMEOUT_OFFSET	(250)
 /* SPI SE specific registers */
