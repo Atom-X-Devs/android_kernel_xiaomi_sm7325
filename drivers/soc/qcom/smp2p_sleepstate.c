@@ -49,7 +49,12 @@ static struct notifier_block sleepstate_pm_nb = {
 
 static irqreturn_t smp2p_sleepstate_handler(int irq, void *ctxt)
 {
+#ifndef CONFIG_MACH_XIAOMI
 	__pm_wakeup_event(notify_ws, 200);
+#else
+	__pm_wakeup_event(notify_ws, 100);
+#endif
+
 	return IRQ_HANDLED;
 }
 
