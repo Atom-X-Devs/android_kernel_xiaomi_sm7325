@@ -1656,7 +1656,6 @@ static struct platform_driver pil_tz_driver = {
 		.of_match_table = pil_tz_match_table,
 	},
 };
-
 static int __init pil_tz_init(void)
 {
 	return platform_driver_register(&pil_tz_driver);

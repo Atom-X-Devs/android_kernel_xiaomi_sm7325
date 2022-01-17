@@ -16,6 +16,9 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#ifdef CONFIG_MACH_XIAOMI
+#include <linux/wait.h>
+#endif
 
 #include <soc/qcom/cmd-db.h>
 #include <soc/qcom/tcs.h>
@@ -127,22 +130,30 @@ static int tcs_invalidate(struct rsc_drv *drv, int type)
 
 	tcs = get_tcs_of_type(drv, type);
 
+#ifndef CONFIG_MACH_XIAOMI
 	spin_lock(&tcs->lock);
+#endif
 	if (bitmap_empty(tcs->slots, MAX_TCS_SLOTS)) {
+#ifndef CONFIG_MACH_XIAOMI
 		spin_unlock(&tcs->lock);
+#endif
 		return 0;
 	}
 
 	for (m = tcs->offset; m < tcs->offset + tcs->num_tcs; m++) {
 		if (!tcs_is_free(drv, m)) {
+#ifndef CONFIG_MACH_XIAOMI
 			spin_unlock(&tcs->lock);
+#endif
 			return -EAGAIN;
 		}
 		write_tcs_reg_sync(drv, RSC_DRV_CMD_ENABLE, m, 0);
 		write_tcs_reg_sync(drv, RSC_DRV_CMD_WAIT_FOR_CMPL, m, 0);
 	}
 	bitmap_zero(tcs->slots, MAX_TCS_SLOTS);
+#ifndef CONFIG_MACH_XIAOMI
 	spin_unlock(&tcs->lock);
+#endif
 
 	return 0;
 }
@@ -315,6 +326,9 @@ skip:
 		spin_lock(&drv->lock);
 		clear_bit(i, drv->tcs_in_use);
 		spin_unlock(&drv->lock);
+#ifdef CONFIG_MACH_XIAOMI
+		wake_up(&drv->tcs_wait);
+#endif
 		if (req)
 			rpmh_tx_done(req, err);
 	}
@@ -396,6 +410,7 @@ static int find_free_tcs(struct tcs_group *tcs)
 	return -EBUSY;
 }
 
+#ifndef CONFIG_MACH_XIAOMI
 static int tcs_write(struct rsc_drv *drv, const struct tcs_request *msg)
 {
 	struct tcs_group *tcs;
@@ -445,6 +460,38 @@ done_write:
 	spin_unlock_irqrestore(&tcs->lock, flags);
 	return ret;
 }
+#else
+/**
+ * claim_tcs_for_req() - Claim a tcs in the given tcs_group; only for active.
+ * @drv: The controller.
+ * @tcs: The tcs_group used for ACTIVE_ONLY transfers.
+ * @msg: The data to be sent.
+ *
+ * Claims a tcs in the given tcs_group while making sure that no existing cmd
+ * is in flight that would conflict with the one in @msg.
+ *
+ * Context: Must be called with the drv->lock held since that protects
+ * tcs_in_use.
+ *
+ * Return: The id of the claimed tcs or -EBUSY if a matching msg is in flight
+ * or the tcs_group is full.
+ */
+static int claim_tcs_for_req(struct rsc_drv *drv, struct tcs_group *tcs,
+			     const struct tcs_request *msg)
+{
+	int ret;
+
+	/*
+	 * The h/w does not like if we send a request to the same address,
+	 * when one is already in-flight or being processed.
+	 */
+	ret = check_for_req_inflight(drv, tcs, msg);
+	if (ret)
+		return ret;
+
+	return find_free_tcs(tcs);
+}
+#endif
 
 /**
  * rpmh_rsc_send_data: Validate the incoming message and write to the
@@ -458,6 +505,7 @@ done_write:
  */
 int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
 {
+#ifndef CONFIG_MACH_XIAOMI
 	int ret;
 
 	if (!msg || !msg->cmds || !msg->num_cmds ||
@@ -484,6 +532,79 @@ int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
 	} while (ret == -EBUSY);
 
 	return ret;
+#else
+	struct tcs_group *tcs;
+	int tcs_id;
+	unsigned long flags;
+	int count = 0;
+
+	if (msg->state == RPMH_ACTIVE_ONLY_STATE && drv->in_solver_mode)
+		return -EINVAL;
+
+	tcs = get_tcs_for_msg(drv, msg);
+	if (IS_ERR(tcs))
+		return PTR_ERR(tcs);
+
+	/* K9 add, wait_event_lock_irq will lead to warning in mtdoops process*/
+	if (oops_in_progress) {
+		do {
+			tcs_id = claim_tcs_for_req(drv, tcs, msg);
+			if (tcs_id < 0) {
+#ifdef QCOM_RPMH_QGKI_DEBUG
+				bool irq_sts;
+
+				irq_get_irqchip_state(drv->irq, IRQCHIP_STATE_PENDING,
+							      &irq_sts);
+				pr_info_ratelimited("DRV:%s TCS Busy, retrying RPMH message send: addr=%#x interrupt status=%s\n",
+						drv->name, msg->cmds[0].addr,
+						irq_sts ?
+						"PENDING" : "NOT PENDING");
+#endif /* QCOM_RPMH_QGKI_DEBUG */
+				udelay(10);
+				count++;
+			}
+
+			if (count == 50000) {
+				pr_err(" Panic: TCS Busy but log saved!");
+				return 0;
+			}
+
+		} while (tcs_id < 0);
+
+		tcs->req[tcs_id - tcs->offset] = msg;
+		set_bit(tcs_id, drv->tcs_in_use);
+
+		if (msg->state == RPMH_ACTIVE_ONLY_STATE && tcs->type != ACTIVE_TCS)
+			enable_tcs_irq(drv, tcs_id, true);
+
+	} else {
+		spin_lock_irqsave(&drv->lock, flags);
+
+		/* Wait forever for a free tcs. It better be there eventually! */
+		wait_event_lock_irq(drv->tcs_wait, (tcs_id = claim_tcs_for_req(drv, tcs, msg)) >= 0, drv->lock);
+
+		tcs->req[tcs_id - tcs->offset] = msg;
+		set_bit(tcs_id, drv->tcs_in_use);
+
+		if (msg->state == RPMH_ACTIVE_ONLY_STATE && tcs->type != ACTIVE_TCS)
+			enable_tcs_irq(drv, tcs_id, true);
+
+		spin_unlock_irqrestore(&drv->lock, flags);
+	}
+
+	/*
+	 * These two can be done after the lock is released because:
+	 * - We marked "tcs_in_use" under lock.
+	 * - Once "tcs_in_use" has been marked nobody else could be writing
+	 *	 to these registers until the interrupt goes off.
+	 * - The interrupt can't go off until we trigger w/ the last line
+	 *	 of __tcs_set_trigger() below.
+	 */
+	__tcs_buffer_write(drv, tcs_id, 0, msg);
+	__tcs_trigger(drv, tcs_id, true);
+
+	return 0;
+#endif
 }
 
 static int find_match(const struct tcs_group *tcs, const struct tcs_cmd *cmd,
@@ -548,19 +669,25 @@ static int tcs_ctrl_write(struct rsc_drv *drv, const struct tcs_request *msg)
 {
 	struct tcs_group *tcs;
 	int tcs_id = 0, cmd_id = 0;
+#ifndef CONFIG_MACH_XIAOMI
 	unsigned long flags;
+#endif
 	int ret;
 
 	tcs = get_tcs_for_msg(drv, msg);
 	if (IS_ERR(tcs))
 		return PTR_ERR(tcs);
 
+#ifndef CONFIG_MACH_XIAOMI
 	spin_lock_irqsave(&tcs->lock, flags);
+#endif
 	/* find the TCS id and the command in the TCS to write to */
 	ret = find_slots(tcs, msg, &tcs_id, &cmd_id);
 	if (!ret)
 		__tcs_buffer_write(drv, tcs_id, cmd_id, msg);
+#ifndef CONFIG_MACH_XIAOMI
 	spin_unlock_irqrestore(&tcs->lock, flags);
+#endif
 
 	return ret;
 }
@@ -829,7 +956,9 @@ static int rpmh_probe_tcs_config(struct platform_device *pdev,
 		tcs->type = tcs_cfg[i].type;
 		tcs->num_tcs = tcs_cfg[i].n;
 		tcs->ncpt = ncpt;
+#ifndef CONFIG_MACH_XIAOMI
 		spin_lock_init(&tcs->lock);
+#endif
 
 		if (!tcs->num_tcs || tcs->type == CONTROL_TCS)
 			continue;
@@ -902,6 +1031,9 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&drv->lock);
 	drv->in_solver_mode = false;
+#ifdef CONFIG_MACH_XIAOMI
+	init_waitqueue_head(&drv->tcs_wait);
+#endif
 	bitmap_zero(drv->tcs_in_use, MAX_TCS_NR);
 
 	irq = platform_get_irq(pdev, drv->id);
