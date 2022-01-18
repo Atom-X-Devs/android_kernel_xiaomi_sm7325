@@ -19,6 +19,10 @@
 /* Init section thermal table */
 extern struct thermal_governor *__governor_thermal_table[];
 extern struct thermal_governor *__governor_thermal_table_end[];
+#ifdef CONFIG_MACH_XIAOMI
+extern struct class thermal_class;
+extern struct device thermal_message_dev;
+#endif
 
 #define THERMAL_TABLE_ENTRY(table, name)			\
 	static typeof(name) *__thermal_table_entry_##name	\
