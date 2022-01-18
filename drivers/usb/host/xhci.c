@@ -1139,6 +1139,11 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	bool			pending_portevent = false;
 	bool			reinit_xhc = false;
 
+#ifdef CONFIG_MACH_XIAOMI
+	if (!hcd)
+		return 0;
+#endif
+
 	if (!hcd->state)
 		return 0;
 
