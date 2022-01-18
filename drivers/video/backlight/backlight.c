@@ -126,6 +126,9 @@ static void backlight_generate_event(struct backlight_device *bd,
 	envp[1] = NULL;
 	kobject_uevent_env(&bd->dev.kobj, KOBJ_CHANGE, envp);
 	sysfs_notify(&bd->dev.kobj, NULL, "actual_brightness");
+#ifdef CONFIG_MACH_XIAOMI
+	sysfs_notify(&bd->dev.kobj, NULL, "brightness");
+#endif
 }
 
 static ssize_t bl_power_show(struct device *dev, struct device_attribute *attr,
@@ -185,12 +188,20 @@ int backlight_device_set_brightness(struct backlight_device *bd,
 	mutex_lock(&bd->ops_lock);
 	if (bd->ops) {
 		if (brightness > bd->props.max_brightness)
+#ifndef CONFIG_MACH_XIAOMI
 			rc = -EINVAL;
 		else {
 			pr_debug("set brightness to %lu\n", brightness);
 			bd->props.brightness = brightness;
 			rc = backlight_update_status(bd);
 		}
+#else
+			brightness = bd->props.max_brightness;
+
+		pr_debug("set brightness to %lu\n", brightness);
+		bd->props.brightness = brightness;
+		rc = backlight_update_status(bd);
+#endif
 	}
 	mutex_unlock(&bd->ops_lock);
 
