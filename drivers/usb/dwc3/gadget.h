@@ -95,11 +95,19 @@ static inline void dwc3_gadget_move_started_request(struct dwc3_request *req)
  * Caller should take care of locking. This function will move @req from its
  * current list to the endpoint's cancelled_list.
  */
+#ifndef CONFIG_MACH_XIAOMI
 static inline void dwc3_gadget_move_cancelled_request(struct dwc3_request *req)
+#else
+static inline void dwc3_gadget_move_cancelled_request(struct dwc3_request *req, unsigned int reason)
+#endif
 {
 	struct dwc3_ep		*dep = req->dep;
 
+#ifdef CONFIG_MACH_XIAOMI
+	req->status = reason;
+#else
 	req->status = DWC3_REQUEST_STATUS_CANCELLED;
+#endif
 	list_move_tail(&req->list, &dep->cancelled_list);
 }
 
