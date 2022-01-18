@@ -194,6 +194,7 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		fd = ion_alloc_fd(data.allocation.len,
 				  data.allocation.heap_id_mask,
 				  data.allocation.flags);
+
 		if (fd < 0)
 			return fd;
 
