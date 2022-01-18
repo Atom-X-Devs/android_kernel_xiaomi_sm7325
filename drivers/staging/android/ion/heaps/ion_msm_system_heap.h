@@ -12,7 +12,11 @@
 #if defined(CONFIG_IOMMU_IO_PGTABLE_ARMV7S) && !defined(CONFIG_64BIT) && !defined(CONFIG_ARM_LPAE)
 static const unsigned int orders[] = {8, 4, 0};
 #else
+#ifndef CONFIG_MACH_XIAOMI
 static const unsigned int orders[] = {9, 4, 0};
+#else
+static const unsigned int orders[] = {4, 0};
+#endif
 #endif
 #else
 static const unsigned int orders[] = {0};
