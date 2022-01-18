@@ -991,6 +991,10 @@ struct dwc3_request {
 #define DWC3_REQUEST_STATUS_CANCELLED	2
 #define DWC3_REQUEST_STATUS_COMPLETED	3
 #define DWC3_REQUEST_STATUS_UNKNOWN	-1
+#ifdef CONFIG_MACH_XIAOMI
+/* Add the suitable Feedback status to interface*/
+#define DWC3_REQUEST_STATUS_DEQUEUED        5
+#endif
 
 	u8			epnum;
 	struct dwc3_trb		*trb;
