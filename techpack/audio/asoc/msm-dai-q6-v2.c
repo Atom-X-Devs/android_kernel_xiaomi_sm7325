@@ -62,6 +62,9 @@ enum {
 	ENC_FMT_APTX_HD = ASM_MEDIA_FMT_APTX_HD,
 	ENC_FMT_CELT = ASM_MEDIA_FMT_CELT,
 	ENC_FMT_LDAC = ASM_MEDIA_FMT_LDAC,
+#ifdef CONFIG_MACH_XIAOMI
+	ENC_FMT_LHDC = ASM_MEDIA_FMT_LHDC,
+#endif
 	ENC_FMT_APTX_ADAPTIVE = ASM_MEDIA_FMT_APTX_ADAPTIVE,
 	DEC_FMT_APTX_ADAPTIVE = ASM_MEDIA_FMT_APTX_ADAPTIVE,
 	DEC_FMT_MP3 = ASM_MEDIA_FMT_MP3,
@@ -3589,6 +3592,13 @@ static int msm_dai_q6_afe_enc_cfg_get(struct snd_kcontrol *kcontrol,
 				&dai_data->enc_config.data,
 				sizeof(struct asm_ldac_enc_cfg_t));
 			break;
+#ifdef CONFIG_MACH_XIAOMI
+		case ENC_FMT_LHDC:
+			memcpy(ucontrol->value.bytes.data + format_size,
+				&dai_data->enc_config.data,
+				sizeof(struct asm_lhdc_enc_cfg_t));
+			break;
+#endif
 		case ENC_FMT_APTX_ADAPTIVE:
 			memcpy(ucontrol->value.bytes.data + format_size,
 				&dai_data->enc_config.data,
@@ -3662,6 +3672,13 @@ static int msm_dai_q6_afe_enc_cfg_put(struct snd_kcontrol *kcontrol,
 				ucontrol->value.bytes.data + format_size,
 				sizeof(struct asm_ldac_enc_cfg_t));
 			break;
+#ifdef CONFIG_MACH_XIAOMI
+		case ENC_FMT_LHDC:
+			memcpy(&dai_data->enc_config.data,
+				ucontrol->value.bytes.data + format_size,
+				sizeof(struct asm_lhdc_enc_cfg_t));
+			break;
+#endif
 		case ENC_FMT_APTX_ADAPTIVE:
 			memcpy(&dai_data->enc_config.data,
 				ucontrol->value.bytes.data + format_size,
@@ -4462,6 +4479,16 @@ static const struct soc_enum rt_proxy_2_rx_enum =
 static const struct soc_enum rt_proxy_1_tx_enum =
 	SOC_ENUM_SINGLE(RT_PROXY_PORT_001_TX, 0, ARRAY_SIZE(afe_cal_mode_text),
 			afe_cal_mode_text);
+
+#ifdef CONFIG_MACH_XIAOMI
+static const struct soc_enum cdc_dma_tx_4_enum =
+	SOC_ENUM_SINGLE(AFE_PORT_ID_TX_CODEC_DMA_TX_4, 0, ARRAY_SIZE(afe_cal_mode_text),
+			afe_cal_mode_text);
+
+static const struct soc_enum cdc_dma_rx_6_enum =
+	SOC_ENUM_SINGLE(AFE_PORT_ID_RX_CODEC_DMA_RX_6, 0, ARRAY_SIZE(afe_cal_mode_text),
+			afe_cal_mode_text);
+#endif
 
 static const struct snd_kcontrol_new sb_config_controls[] = {
 	SOC_ENUM_EXT("SLIM_4_TX Format", sb_config_enum[0],
@@ -15439,6 +15466,14 @@ static const struct snd_kcontrol_new cdc_dma_config_controls[] = {
 		     xt_logging_disable_enum[0],
 		     msm_dai_q6_cdc_dma_xt_logging_disable_get,
 		     msm_dai_q6_cdc_dma_xt_logging_disable_put),
+#ifdef CONFIG_MACH_XIAOMI
+	SOC_ENUM_EXT("CDC_DMA_RX_6 SetCalMode", cdc_dma_rx_6_enum,
+		     msm_dai_q6_cal_info_get,
+		     msm_dai_q6_cal_info_put),
+	SOC_ENUM_EXT("CDC_DMA_TX_4 SetCalMode", cdc_dma_tx_4_enum,
+		     msm_dai_q6_cal_info_get,
+		     msm_dai_q6_cal_info_put),
+#endif
 };
 
 /* SOC probe for codec DMA interface */
@@ -15470,6 +15505,18 @@ static int msm_dai_q6_dai_cdc_dma_probe(struct snd_soc_dai *dai)
 				 snd_ctl_new1(&cdc_dma_config_controls[1],
 				 dai_data));
 		break;
+#ifdef CONFIG_MACH_XIAOMI
+	case AFE_PORT_ID_RX_CODEC_DMA_RX_6:
+		rc = snd_ctl_add(dai->component->card->snd_card,
+				 snd_ctl_new1(&cdc_dma_config_controls[2],
+				 dai_data));
+		break;
+	case AFE_PORT_ID_TX_CODEC_DMA_TX_4:
+		rc = snd_ctl_add(dai->component->card->snd_card,
+				 snd_ctl_new1(&cdc_dma_config_controls[3],
+				 dai_data));
+		break;
+#endif
 	default:
 		break;
 	}
