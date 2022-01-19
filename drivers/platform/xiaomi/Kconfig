@@ -28,3 +28,9 @@ config PERF_HUMANTASK
 	depends on MACH_XIAOMI
 	help
 	  support switch on/off of sched humantask.
+
+config QGKI_SYSTEM
+	bool "QGKI config"
+	depends on MACH_XIAOMI
+	help
+	  Some QGKI Stuff by xiaomeme
