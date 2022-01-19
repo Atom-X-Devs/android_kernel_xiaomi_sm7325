@@ -317,6 +317,7 @@ static void apr_adsp_up(void)
 	pr_info("%s: Q6 is Up\n", __func__);
 	place_marker("M - ADSP Ready");
 	apr_set_q6_state(APR_SUBSYS_LOADED);
+	/* register adsp hardware */
 
 	spin_lock(&apr_priv->apr_lock);
 	if (apr_priv->is_initial_boot)
