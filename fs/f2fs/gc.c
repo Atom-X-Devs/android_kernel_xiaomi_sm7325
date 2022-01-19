@@ -21,23 +21,51 @@
 #include "gc.h"
 #include <trace/events/f2fs.h>
 
+#ifdef CONFIG_MACH_XIAOMI
+static inline bool should_break_gc(struct f2fs_sb_info *sbi)
+{
+	if (freezing(current) || kthread_should_stop())
+		return true;
+
+	if (sbi->gc_mode == GC_URGENT)
+		return false;
+
+	return !is_idle(sbi, GC_TIME);
+}
+#endif
+
 static int gc_thread_func(void *data)
 {
 	struct f2fs_sb_info *sbi = data;
 	struct f2fs_gc_kthread *gc_th = sbi->gc_thread;
 	wait_queue_head_t *wq = &sbi->gc_thread->gc_wait_queue_head;
 	unsigned int wait_ms;
-
+#ifdef CONFIG_MACH_XIAOMI
+	unsigned int gc_count, i;
+	wait_queue_head_t *fggc_wq = &sbi->gc_thread->fggc_wq;
+	bool boost;
+#endif
 	wait_ms = gc_th->min_sleep_time;
 
 	set_freezable();
 	do {
 		bool sync_mode;
+#ifdef CONFIG_MACH_XIAOMI
+		bool foreground = false;
+#endif
 
 		wait_event_interruptible_timeout(*wq,
 				kthread_should_stop() || freezing(current) ||
+#ifdef CONFIG_MACH_XIAOMI
+				waitqueue_active(fggc_wq) ||
+#endif
 				gc_th->gc_wake,
 				msecs_to_jiffies(wait_ms));
+
+#ifdef CONFIG_MACH_XIAOMI
+		if (test_opt(sbi, GC_MERGE) && waitqueue_active(fggc_wq))
+			foreground = true;
+#endif
 
 		/* give it a try one time */
 		if (gc_th->gc_wake)
@@ -66,6 +94,10 @@ static int gc_thread_func(void *data)
 			continue;
 		}
 
+#ifdef CONFIG_MACH_XIAOMI
+		boost = sbi->gc_booster;
+#endif
+
 		/*
 		 * [GC triggering condition]
 		 * 0. GC is not conducted currently.
@@ -85,7 +117,15 @@ static int gc_thread_func(void *data)
 			goto do_gc;
 		}
 
+
+#ifdef CONFIG_MACH_XIAOMI
+		if (foreground) {
+			down_write(&sbi->gc_lock);
+			goto do_gc;
+		} else if (!down_write_trylock(&sbi->gc_lock)) {
+#else
 		if (!down_write_trylock(&sbi->gc_lock)) {
+#endif
 			stat_other_skip_bggc_count(sbi);
 			goto next;
 		}
@@ -97,11 +137,20 @@ static int gc_thread_func(void *data)
 			goto next;
 		}
 
+#ifdef CONFIG_MACH_XIAOMI
+		if (boost)
+			calculate_sleep_time(sbi, gc_th, &wait_ms);
+		else {
+#endif
 		if (has_enough_invalid_blocks(sbi))
 			decrease_sleep_time(gc_th, &wait_ms);
 		else
 			increase_sleep_time(gc_th, &wait_ms);
+#ifdef CONFIG_MACH_XIAOMI
+		}
+#endif
 do_gc:
+#ifndef CONFIG_MACH_XIAOMI
 		stat_inc_bggc_count(sbi->stat_info);
 
 		sync_mode = F2FS_OPTION(sbi).bggc_mode == BGGC_MODE_SYNC;
@@ -109,6 +158,41 @@ do_gc:
 		/* if return value is not zero, no victim was selected */
 		if (f2fs_gc(sbi, sync_mode, true, NULL_SEGNO))
 			wait_ms = gc_th->no_gc_sleep_time;
+#else
+		gc_count = (boost && !foreground) ? get_gc_count(sbi) : 1;
+
+		for (i = 0; i < gc_count; i++) {
+			/*
+			 * f2fs_gc will release gc_lock before return,
+			 * so we need to relock it before calling f2fs_gc.
+			 */
+			if (i && !down_write_trylock(&sbi->gc_lock)) {
+				stat_other_skip_bggc_count(sbi);
+				break;
+			}
+
+			if (!foreground)
+				stat_inc_bggc_count(sbi->stat_info);
+
+			sync_mode = F2FS_OPTION(sbi).bggc_mode == BGGC_MODE_SYNC;
+
+			/* foreground GC was been triggered via f2fs_balance_fs() */
+			if (foreground)
+				sync_mode = false;
+
+			/* if return value is not 0, no victim was selected */
+			if (f2fs_gc(sbi, sync_mode, !foreground, NULL_SEGNO)) {
+				wait_ms = gc_th->no_gc_sleep_time;
+				break;
+			}
+
+			if (should_break_gc(sbi))
+				break;
+		}
+
+		if (foreground)
+			wake_up_all(&gc_th->fggc_wq);
+#endif
 
 		trace_f2fs_background_gc(sbi->sb, wait_ms,
 				prefree_segments(sbi), free_segments(sbi));
@@ -143,6 +227,9 @@ int f2fs_start_gc_thread(struct f2fs_sb_info *sbi)
 
 	sbi->gc_thread = gc_th;
 	init_waitqueue_head(&sbi->gc_thread->gc_wait_queue_head);
+#ifdef CONFIG_MACH_XIAOMI
+	init_waitqueue_head(&sbi->gc_thread->fggc_wq);
+#endif
 	sbi->gc_thread->f2fs_gc_task = kthread_run(gc_thread_func, sbi,
 			"f2fs_gc-%u:%u", MAJOR(dev), MINOR(dev));
 	if (IS_ERR(gc_th->f2fs_gc_task)) {
@@ -160,6 +247,9 @@ void f2fs_stop_gc_thread(struct f2fs_sb_info *sbi)
 	if (!gc_th)
 		return;
 	kthread_stop(gc_th->f2fs_gc_task);
+#ifdef CONFIG_MACH_XIAOMI
+	wake_up_all(&gc_th->fggc_wq);
+#endif
 	kvfree(gc_th);
 	sbi->gc_thread = NULL;
 }
