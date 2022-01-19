@@ -3031,6 +3031,18 @@ skip:
 
 		if (fatal_signal_pending(current))
 			break;
+
+#ifdef CONFIG_MACH_XIAOMI
+		/*
+		 * If the trim thread is running and we receive the SCREEN_ON
+		 * event, we will send SIGUSR1 singnal to teriminate the trim
+		 * thread. So if there is a SIGUSR1 signal pending in current
+		 * thread, we need stop issuing discard commands and return.
+		 */
+		if (signal_pending(current) && sigismember(&current->pending.signal, SIGUSR1))
+			break;
+#endif
+
 	}
 
 	blk_finish_plug(&plug);
@@ -3085,6 +3097,7 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 	if (err)
 		goto out;
 
+#ifndef CONFIG_MACH_XIAOMI
 	/*
 	 * We filed discard candidates, but actually we don't need to wait for
 	 * all of them, since they'll be issued in idle time along with runtime
@@ -3093,6 +3106,7 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 	 */
 	if (f2fs_realtime_discard_enable(sbi))
 		goto out;
+#endif
 
 	start_block = START_BLOCK(sbi, start_segno);
 	end_block = START_BLOCK(sbi, end_segno + 1);
