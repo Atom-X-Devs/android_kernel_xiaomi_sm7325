@@ -16,7 +16,11 @@
 
 #define CAM_ICP_A5_BW_BYTES_VOTE 40000000
 
+#ifndef CONFIG_MACH_XIAOMI
 #define CAM_ICP_CTX_MAX          54
+#else
+#define CAM_ICP_CTX_MAX          80
+#endif
 
 #define CPAS_IPE1_BIT            0x2000
 
