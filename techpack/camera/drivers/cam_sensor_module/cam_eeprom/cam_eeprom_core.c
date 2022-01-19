@@ -15,6 +15,9 @@
 #include "cam_packet_util.h"
 
 #define MAX_READ_SIZE  0x7FFFF
+#ifdef CONFIG_MACH_XIAOMI
+#define MAX_RETRY_TIMES 3
+#endif
 
 /**
  * cam_eeprom_read_memory() - read map data into buffer
@@ -1201,6 +1204,9 @@ del_req:
 static int32_t cam_eeprom_pkt_parse(struct cam_eeprom_ctrl_t *e_ctrl, void *arg)
 {
 	int32_t                         rc = 0;
+#ifdef CONFIG_MACH_XIAOMI
+	int32_t                         i = 0;
+#endif
 	struct cam_control             *ioctl_ctrl = NULL;
 	struct cam_config_dev_cmd       dev_config;
 	uintptr_t                        generic_pkt_addr;
@@ -1289,6 +1295,37 @@ static int32_t cam_eeprom_pkt_parse(struct cam_eeprom_ctrl_t *e_ctrl, void *arg)
 			}
 		}
 
+#ifdef CONFIG_MACH_XIAOMI	
+		/* xiaomi add eeprom read retry - begin */
+		for (i = 0; i < MAX_RETRY_TIMES; i++) {
+			rc = cam_eeprom_power_up(e_ctrl,
+				&soc_private->power_info);
+			if (rc) {
+				CAM_ERR(CAM_EEPROM, "failed rc %d", rc);
+				goto memdata_free;
+			}
+
+			e_ctrl->cam_eeprom_state = CAM_EEPROM_CONFIG;
+			rc = cam_eeprom_read_memory(e_ctrl, &e_ctrl->cal_data);
+			if (rc) {
+				CAM_ERR(CAM_EEPROM,
+					"read_eeprom_memory failed at time %d", i);
+				//goto power_down;
+				rc = cam_eeprom_power_down(e_ctrl);
+				usleep_range(10*1000, 11*1000);
+			} else {
+				rc = cam_eeprom_get_cal_data(e_ctrl, csl_packet);
+				rc = cam_eeprom_power_down(e_ctrl);
+				break;
+			}
+		}
+		if (rc) {
+			CAM_ERR(CAM_EEPROM,
+				"read_eeprom_memory failed all the %d times",
+				 MAX_RETRY_TIMES);
+		}
+		/* xiaomi add eeprom read retry - end */
+#else
 		rc = cam_eeprom_power_up(e_ctrl,
 			&soc_private->power_info);
 		if (rc) {
@@ -1306,6 +1343,7 @@ static int32_t cam_eeprom_pkt_parse(struct cam_eeprom_ctrl_t *e_ctrl, void *arg)
 
 		rc = cam_eeprom_get_cal_data(e_ctrl, csl_packet);
 		rc = cam_eeprom_power_down(e_ctrl);
+#endif
 		e_ctrl->cam_eeprom_state = CAM_EEPROM_ACQUIRE;
 		vfree(e_ctrl->cal_data.mapdata);
 		vfree(e_ctrl->cal_data.map);
@@ -1376,7 +1414,9 @@ static int32_t cam_eeprom_pkt_parse(struct cam_eeprom_ctrl_t *e_ctrl, void *arg)
 	}
 
 	return rc;
+#ifndef CONFIG_MACH_XIAOMI
 power_down:
+#endif
 	cam_eeprom_power_down(e_ctrl);
 memdata_free:
 	vfree(e_ctrl->cal_data.mapdata);
