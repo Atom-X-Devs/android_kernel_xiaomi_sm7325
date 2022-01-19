@@ -32,6 +32,8 @@
 #include <ipc/apr.h>
 #include <ipc/apr_tal.h>
 
+#include <linux/mmhardware_sysfs.h>
+
 #define APR_PKT_IPC_LOG_PAGE_CNT 2
 
 static int apr_pkt_cnt_adsp_restart = 20;
@@ -317,6 +319,10 @@ static void apr_adsp_up(void)
 	pr_info("%s: Q6 is Up\n", __func__);
 	place_marker("M - ADSP Ready");
 	apr_set_q6_state(APR_SUBSYS_LOADED);
+	/* register adsp hardware */
+#ifdef CONFIG_MMHARDWARE_DETECTION
+	register_kobj_under_mmsysfs(MM_HW_ADSP, MM_HARDWARE_SYSFS_ADSP_FOLDER);
+#endif
 
 	spin_lock(&apr_priv->apr_lock);
 	if (apr_priv->is_initial_boot)

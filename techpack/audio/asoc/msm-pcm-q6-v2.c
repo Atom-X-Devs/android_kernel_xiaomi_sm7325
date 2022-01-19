@@ -2366,6 +2366,9 @@ static int msm_pcm_playback_app_type_cfg_ctl_put(struct snd_kcontrol *kcontrol,
 		cfg_data.bit_width = ucontrol->value.integer.value[5];
 	if (ucontrol->value.integer.value[6] != 0)
 		cfg_data.copp_perf_mode = ucontrol->value.integer.value[6];
+#ifdef CONFIG_MACH_XIAOMI
+	cfg_data.channel = ucontrol->value.integer.value[4];
+#endif
 	pr_debug("%s: fe_id- %llu session_type- %d be_id- %d app_type- %d acdb_dev_id- %d"
 		"sample_rate- %d copp_token- %d bit_width- %d copp_perf_mode- %d\n",
 		__func__, fe_id, session_type, be_id, cfg_data.app_type, cfg_data.acdb_dev_id,
@@ -2401,6 +2404,9 @@ static int msm_pcm_playback_app_type_cfg_ctl_get(struct snd_kcontrol *kcontrol,
 	ucontrol->value.integer.value[2] = cfg_data.sample_rate;
 	ucontrol->value.integer.value[3] = be_id;
 	ucontrol->value.integer.value[4] = cfg_data.copp_token;
+#ifdef CONFIG_MACH_XIAOMI
+	ucontrol->value.integer.value[4] = cfg_data.channel;
+#endif
 	ucontrol->value.integer.value[5] = cfg_data.bit_width;
 	ucontrol->value.integer.value[6] = cfg_data.copp_perf_mode;
 	pr_debug("%s: fe_id- %llu session_type- %d be_id- %d app_type- %d acdb_dev_id- %d"
