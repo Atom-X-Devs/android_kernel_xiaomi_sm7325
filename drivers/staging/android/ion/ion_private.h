@@ -38,6 +38,12 @@ struct ion_device {
 extern struct ion_buffer *ion_buffer_alloc(struct ion_device *dev, size_t len,
 					   unsigned int heap_id_mask,
 					   unsigned int flags);
+#ifdef CONFIG_MIMISC_MC
+extern struct ion_buffer *ion_buffer_alloc_id(struct ion_device *dev, size_t len,
+					   unsigned int heap_id_mask,
+					   unsigned int flags,
+					   unsigned int pid);
+#endif
 extern void ion_buffer_release(struct ion_buffer *buffer);
 extern int ion_buffer_destroy(struct ion_device *dev,
 			      struct ion_buffer *buffer);

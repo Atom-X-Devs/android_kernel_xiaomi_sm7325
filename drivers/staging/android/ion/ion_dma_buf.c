@@ -16,6 +16,24 @@
 
 #include "ion_private.h"
 
+#ifdef CONFIG_MIMISC_MC
+struct ion_caches_index {
+	char *comm;
+	int index;
+};
+
+static struct ion_caches_index ion_caches[] = {
+	{".android.camera", 0},
+	{"provider@2.4-se", 1},
+	{"cameraserver", 2},
+	{"mediaserver", 3},
+	{"omx@1.0-service", 4},
+	{"media.hwcodec", 5},
+	{"media.swcodec", 6},
+	{NULL, -1}
+};
+#endif
+
 static struct sg_table *dup_sg_table(struct sg_table *table)
 {
 	struct sg_table *new_table;
@@ -414,6 +432,10 @@ struct dma_buf *ion_dmabuf_alloc_with_caller_pid(struct ion_device *dev, size_t 
 	char task_comm[TASK_COMM_LEN];
 	char caller_task_comm[TASK_COMM_LEN];
 	struct task_struct *p = NULL;
+#ifdef CONFIG_MIMISC_MC
+	unsigned int id = -1;
+	unsigned int i = 0;
+#endif
 
 	pr_debug("%s: len %zu heap_id_mask %u flags %x\n", __func__,
 		len, heap_id_mask, flags);
@@ -424,9 +446,23 @@ struct dma_buf *ion_dmabuf_alloc_with_caller_pid(struct ion_device *dev, size_t 
 	if (p) {
 		get_task_comm(caller_task_comm, p);
 		put_task_struct(p);
+#ifdef CONFIG_MIMISC_MC
+		for (i = 0; NULL != ion_caches[i].comm; i++) {
+			if (!strcmp(caller_task_comm, ion_caches[i].comm)) {
+				if (ion_caches[i].index >= 0) {
+					id = ion_caches[i].index;
+					break;
+				}
+			}
+		}
+#endif
 	}
 
+#ifdef CONFIG_MIMISC_MC
+	buffer = ion_buffer_alloc_id(dev, len, heap_id_mask, flags, id);
+#else
 	buffer = ion_buffer_alloc(dev, len, heap_id_mask, flags);
+#endif
 	if (IS_ERR(buffer))
 		return ERR_CAST(buffer);
 
