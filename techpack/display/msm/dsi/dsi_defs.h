@@ -278,6 +278,9 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_POST_CMD_TO_VID_SWITCH,
 	DSI_CMD_SET_VID_TO_CMD_SWITCH,
 	DSI_CMD_SET_POST_VID_TO_CMD_SWITCH,
+#ifdef CONFIG_MACH_XIAOMI
+	DSI_CMD_SET_PANEL_STATUS_OFFSET,
+#endif
 	DSI_CMD_SET_PANEL_STATUS,
 	DSI_CMD_SET_LP1,
 	DSI_CMD_SET_LP2,
@@ -288,6 +291,21 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_POST_TIMING_SWITCH,
 	DSI_CMD_SET_QSYNC_ON,
 	DSI_CMD_SET_QSYNC_OFF,
+#ifdef CONFIG_MACH_XIAOMI
+	/* xiaomi add start */
+	DSI_CMD_SET_MI_DIMMINGON,
+	DSI_CMD_SET_MI_DIMMINGOFF,
+	DSI_CMD_SET_MI_HBM_ON,
+	DSI_CMD_SET_MI_HBM_OFF,
+	DSI_CMD_SET_MI_DOZE_HBM,
+	DSI_CMD_SET_MI_DOZE_LBM,
+	DSI_CMD_SET_MI_FLAT_MODE_ON,
+	DSI_CMD_SET_MI_FLAT_MODE_OFF,
+	DSI_CMD_SET_MI_DC_ON,
+	DSI_CMD_SET_MI_DC_OFF,
+	DSI_CMD_SET_MI_PRE_DOZE_TO_OFF,
+	/* xiaomi add end */
+#endif
 	DSI_CMD_SET_MAX
 };
 
@@ -506,6 +524,9 @@ struct dsi_host_common_cfg {
 	u32 byte_intf_clk_div;
 	u32 dma_sched_line;
 	u32 dma_sched_window;
+#ifdef CONFIG_MACH_XIAOMI
+	u32 clk_strength;
+#endif
 };
 
 /**

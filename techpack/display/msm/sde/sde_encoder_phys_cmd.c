@@ -11,6 +11,10 @@
 #include "sde_formats.h"
 #include "sde_trace.h"
 
+#ifdef CONFIG_MACH_XIAOMI
+#include "mi_sde_encoder.h"
+#endif
+
 #define SDE_DEBUG_CMDENC(e, fmt, ...) SDE_DEBUG("enc%d intf%d " fmt, \
 		(e) && (e)->base.parent ? \
 		(e)->base.parent->base.id : -1, \
@@ -246,6 +250,10 @@ static void sde_encoder_phys_cmd_te_rd_ptr_irq(void *arg, int irq_idx)
 
 	if (!phys_enc || !phys_enc->hw_pp || !phys_enc->hw_intf)
 		return;
+
+#ifdef CONFIG_MACH_XIAOMI
+	mi_sde_encoder_save_vsync_info(phys_enc);
+#endif
 
 	SDE_ATRACE_BEGIN("rd_ptr_irq");
 	cmd_enc = to_sde_encoder_phys_cmd(phys_enc);

@@ -2976,7 +2976,11 @@ static void dp_panel_convert_to_dp_mode(struct dp_panel *dp_panel,
 			return;
 		}
 
+#ifndef CONFIG_MACH_XIAOMI
 		rc = sde_dsc_populate_dsc_config(&comp_info->dsc_info.config, 0);
+#else
+		rc = sde_dsc_populate_dsc_config(&comp_info->dsc_info.config, 0, 0);
+#endif
 		if (rc) {
 			DP_DEBUG("failed populating dsc params \n");
 			return;

@@ -7,6 +7,9 @@
 #include "sde_dsc_helper.h"
 #include "sde_kms.h"
 
+#ifdef CONFIG_MACH_XIAOMI
+#include "mi_panel_id.h"
+#endif
 
 #define SDE_DSC_PPS_SIZE       128
 
@@ -60,6 +63,28 @@ static char sde_dsc_rc_range_min_qp[DSC_RATIO_TYPE_MAX][DSC_NUM_BUF_RANGES] = {
 /*
  * Rate control - Max QP values for each ratio type in sde_dsc_ratio_type
  */
+#ifdef CONFIG_MACH_XIAOMI
+static char sde_dsc_rc_range_max_qp_nvt[DSC_RATIO_TYPE_MAX][DSC_NUM_BUF_RANGES] = {
+	/* DSC v1.1 */
+	{4, 4, 5, 6, 7, 7, 7, 8, 9, 10, 11, 12, 13, 13, 15},
+	{8, 8, 9, 10, 11, 11, 11, 12, 13, 14, 15, 16, 17, 17, 19},
+	{7, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16},
+	/* DSC v1.1 SCR and DSC v1.2 RGB 444 */
+	{4, 4, 5, 6, 7, 7, 7, 8, 9, 10, 10, 11, 11, 12, 13},
+	{8, 8, 9, 10, 11, 11, 11, 12, 13, 14, 14, 15, 15, 16, 17},
+	{7, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16},
+	/* DSC v1.2 YUV422 */
+	{3, 4, 5, 6, 7, 7, 7, 8, 9, 9, 10, 10, 11, 11, 12},
+	{2, 4, 5, 6, 7, 7, 7, 8, 8, 9, 9, 9, 9, 10, 11},
+	{7, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16},
+	{2, 5, 5, 6, 6, 7, 7, 8, 9, 9, 10, 11, 11, 12, 13},
+	/* DSC v1.2 YUV420 */
+	{2, 4, 5, 6, 7, 7, 7, 8, 8, 9, 9, 9, 9, 10, 12},
+	{2, 5, 7, 8, 9, 10, 11, 12, 12, 13, 13, 13, 13, 14, 15},
+	{2, 5, 5, 6, 6, 7, 7, 8, 9, 9, 10, 11, 11, 12, 13},
+};
+#endif
+
 static char sde_dsc_rc_range_max_qp[DSC_RATIO_TYPE_MAX][DSC_NUM_BUF_RANGES] = {
 	/* DSC v1.1 */
 	{4, 4, 5, 6, 7, 7, 7, 8, 9, 10, 11, 12, 13, 13, 15},
@@ -78,7 +103,7 @@ static char sde_dsc_rc_range_max_qp[DSC_RATIO_TYPE_MAX][DSC_NUM_BUF_RANGES] = {
 	{2, 4, 5, 6, 7, 7, 7, 8, 8, 9, 9, 9, 9, 10, 12},
 	{2, 5, 7, 8, 9, 10, 11, 12, 12, 13, 13, 13, 13, 14, 15},
 	{2, 5, 5, 6, 6, 7, 7, 8, 9, 9, 10, 11, 11, 12, 13},
-	};
+};
 
 /*
  * Rate control - bpg offset values for each ratio type in sde_dsc_ratio_type
@@ -210,7 +235,12 @@ u8 _get_dsc_v1_2_bpg_offset(struct drm_dsc_config *dsc)
 		return (uncompressed_bpg_rate - (3 * bpp));
 }
 
-int sde_dsc_populate_dsc_config(struct drm_dsc_config *dsc, int scr_ver) {
+#ifndef CONFIG_MACH_XIAOMI
+int sde_dsc_populate_dsc_config(struct drm_dsc_config *dsc, int scr_ver)
+#else
+int sde_dsc_populate_dsc_config(struct drm_dsc_config *dsc, int scr_ver, u64 mi_panel_id)
+#endif
+{
 	int bpp, bpc;
 	int groups_per_line, groups_total;
 	int min_rate_buffer_size;
@@ -253,8 +283,17 @@ int sde_dsc_populate_dsc_config(struct drm_dsc_config *dsc, int scr_ver) {
 	for (i = 0; i < DSC_NUM_BUF_RANGES; i++) {
 		dsc->rc_range_params[i].range_min_qp =
 			sde_dsc_rc_range_min_qp[ratio_idx][i];
+#ifndef CONFIG_MACH_XIAOMI
 		dsc->rc_range_params[i].range_max_qp =
 			sde_dsc_rc_range_max_qp[ratio_idx][i];
+#else
+		if (is_use_nvt_dsc_config(mi_panel_id))
+			dsc->rc_range_params[i].range_max_qp =
+				sde_dsc_rc_range_max_qp_nvt[ratio_idx][i];
+		else
+			dsc->rc_range_params[i].range_max_qp =
+				sde_dsc_rc_range_max_qp[ratio_idx][i];
+#endif
 		dsc->rc_range_params[i].range_bpg_offset =
 			sde_dsc_rc_range_bpg[ratio_idx][i];
 	}

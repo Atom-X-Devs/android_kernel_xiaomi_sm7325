@@ -18,6 +18,12 @@
 #include "sde_dsc_helper.h"
 #include "sde_vdc_helper.h"
 
+#ifdef CONFIG_MACH_XIAOMI
+#include "mi_disp_parser.h"
+#include "mi_disp_print.h"
+#include "mi_panel_id.h"
+#endif
+
 /**
  * topology is currently defined by a set of following 3 values:
  * 1. num of layer mixers
@@ -351,6 +357,11 @@ static int dsi_panel_power_on(struct dsi_panel *panel)
 		goto error_disable_vregs;
 	}
 
+#ifdef CONFIG_MACH_XIAOMI
+	if (panel->lp11_init)
+		goto exit;
+#endif
+
 	rc = dsi_panel_reset(panel);
 	if (rc) {
 		DSI_ERR("[%s] failed to reset panel, rc=%d\n", panel->name, rc);
@@ -413,7 +424,11 @@ static int dsi_panel_power_off(struct dsi_panel *panel)
 
 	return rc;
 }
-static int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
+
+#ifndef CONFIG_MACH_XIAOMI
+static
+#endif
+int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 				enum dsi_cmd_set_type type)
 {
 	int rc = 0, i = 0;
@@ -423,6 +438,9 @@ static int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 	enum dsi_cmd_set_state state;
 	struct dsi_display_mode *mode;
 	const struct mipi_dsi_host_ops *ops = panel->host->ops;
+#ifdef CONFIG_MACH_XIAOMI
+	struct mi_dsi_panel_cfg *mi_cfg  = NULL;
+#endif
 
 	if (!panel || !panel->cur_mode)
 		return -EINVAL;
@@ -449,6 +467,16 @@ static int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 
 		if (type == DSI_CMD_SET_VID_TO_CMD_SWITCH)
 			cmds->msg.flags |= MIPI_DSI_MSG_ASYNC_OVERRIDE;
+
+#ifdef CONFIG_MACH_XIAOMI
+		mi_cfg = &panel->mi_cfg;
+
+		if ((mi_get_panel_id(mi_cfg->mi_panel_id) == K9D_TIAN_PA
+			&& type == DSI_CMD_SET_TIMING_SWITCH)
+			|| type == DSI_CMD_SET_MI_FLAT_MODE_ON
+			|| type == DSI_CMD_SET_MI_FLAT_MODE_OFF)
+			cmds->msg.flags |= MIPI_DSI_MSG_CMD_DMA_SCHED;
+#endif
 
 		len = ops->transfer(panel->host, &cmds->msg);
 		if (len < 0) {
@@ -537,12 +565,18 @@ static int dsi_panel_wled_register(struct dsi_panel *panel,
 	return 0;
 }
 
-static int dsi_panel_update_backlight(struct dsi_panel *panel,
+#ifndef CONFIG_MACH_XIAOMI
+static
+#endif
+int dsi_panel_update_backlight(struct dsi_panel *panel,
 	u32 bl_lvl)
 {
 	int rc = 0;
 	unsigned long mode_flags = 0;
 	struct mipi_dsi_device *dsi = NULL;
+#ifdef CONFIG_MACH_XIAOMI
+	unsigned int bl_tmp = 0;
+#endif
 
 	if (!panel || (bl_lvl > 0xffff)) {
 		DSI_ERR("invalid params\n");
@@ -627,7 +661,15 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 	if (panel->host_config.ext_bridge_mode)
 		return 0;
 
+#ifdef CONFIG_MACH_XIAOMI
+	if (is_backlight_set_skip(panel, bl_lvl)) {
+		mi_dsi_panel_update_last_bl_level(panel, bl_lvl);
+		return 0;
+	}
+#endif
+
 	DSI_DEBUG("backlight type:%d lvl:%d\n", bl->type, bl_lvl);
+
 	switch (bl->type) {
 	case DSI_BACKLIGHT_WLED:
 		rc = backlight_device_set_brightness(bl->raw_bd, bl_lvl);
@@ -645,6 +687,10 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 		rc = -ENOTSUPP;
 	}
 
+#ifdef CONFIG_MACH_XIAOMI
+	panel->mi_cfg.bl_need_update = false;
+	mi_dsi_panel_update_last_bl_level(panel, bl_lvl);
+#endif
 	return rc;
 }
 
@@ -1159,6 +1205,17 @@ static int dsi_panel_parse_misc_host_config(struct dsi_host_common_cfg *host,
 		host->dma_sched_window = 0;
 	else
 		host->dma_sched_window = window;
+
+#ifdef CONFIG_MACH_XIAOMI
+	rc = utils->read_u32(utils->data, "qcom,mdss-dsi-clk-strength", &val);
+	if (!rc) {
+		host->clk_strength = val;
+		pr_info("[%s] clk_strength = %d\n", name, val);
+	} else {
+		host->clk_strength = 0;
+		pr_info("[%s] clk_strength default value = %d\n", name, val);
+	}
+#endif
 
 	DSI_DEBUG("[%s] DMA scheduling parameters Line: %d Window: %d\n", name,
 			host->dma_sched_line, host->dma_sched_window);
@@ -1747,6 +1804,9 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,cmd-to-video-mode-post-switch-commands",
 	"qcom,video-to-cmd-mode-switch-commands",
 	"qcom,video-to-cmd-mode-post-switch-commands",
+#ifdef CONFIG_MACH_XIAOMI
+	"qcom,mdss-dsi-panel-status-offset-command",
+#endif
 	"qcom,mdss-dsi-panel-status-command",
 	"qcom,mdss-dsi-lp1-command",
 	"qcom,mdss-dsi-lp2-command",
@@ -1757,6 +1817,21 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-post-mode-switch-on-command",
 	"qcom,mdss-dsi-qsync-on-commands",
 	"qcom,mdss-dsi-qsync-off-commands",
+#ifdef CONFIG_MACH_XIAOMI
+	/* xiaomi add start */
+	"mi,mdss-dsi-dimmingon-command",
+	"mi,mdss-dsi-dimmingoff-command",
+	"mi,mdss-dsi-hbm-on-command",
+	"mi,mdss-dsi-hbm-off-command",
+	"mi,mdss-dsi-doze-hbm-command",
+	"mi,mdss-dsi-doze-lbm-command",
+	"mi,mdss-dsi-flat-mode-on-command",
+	"mi,mdss-dsi-flat-mode-off-command",
+	"mi,mdss-dsi-dc-on-command",
+	"mi,mdss-dsi-dc-off-command",
+	"mi,mdss-dsi-pre-doze-to-off-command",
+	/* xiaomi add end */
+#endif
 };
 
 const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
@@ -1773,6 +1848,9 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"qcom,cmd-to-video-mode-post-switch-commands-state",
 	"qcom,video-to-cmd-mode-switch-commands-state",
 	"qcom,video-to-cmd-mode-post-switch-commands-state",
+#ifdef CONFIG_MACH_XIAOMI
+	"qcom,mdss-dsi-panel-status-offset-command-state",
+#endif
 	"qcom,mdss-dsi-panel-status-command-state",
 	"qcom,mdss-dsi-lp1-command-state",
 	"qcom,mdss-dsi-lp2-command-state",
@@ -1783,6 +1861,21 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-post-mode-switch-on-command-state",
 	"qcom,mdss-dsi-qsync-on-commands-state",
 	"qcom,mdss-dsi-qsync-off-commands-state",
+#ifdef CONFIG_MACH_XIAOMI
+	/* xiaomi add start */
+	"mi,mdss-dsi-dimmingon-command-state",
+	"mi,mdss-dsi-dimmingoff-command-state",
+	"mi,mdss-dsi-hbm-on-command-state",
+	"mi,mdss-dsi-hbm-off-command-state",
+	"mi,mdss-dsi-doze-hbm-command-state",
+	"mi,mdss-dsi-doze-lbm-command-state",
+	"mi,mdss-dsi-flat-mode-on-command-state",
+	"mi,mdss-dsi-flat-mode-off-command-state",
+	"mi,mdss-dsi-dc-on-command-state",
+	"mi,mdss-dsi-dc-of-command-state",
+	"mi,mdss-dsi-pre-doze-to-off-command-state",
+	/* xiaomi add end */
+#endif
 };
 
 int dsi_panel_get_cmd_pkt_count(const char *data, u32 length, u32 *cnt)
@@ -1902,8 +1995,10 @@ static int dsi_panel_parse_cmd_sets_sub(struct dsi_panel_cmd_set *cmd,
 		goto error;
 	}
 
+#ifndef CONFIG_MACH_XIAOMI
 	DSI_DEBUG("type=%d, name=%s, length=%d\n", type,
 		cmd_set_prop_map[type], length);
+#endif
 
 	print_hex_dump_debug("", DUMP_PREFIX_NONE,
 		       8, 1, data, length, false);
@@ -2444,6 +2539,18 @@ static int dsi_panel_parse_bl_config(struct dsi_panel *panel)
 		panel->bl_config.brightness_max_level = val;
 	}
 
+#ifdef CONFIG_MACH_XIAOMI
+	rc = utils->read_u32(utils->data, "qcom,mdss-brightness-init-level",
+		&val);
+	if (rc) {
+		DSI_DEBUG("[%s] brigheness-init-level unspecified, defaulting to max level\n",
+			 panel->name);
+		panel->bl_config.brightness_init_level = panel->bl_config.brightness_max_level;
+	} else {
+		panel->bl_config.brightness_init_level = val;
+	}
+#endif
+
 	panel->bl_config.bl_inverted_dbv = utils->read_bool(utils->data,
 		"qcom,mdss-dsi-bl-inverted-dbv");
 
@@ -2532,8 +2639,13 @@ static int dsi_panel_parse_phy_timing(struct dsi_display_mode *mode,
 	return rc;
 }
 
+#ifndef CONFIG_MACH_XIAOMI
 static int dsi_panel_parse_dsc_params(struct dsi_display_mode *mode,
 				struct dsi_parser_utils *utils)
+#else
+static int dsi_panel_parse_dsc_params(struct dsi_panel *panel,
+				struct dsi_display_mode *mode, struct dsi_parser_utils *utils)
+#endif
 {
 	u32 data;
 	int rc = -EINVAL;
@@ -2541,8 +2653,13 @@ static int dsi_panel_parse_dsc_params(struct dsi_display_mode *mode,
 	const char *compression;
 	struct dsi_display_mode_priv_info *priv_info;
 
+#ifndef CONFIG_MACH_XIAOMI
 	if (!mode || !mode->priv_info)
 		return -EINVAL;
+#else
+	if (!panel || !mode || !mode->priv_info)
+		return -EINVAL;
+#endif
 
 	priv_info = mode->priv_info;
 
@@ -2682,8 +2799,13 @@ static int dsi_panel_parse_dsc_params(struct dsi_display_mode *mode,
 	priv_info->dsc.config.slice_count = DIV_ROUND_UP(intf_width,
 		priv_info->dsc.config.slice_width);
 
+#ifndef CONFIG_MACH_XIAOMI
 	rc = sde_dsc_populate_dsc_config(&priv_info->dsc.config,
 			priv_info->dsc.scr_rev);
+#else
+	rc = sde_dsc_populate_dsc_config(&priv_info->dsc.config,
+			priv_info->dsc.scr_rev, panel->mi_cfg.mi_panel_id);
+#endif
 	if (rc) {
 		DSI_DEBUG("failed populating dsc params\n");
 		rc = -EINVAL;
@@ -3236,6 +3358,9 @@ static void dsi_panel_esd_config_deinit(struct drm_panel_esd_config *esd_config)
 	kfree(esd_config->status_value);
 	kfree(esd_config->status_valid_params);
 	kfree(esd_config->status_cmds_rlen);
+#ifdef CONFIG_MACH_XIAOMI
+	kfree(esd_config->offset_cmd.cmds);
+#endif
 	kfree(esd_config->status_cmd.cmds);
 }
 
@@ -3256,6 +3381,14 @@ int dsi_panel_parse_esd_reg_read_configs(struct dsi_panel *panel)
 	esd_config = &panel->esd_config;
 	if (!esd_config)
 		return -EINVAL;
+
+#ifdef CONFIG_MACH_XIAOMI
+	dsi_panel_parse_cmd_sets_sub(&esd_config->offset_cmd,
+				DSI_CMD_SET_PANEL_STATUS_OFFSET, utils);
+	if (!esd_config->offset_cmd.count) {
+		DSI_INFO("no panel status offset command\n");
+	}
+#endif
 
 	dsi_panel_parse_cmd_sets_sub(&esd_config->status_cmd,
 				DSI_CMD_SET_PANEL_STATUS, utils);
@@ -3356,6 +3489,10 @@ error2:
 error1:
 	kfree(esd_config->status_cmd.cmds);
 error:
+#ifdef CONFIG_MACH_XIAOMI
+	if (esd_config->offset_cmd.count > 0)
+		kfree(esd_config->offset_cmd.cmds);
+#endif
 	return rc;
 }
 
@@ -3369,6 +3506,14 @@ static int dsi_panel_parse_esd_config(struct dsi_panel *panel)
 
 	esd_config = &panel->esd_config;
 	esd_config->status_mode = ESD_MODE_MAX;
+
+#ifdef CONFIG_MACH_XIAOMI
+	mi_dsi_panel_parse_esd_gpio_config(panel);
+
+	esd_config->esd_aod_enabled = utils->read_bool(utils->data,
+		"qcom,esd-aod-check-enabled");
+#endif
+
 	esd_config->esd_enabled = utils->read_bool(utils->data,
 		"qcom,esd-check-enabled");
 
@@ -3588,6 +3733,12 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 	if (rc)
 		DSI_DEBUG("failed to parse esd config, rc=%d\n", rc);
 
+#ifdef CONFIG_MACH_XIAOMI
+	rc = mi_dsi_panel_parse_config(panel);
+	if (rc)
+		DSI_DEBUG("failed to parse mi config, rc=%d\n", rc);
+#endif
+
 	rc = dsi_panel_vreg_get(panel);
 	if (rc) {
 		DSI_ERR("[%s] failed to get panel regulators, rc=%d\n",
@@ -3606,6 +3757,10 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 
 	mutex_init(&panel->panel_lock);
 
+#ifdef CONFIG_MACH_XIAOMI
+	mi_dsi_panel_init(panel);
+#endif
+
 	return panel;
 error_vreg_put:
 	(void)dsi_panel_vreg_put(panel);
@@ -3620,6 +3775,10 @@ void dsi_panel_put(struct dsi_panel *panel)
 
 	/* free resources allocated for ESD check */
 	dsi_panel_esd_config_deinit(&panel->esd_config);
+
+#ifdef CONFIG_MACH_XIAOMI
+	mi_dsi_panel_deinit(panel);
+#endif
 
 	kfree(panel);
 }
@@ -4076,7 +4235,11 @@ int dsi_panel_get_mode(struct dsi_panel *panel,
 			goto parse_fail;
 		}
 
+#ifndef CONFIG_MACH_XIAOMI
 		rc = dsi_panel_parse_dsc_params(mode, utils);
+#else
+		rc = dsi_panel_parse_dsc_params(panel, mode, utils);
+#endif
 		if (rc) {
 			DSI_ERR("failed to parse dsc params, rc=%d\n", rc);
 			goto parse_fail;
@@ -4199,9 +4362,11 @@ int dsi_panel_pre_prepare(struct dsi_panel *panel)
 
 	mutex_lock(&panel->panel_lock);
 
+#ifndef CONFIG_MACH_XIAOMI
 	/* If LP11_INIT is set, panel will be powered up during prepare() */
 	if (panel->lp11_init)
 		goto error;
+#endif
 
 	rc = dsi_panel_power_on(panel);
 	if (rc) {
@@ -4289,7 +4454,12 @@ int dsi_panel_set_lp1(struct dsi_panel *panel)
 	if (rc)
 		DSI_ERR("[%s] failed to send DSI_CMD_SET_LP1 cmd, rc=%d\n",
 		       panel->name, rc);
+
 exit:
+#ifdef CONFIG_MACH_XIAOMI
+	mi_dsi_update_micfg_flags(panel, PANEL_LP1);
+	DISP_UTC_INFO("%s panel: DSI_CMD_SET_LP1\n", panel->type);
+#endif
 	mutex_unlock(&panel->panel_lock);
 	return rc;
 }
@@ -4311,7 +4481,13 @@ int dsi_panel_set_lp2(struct dsi_panel *panel)
 	if (rc)
 		DSI_ERR("[%s] failed to send DSI_CMD_SET_LP2 cmd, rc=%d\n",
 		       panel->name, rc);
+
 exit:
+#ifdef CONFIG_MACH_XIAOMI
+	panel->mi_cfg.bl_enable = false;
+	mi_dsi_update_micfg_flags(panel, PANEL_LP2);
+	DISP_UTC_INFO("%s panel: DSI_CMD_SET_LP2\n", panel->type);
+#endif
 	mutex_unlock(&panel->panel_lock);
 	return rc;
 }
@@ -4333,6 +4509,13 @@ int dsi_panel_set_nolp(struct dsi_panel *panel)
 	if (!panel->panel_initialized)
 		goto exit;
 
+#ifdef CONFIG_MACH_XIAOMI
+	if (panel->mi_cfg.panel_state == PANEL_STATE_ON) {
+		DSI_INFO("panel already PANEL_STATE_ON, skip nolp\n");
+		goto exit;
+	}
+#endif
+
 	/*
 	 * Consider about LP1->LP2->NOLP.
 	 */
@@ -4346,6 +4529,12 @@ int dsi_panel_set_nolp(struct dsi_panel *panel)
 		DSI_ERR("[%s] failed to send DSI_CMD_SET_NOLP cmd, rc=%d\n",
 		       panel->name, rc);
 exit:
+#ifdef CONFIG_MACH_XIAOMI
+	mi_dsi_update_micfg_flags(panel, PANEL_NOLP);
+	panel->mi_cfg.doze_brightness_backup = DOZE_TO_NORMAL;
+	panel->mi_cfg.is_doze_to_off = false;
+	DISP_UTC_INFO("%s panel: DSI_CMD_SET_NOLP\n", panel->type);
+#endif
 	mutex_unlock(&panel->panel_lock);
 	return rc;
 }
@@ -4362,12 +4551,21 @@ int dsi_panel_prepare(struct dsi_panel *panel)
 	mutex_lock(&panel->panel_lock);
 
 	if (panel->lp11_init) {
+#ifndef CONFIG_MACH_XIAOMI
 		rc = dsi_panel_power_on(panel);
 		if (rc) {
 			DSI_ERR("[%s] panel power on failed, rc=%d\n",
 			       panel->name, rc);
 			goto error;
 		}
+#else
+		rc = dsi_panel_reset(panel);
+		if (rc) {
+			DSI_ERR("[%s] panel reset failed, rc=%d\n",
+				panel->name, rc);
+			goto error;
+		}
+#endif
 	}
 
 	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_PRE_ON);
@@ -4680,6 +4878,15 @@ int dsi_panel_enable(struct dsi_panel *panel)
 		       panel->name, rc);
 	else
 		panel->panel_initialized = true;
+
+#ifdef CONFIG_MACH_XIAOMI
+	if (panel->mi_cfg.dc_type == 0 && panel->mi_cfg.feature_val[DISP_FEATURE_DC] == FEATURE_ON)
+		mi_dsi_dc_mode_enable(panel, true);
+
+	mi_dsi_update_micfg_flags(panel, PANEL_ON);
+	DISP_UTC_INFO("%s panel: DSI_CMD_SET_ON\n", panel->type);
+#endif
+
 	mutex_unlock(&panel->panel_lock);
 	return rc;
 }
@@ -4701,14 +4908,19 @@ int dsi_panel_post_enable(struct dsi_panel *panel)
 		       panel->name, rc);
 		goto error;
 	}
+
 error:
 	mutex_unlock(&panel->panel_lock);
+
 	return rc;
 }
 
 int dsi_panel_pre_disable(struct dsi_panel *panel)
 {
 	int rc = 0;
+#ifdef CONFIG_MACH_XIAOMI
+	struct mi_dsi_panel_cfg *mi_cfg  = NULL;
+#endif
 
 	if (!panel) {
 		DSI_ERR("invalid params\n");
@@ -4727,6 +4939,15 @@ int dsi_panel_pre_disable(struct dsi_panel *panel)
 		goto error;
 	}
 
+#ifdef CONFIG_MACH_XIAOMI
+	mi_cfg = &panel->mi_cfg;
+
+	if (mi_get_panel_id(mi_cfg->mi_panel_id) == K9D_TIAN_PA) {
+		if (panel->mi_cfg.is_doze_to_off)
+			panel->mi_cfg.is_doze_to_off = false;
+	}
+#endif
+
 error:
 	mutex_unlock(&panel->panel_lock);
 	return rc;
@@ -4735,6 +4956,9 @@ error:
 int dsi_panel_disable(struct dsi_panel *panel)
 {
 	int rc = 0;
+#ifdef CONFIG_MACH_XIAOMI
+	struct mi_dsi_panel_cfg *mi_cfg  = NULL;
+#endif
 
 	if (!panel) {
 		DSI_ERR("invalid params\n");
@@ -4758,6 +4982,23 @@ int dsi_panel_disable(struct dsi_panel *panel)
 			panel->power_mode == SDE_MODE_DPMS_LP2))
 			dsi_pwr_panel_regulator_mode_set(&panel->power_info,
 				"ibb", REGULATOR_MODE_STANDBY);
+
+#ifdef CONFIG_MACH_XIAOMI
+		mi_cfg = &panel->mi_cfg;
+
+		if (mi_get_panel_id(mi_cfg->mi_panel_id) == K9D_TIAN_PA) {
+			if (panel->power_mode == SDE_MODE_DPMS_LP1 ||
+				panel->power_mode == SDE_MODE_DPMS_LP2) {
+				rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_MI_PRE_DOZE_TO_OFF);
+				if (rc)
+					DISP_ERROR("[%s] failed to send DSI_CMD_SET_MI_RRE_DOZE_TO_OFF cmds, rc=%d\n",
+						panel->name, rc);
+				else
+					DISP_INFO("%s panel: DSI_CMD_SET_MI_PRE_DOZE_TO_OFF\n", panel->type);
+			}
+		}
+#endif
+
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_OFF);
 		if (rc) {
 			/*
@@ -4773,6 +5014,10 @@ int dsi_panel_disable(struct dsi_panel *panel)
 	}
 	panel->panel_initialized = false;
 	panel->power_mode = SDE_MODE_DPMS_OFF;
+#ifdef CONFIG_MACH_XIAOMI
+	mi_dsi_update_micfg_flags(panel, PANEL_OFF);
+	DISP_UTC_INFO("%s panel: DSI_CMD_SET_OFF\n", panel->type);
+#endif
 
 	mutex_unlock(&panel->panel_lock);
 	return rc;

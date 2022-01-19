@@ -11,6 +11,10 @@
 #include "dsi_display.h"
 #include "sde_trace.h"
 
+#ifdef CONFIG_MACH_XIAOMI
+#include "mi_sde_encoder.h"
+#endif
+
 #define SDE_DEBUG_VIDENC(e, fmt, ...) SDE_DEBUG("enc%d intf%d " fmt, \
 		(e) && (e)->base.parent ? \
 		(e)->base.parent->base.id : -1, \
@@ -500,6 +504,10 @@ static void sde_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
 	hw_ctl = phys_enc->hw_ctl;
 	if (!hw_ctl)
 		return;
+
+#ifdef CONFIG_MACH_XIAOMI
+	mi_sde_encoder_save_vsync_info(phys_enc);
+#endif
 
 	SDE_ATRACE_BEGIN("vblank_irq");
 
