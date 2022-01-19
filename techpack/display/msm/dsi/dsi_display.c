@@ -22,6 +22,13 @@
 #include "sde_dbg.h"
 #include "dsi_parser.h"
 
+#ifdef CONFIG_MACH_XIAOMI
+#include <drm/mi_disp_notifier.h>
+#include "mi_disp_feature.h"
+#include "mi_dsi_display.h"
+#include "mi_disp_print.h"
+#endif
+
 #define to_dsi_display(x) container_of(x, struct dsi_display, host)
 #define INT_BASE_10 10
 
@@ -49,6 +56,52 @@ static const struct of_device_id dsi_display_dt_match[] = {
 	{.compatible = "qcom,dsi-display"},
 	{}
 };
+
+#ifdef CONFIG_MACH_XIAOMI
+char *mi_dsi_display_get_cmdline_panel_info(struct dsi_display *display)
+{
+	char *buffer = NULL, *buffer_dup = NULL;
+	char *pname = NULL;
+	char *panel_info = NULL;
+	int index = DSI_PRIMARY;
+
+	if (!display) {
+		DSI_ERR("Invalid params\n");
+		return NULL;
+	}
+
+	if (!strcmp(display->display_type, "primary")) {
+		index = DSI_PRIMARY;
+	} else if (!strcmp(display->display_type, "secondary")) {
+		index = DSI_SECONDARY;
+	} else {
+		DSI_ERR("Invalid display_type params\n");
+		return NULL;
+	}
+
+	buffer = kstrdup(boot_displays[index].boot_param, GFP_KERNEL);
+	if (!buffer)
+		return NULL;
+	buffer_dup = buffer;
+
+	buffer = strrchr(buffer, ',');
+	if (buffer && *buffer) {
+		pname = ++buffer;
+	} else {
+		goto exit;
+	}
+
+	buffer = strrchr(pname, ':');
+	if (buffer)
+		*buffer = '\0';
+
+	panel_info = kstrdup(pname, GFP_KERNEL);
+
+exit:
+	kfree(buffer_dup);
+	return panel_info;
+}
+#endif
 
 bool is_skip_op_required(struct dsi_display *display)
 {
@@ -259,7 +312,10 @@ error:
 	return rc;
 }
 
-static int dsi_display_cmd_engine_enable(struct dsi_display *display)
+#ifndef CONFIG_MACH_XIAOMI
+static
+#endif
+int dsi_display_cmd_engine_enable(struct dsi_display *display)
 {
 	int rc = 0;
 	int i;
@@ -307,7 +363,10 @@ done:
 	return rc;
 }
 
-static int dsi_display_cmd_engine_disable(struct dsi_display *display)
+#ifndef CONFIG_MACH_XIAOMI
+static
+#endif
+int dsi_display_cmd_engine_disable(struct dsi_display *display)
 {
 	int rc = 0;
 	int i;
@@ -501,7 +560,10 @@ error:
 }
 
 /* Allocate memory for cmd dma tx buffer */
-static int dsi_host_alloc_cmd_tx_buffer(struct dsi_display *display)
+#ifndef CONFIG_MACH_XIAOMI
+static
+#endif
+int dsi_host_alloc_cmd_tx_buffer(struct dsi_display *display)
 {
 	int rc = 0, cnt = 0;
 	struct dsi_display_ctrl *display_ctrl;
@@ -822,6 +884,9 @@ int dsi_display_check_status(struct drm_connector *connector, void *display,
 					bool te_check_override)
 {
 	struct dsi_display *dsi_display = display;
+#ifdef CONFIG_MACH_XIAOMI
+	struct drm_panel_esd_config *config;
+#endif
 	struct dsi_panel *panel;
 	u32 status_mode;
 	int rc = 0x1, ret;
@@ -862,6 +927,17 @@ int dsi_display_check_status(struct drm_connector *connector, void *display,
 	if ((dsi_display->trusted_vm_env) ||
 			(panel->panel_mode == DSI_OP_VIDEO_MODE))
 		te_rechecks = 0;
+
+#ifdef CONFIG_MACH_XIAOMI
+	if (status_mode == ESD_MODE_REG_READ) {
+		config = &(panel->esd_config);
+		if (config->offset_cmd.count != 0) {
+			rc = mi_dsi_panel_write_cmd_set(dsi_display->panel,
+				&config->offset_cmd);
+			DSI_DEBUG("%s: read reg offset command rc = %d\n",__func__, rc);
+		}
+	}
+#endif
 
 	ret = dsi_display_clk_ctrl(dsi_display->dsi_clk_handle,
 		DSI_ALL_CLKS, DSI_CLK_ON);
@@ -1240,6 +1316,12 @@ int dsi_display_set_power(struct drm_connector *connector,
 		int power_mode, void *disp)
 {
 	struct dsi_display *display = disp;
+#ifdef CONFIG_MACH_XIAOMI
+	struct disp_event event;
+	struct mi_disp_notifier notify_data;
+	bool update_bl = false;
+	int disp_id = 0;
+#endif
 	int rc = 0;
 
 	if (!display || !display->panel) {
@@ -1247,16 +1329,38 @@ int dsi_display_set_power(struct drm_connector *connector,
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_MACH_XIAOMI
+	disp_id = mi_get_disp_id(display);
+
+	notify_data.data = &power_mode;
+	notify_data.disp_id = disp_id;
+
+	DISP_UTC_INFO("Display (%s), Power mode (%s)\n", display->display_type,
+			get_display_power_mode_name(power_mode));
+#endif
+
 	switch (power_mode) {
 	case SDE_MODE_DPMS_LP1:
 		if (display->panel->power_mode == SDE_MODE_DPMS_LP2) {
 			if (dsi_display_set_ulp_load(display, false) < 0)
 				DSI_WARN("failed to set load for lp1 state\n");
 		}
+#ifdef CONFIG_MACH_XIAOMI
+		mi_disp_notifier_call_chain(MI_DISP_DPMS_EARLY_EVENT, &notify_data);
+#endif
 		rc = dsi_panel_set_lp1(display->panel);
+#ifdef CONFIG_MACH_XIAOMI
+		mi_disp_notifier_call_chain(MI_DISP_DPMS_EVENT, &notify_data);
+#endif
 		break;
 	case SDE_MODE_DPMS_LP2:
+#ifdef CONFIG_MACH_XIAOMI
+		mi_disp_notifier_call_chain(MI_DISP_DPMS_EARLY_EVENT, &notify_data);
+#endif
 		rc = dsi_panel_set_lp2(display->panel);
+#ifdef CONFIG_MACH_XIAOMI
+		mi_disp_notifier_call_chain(MI_DISP_DPMS_EVENT, &notify_data);
+#endif
 		if (dsi_display_set_ulp_load(display, true) < 0)
 			DSI_WARN("failed to set load for lp2 state\n");
 		break;
@@ -1266,10 +1370,26 @@ int dsi_display_set_power(struct drm_connector *connector,
 				DSI_WARN("failed to set load for on state\n");
 		}
 		if ((display->panel->power_mode == SDE_MODE_DPMS_LP1) ||
-			(display->panel->power_mode == SDE_MODE_DPMS_LP2))
+			(display->panel->power_mode == SDE_MODE_DPMS_LP2)) {
+#ifdef CONFIG_MACH_XIAOMI
+			mi_disp_notifier_call_chain(MI_DISP_DPMS_EARLY_EVENT, &notify_data);
+#endif
 			rc = dsi_panel_set_nolp(display->panel);
+#ifdef CONFIG_MACH_XIAOMI
+			update_bl = true;
+#endif
+		}
+#ifdef CONFIG_MACH_XIAOMI
+		mi_disp_notifier_call_chain(MI_DISP_DPMS_EVENT, &notify_data);
+#endif
 		break;
 	case SDE_MODE_DPMS_OFF:
+#ifdef CONFIG_MACH_XIAOMI
+		event.disp_id = disp_id;
+		event.type = MI_DISP_EVENT_POWER;
+		event.length = sizeof(power_mode);
+		mi_disp_feature_event_notify(&event, (u8 *)&power_mode);
+#endif
 	default:
 		return rc;
 	}
@@ -1278,8 +1398,19 @@ int dsi_display_set_power(struct drm_connector *connector,
 	DSI_DEBUG("Power mode transition from %d to %d %s",
 			display->panel->power_mode, power_mode,
 			rc ? "failed" : "successful");
-	if (!rc)
+	if (!rc) {
 		display->panel->power_mode = power_mode;
+
+#ifdef CONFIG_MACH_XIAOMI
+		if (update_bl && display->panel->mi_cfg.bl_need_update)
+			mi_dsi_display_update_backlight(display);
+
+		event.disp_id = disp_id;
+		event.type = MI_DISP_EVENT_POWER;
+		event.length = sizeof(power_mode);
+		mi_disp_feature_event_notify(&event, (u8 *)&power_mode);
+#endif
+	}
 
 	return rc;
 }
@@ -3339,9 +3470,19 @@ static ssize_t dsi_host_transfer(struct mipi_dsi_host *host,
 				(display->enabled))
 			cmd_flags |= DSI_CTRL_CMD_CUSTOM_DMA_SCHED;
 
+#ifdef CONFIG_MACH_XIAOMI
+		if (msg->type == MIPI_DSI_DCS_READ)
+			cmd_flags |= DSI_CTRL_CMD_READ;
+#endif
+
 		rc = dsi_ctrl_cmd_transfer(display->ctrl[ctrl_idx].ctrl, msg,
 				&cmd_flags);
+#ifndef CONFIG_MACH_XIAOMI
 		if (rc < 0) {
+#else
+		if ((msg->type == MIPI_DSI_DCS_READ && rc == 0)
+			|| (msg->type != MIPI_DSI_DCS_READ && rc)) {
+#endif
 			DSI_ERR("[%s] cmd transfer failed, rc=%d\n",
 			       display->name, rc);
 			goto error_disable_cmd_engine;
@@ -5785,6 +5926,16 @@ static int dsi_display_bind(struct device *dev,
 
 	msm_register_vm_event(master, dev, &vm_event_ops, (void *)display);
 
+#ifdef CONFIG_MACH_XIAOMI
+	rc = mi_disp_feature_attach_display(display,
+				mi_get_disp_id(display), MI_INTF_DSI);
+	if (rc) {
+		DSI_ERR("failed to attach %s display(%s intf)\n",
+				get_disp_id_name(mi_get_disp_id(display)),
+				get_disp_intf_type_name(MI_INTF_DSI));
+	}
+#endif
+
 	goto error;
 
 error_host_deinit:
@@ -5833,6 +5984,16 @@ static void dsi_display_unbind(struct device *dev,
 	}
 
 	mutex_lock(&display->display_lock);
+
+#ifdef CONFIG_MACH_XIAOMI
+	rc = mi_disp_feature_detach_display(display,
+				mi_get_disp_id(display), MI_INTF_DSI);
+	if (rc) {
+		DSI_ERR("failed to detach %s display(%s intf)\n",
+				get_disp_id_name(mi_get_disp_id(display)),
+				get_disp_intf_type_name(MI_INTF_DSI));
+	}
+#endif
 
 	rc = dsi_display_mipi_host_deinit(display);
 	if (rc)
@@ -7396,6 +7557,9 @@ int dsi_display_set_mode(struct dsi_display *display,
 	int rc = 0;
 	struct dsi_display_mode adj_mode;
 	struct dsi_mode_info timing;
+#ifdef CONFIG_MACH_XIAOMI
+	struct disp_event event;
+#endif
 
 	if (!display || !mode || !display->panel) {
 		DSI_ERR("Invalid params\n");
@@ -7438,6 +7602,16 @@ int dsi_display_set_mode(struct dsi_display *display,
 			timing.h_active, timing.v_active, timing.refresh_rate);
 	SDE_EVT32(adj_mode.priv_info->mdp_transfer_time_us,
 			timing.h_active, timing.v_active, timing.refresh_rate);
+
+#ifdef CONFIG_MACH_XIAOMI
+	event.disp_id = mi_get_disp_id(display);
+	event.type = MI_DISP_EVENT_FPS;
+	event.length = sizeof(timing.refresh_rate);
+	mi_disp_feature_event_notify(&event, (u8 *)&timing.refresh_rate);
+
+	if (display->panel->cur_mode->timing.refresh_rate != timing.refresh_rate)
+		mi_disp_feature_sysfs_notify(event.disp_id, MI_SYSFS_DYNAMIC_FPS);
+#endif
 
 	memcpy(display->panel->cur_mode, &adj_mode, sizeof(adj_mode));
 error:
@@ -8284,6 +8458,32 @@ int dsi_display_enable(struct dsi_display *display)
 		DSI_DEBUG("cont splash enabled, display enable not required\n");
 		dsi_display_panel_id_notification(display);
 
+#ifdef CONFIG_MACH_XIAOMI
+		rc = mi_dsi_panel_read_gamma_param(display->panel);
+		if (rc) {
+			DSI_ERR("[%s] failed to read gamma para, rc=%d\n",
+				display->name, rc);
+		} else {
+			rc = mi_dsi_panel_update_gamma_param(display->panel);
+			if (rc) {
+				DSI_ERR("[%s] failed to update gamma para, rc=%d\n",
+					display->name, rc);
+			}
+		}
+
+		if (mi_get_disp_id(display) == MI_DISP_PRIMARY && display->panel->mi_cfg.panel_id == 0x4B3800420200) {
+			if (display->panel->mi_cfg.feature_val[DISP_FEATURE_BIC] == BIC_UPDAT_REG_RIGHT_NOW)
+				mi_dsi_set_bic_reg(display->panel);
+			mi_dsi_panel_lhbm_set(display->panel);
+		}
+
+		rc = mi_dsi_panel_read_flatmode_param(display->panel);
+		if (rc) {
+			DSI_ERR("[%s] failed to read flatmode param, rc=%d\n",
+				display->name, rc);
+		}
+#endif
+
 		return 0;
 	}
 
@@ -8704,6 +8904,9 @@ int dsi_display_unprepare(struct dsi_display *display)
 
 void __init dsi_display_register(void)
 {
+#ifdef CONFIG_MACH_XIAOMI
+	mi_disp_feature_init();
+#endif
 	dsi_phy_drv_register();
 	dsi_ctrl_drv_register();
 
@@ -8717,6 +8920,9 @@ void __exit dsi_display_unregister(void)
 	platform_driver_unregister(&dsi_display_driver);
 	dsi_ctrl_drv_unregister();
 	dsi_phy_drv_unregister();
+#ifdef CONFIG_MACH_XIAOMI
+	mi_disp_feature_deinit();
+#endif
 }
 module_param_string(dsi_display0, dsi_display_primary, MAX_CMDLINE_PARAM_LEN,
 								0600);

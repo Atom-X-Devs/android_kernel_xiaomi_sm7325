@@ -115,6 +115,9 @@ struct dsi_phy_cfg {
 	bool force_clk_lane_hs;
 	enum dsi_phy_type phy_type;
 	unsigned long bit_clk_rate_hz;
+#ifdef CONFIG_MACH_XIAOMI
+	unsigned long clk_strength;
+#endif
 };
 
 struct dsi_phy_hw;

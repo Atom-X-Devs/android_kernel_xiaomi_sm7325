@@ -21,6 +21,10 @@
 #include "dsi_parser.h"
 #include "msm_drv.h"
 
+#ifdef CONFIG_MACH_XIAOMI
+#include "mi_dsi_panel.h"
+#endif
+
 #define MAX_BL_LEVEL 4096
 #define MAX_BL_SCALE_LEVEL 1024
 #define MAX_SV_BL_SCALE_LEVEL 65535
@@ -166,8 +170,14 @@ enum esd_check_status_mode {
 
 struct drm_panel_esd_config {
 	bool esd_enabled;
+#ifdef CONFIG_MACH_XIAOMI
+	bool esd_aod_enabled;
+#endif
 
 	enum esd_check_status_mode status_mode;
+#ifdef CONFIG_MACH_XIAOMI
+	struct dsi_panel_cmd_set offset_cmd;
+#endif
 	struct dsi_panel_cmd_set status_cmd;
 	u32 *status_cmds_rlen;
 	u32 *status_valid_params;
@@ -262,6 +272,9 @@ struct dsi_panel {
 	int panel_test_gpio;
 	int power_mode;
 	enum dsi_panel_physical_type panel_type;
+#ifdef CONFIG_MACH_XIAOMI
+	struct mi_dsi_panel_cfg mi_cfg;
+#endif
 
 	struct dsi_tlmm_gpio *tlmm_gpio;
 	u32 tlmm_gpio_count;
@@ -390,6 +403,13 @@ int dsi_panel_get_io_resources(struct dsi_panel *panel,
 
 void dsi_panel_calc_dsi_transfer_time(struct dsi_host_common_cfg *config,
 		struct dsi_display_mode *mode, u32 frame_threshold_us);
+
+#ifdef CONFIG_MACH_XIAOMI
+int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
+				enum dsi_cmd_set_type type);
+int dsi_panel_update_backlight(struct dsi_panel *panel,
+				u32 bl_lvl);
+#endif
 
 int dsi_panel_get_cmd_pkt_count(const char *data, u32 length, u32 *cnt);
 

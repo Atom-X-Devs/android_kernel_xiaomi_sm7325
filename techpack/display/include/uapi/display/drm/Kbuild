@@ -2,4 +2,6 @@
 
 header-y += msm_drm_pp.h
 header-y += sde_drm.h
-
+ifdef CONFIG_MACH_XIAOMI
+header-y += mi_disp.h
+endif
