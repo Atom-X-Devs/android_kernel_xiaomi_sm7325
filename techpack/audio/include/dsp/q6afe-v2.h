@@ -306,6 +306,9 @@ enum {
 	IDX_RT_PROXY_PORT_002_TX,
 	/* IDX 212 */
 	IDX_HDMI_RX_MS,
+#ifdef CONFIG_MACH_XIAOMI
+	IDX_AFE_PORT_ID_PSEUDOPORT_01,
+#endif
 	/* IDX 213-> 228 */
 	IDX_AFE_PORT_ID_SEPTENARY_TDM_RX_0,
 	IDX_AFE_PORT_ID_SEPTENARY_TDM_TX_0,
@@ -678,4 +681,7 @@ int afe_get_spk_v_vali_flag(void);
 void afe_get_spk_v_vali_sts(int *spk_v_vali_sts);
 void afe_set_spk_initial_cal(int initial_cal);
 void afe_set_spk_v_vali_flag(int v_vali_flag);
+#ifdef CONFIG_MACH_XIAOMI
+int afe_send_data(phys_addr_t buf_addr_p, u32 mem_map_handle, int bytes);
+#endif
 #endif /* __Q6AFE_V2_H__ */
