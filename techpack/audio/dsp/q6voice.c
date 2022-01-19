@@ -28,7 +28,6 @@
 
 #define TIMEOUT_MS 1000
 
-
 #define CMD_STATUS_SUCCESS 0
 #define CMD_STATUS_FAIL 1
 #define NUM_CHANNELS_MONO 1

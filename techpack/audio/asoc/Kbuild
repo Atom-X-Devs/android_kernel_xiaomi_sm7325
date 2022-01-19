@@ -261,6 +261,13 @@ CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 		-Wall\
 		-D__linux__
 
+ifeq ($(CONFIG_MACH_XIAOMI_LISA), y)
+	CDEFINES += -DCONFIG_SND_SOC_TFA9874
+	CDEFINES += -DCONFIG_SND_SOC_TFA9874_DAVI_TDM
+	CDEFINES += -DTFA_NON_DSP_SOLUTION
+	CDEFINES += -DCONFIG_TARGET_PRODUCT_LISA
+endif
+
 KBUILD_CPPFLAGS += $(CDEFINES)
 
 # Currently, for versions of gcc which support it, the kernel Makefile
@@ -284,6 +291,7 @@ KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codec
 endif
 ifeq ($(KERNEL_BUILD), 1)
 	obj-y += codecs/
+	obj-$(CONFIG_MACH_XIAOMI) += iio/
 endif
 # Module information used by KBuild framework
 obj-$(CONFIG_SND_SOC_QDSP6V2) += platform_dlkm.o

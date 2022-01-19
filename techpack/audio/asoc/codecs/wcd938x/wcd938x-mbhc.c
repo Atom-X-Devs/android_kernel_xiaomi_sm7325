@@ -666,7 +666,11 @@ right_ch_impedance:
 
 	/* Enable surge protection again after impedance detection */
 	regmap_update_bits(wcd938x->regmap,
+#ifndef CONFIG_MACH_XIAOMI
 			   WCD938X_HPH_SURGE_HPHLR_SURGE_EN, 0xC0, 0xC0);
+#else
+			   WCD938X_HPH_SURGE_HPHLR_SURGE_EN, 0xC0, 0x00);
+#endif
 zdet_complete:
 	snd_soc_component_write(component, WCD938X_ANA_MBHC_BTN5, reg0);
 	snd_soc_component_write(component, WCD938X_ANA_MBHC_BTN6, reg1);
@@ -1104,10 +1108,12 @@ int wcd938x_mbhc_init(struct wcd938x_mbhc **mbhc,
 	}
 
 	(*mbhc) = wcd938x_mbhc;
+#ifndef CONFIG_MACH_XIAOMI
 	snd_soc_add_component_controls(component, impedance_detect_controls,
 				   ARRAY_SIZE(impedance_detect_controls));
 	snd_soc_add_component_controls(component, hph_type_detect_controls,
 				   ARRAY_SIZE(hph_type_detect_controls));
+#endif
 
 	return 0;
 err:
