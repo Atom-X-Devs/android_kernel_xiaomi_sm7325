@@ -45,9 +45,17 @@
 #define TX_MACRO_ADC_MODE_CFG0_SHIFT 1
 
 #define TX_MACRO_DMIC_UNMUTE_DELAY_MS	40
+#ifndef CONFIG_MACH_XIAOMI
 #define TX_MACRO_AMIC_UNMUTE_DELAY_MS	100
 #define TX_MACRO_DMIC_HPF_DELAY_MS	300
 #define TX_MACRO_AMIC_HPF_DELAY_MS	300
+#else
+#define TX_MACRO_AMIC_UNMUTE_DELAY_MS	200
+#define TX_MACRO_DMIC_HPF_DELAY_MS	200
+#define TX_MACRO_AMIC_HPF_DELAY_MS	100
+
+struct tx_macro_priv *g_tx_priv;
+#endif
 
 static int tx_amic_unmute_delay = TX_MACRO_AMIC_UNMUTE_DELAY_MS;
 module_param(tx_amic_unmute_delay, int, 0664);
@@ -163,6 +171,10 @@ struct tx_macro_priv {
 	struct work_struct tx_macro_add_child_devices_work;
 	struct hpf_work tx_hpf_work[NUM_DECIMATORS];
 	struct tx_mute_work tx_mute_dwork[NUM_DECIMATORS];
+#ifdef CONFIG_MACH_XIAOMI
+	struct delayed_work tx_hs_unmute_dwork;
+	u16 reg_before_mute;
+#endif
 	u16 dmic_clk_div;
 	u32 version;
 	u32 is_used_tx_swr_gpio;
@@ -575,11 +587,20 @@ static void tx_macro_tx_hpf_corner_freq_callback(struct work_struct *work)
 				dec_cfg_reg, TX_HPF_CUT_OFF_FREQ_MASK,
 				hpf_cut_off_freq << 5);
 		snd_soc_component_update_bits(component, hpf_gate_reg,
+#ifndef CONFIG_MACH_XIAOMI
 						0x02, 0x02);
+#else
+						0x03, 0x02);
+#endif
 		/* Minimum 1 clk cycle delay is required as per HW spec */
 		usleep_range(1000, 1010);
 		snd_soc_component_update_bits(component, hpf_gate_reg,
+#ifndef CONFIG_MACH_XIAOMI
 						0x02, 0x00);
+#else
+						0x03, 0x01);
+#endif
+
 	}
 }
 
@@ -605,6 +626,22 @@ static void tx_macro_mute_update_callback(struct work_struct *work)
 	dev_dbg(tx_priv->dev, "%s: decimator %u unmute\n",
 		__func__, decimator);
 }
+
+#ifdef CONFIG_MACH_XIAOMI
+static void tx_macro_hs_unmute_dwork(struct work_struct *work)
+{
+	struct snd_soc_component *component = NULL;
+	struct tx_macro_priv *tx_priv = NULL;
+	struct delayed_work *delayed_work = NULL;
+	unsigned int reg = BOLERO_CDC_TX2_TX_VOL_CTL;
+
+	delayed_work = to_delayed_work(work);
+	tx_priv = container_of(delayed_work, struct tx_macro_priv, tx_hs_unmute_dwork);
+	component = tx_priv->component;
+
+	snd_soc_component_update_bits(component, reg, 0xff, tx_priv->reg_before_mute);
+}
+#endif
 
 static int tx_macro_put_dec_enum(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
@@ -1012,6 +1049,28 @@ static int tx_macro_enable_dmic(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+#ifdef CONFIG_MACH_XIAOMI
+void bolero_tx_macro_mute_hs(void)
+{
+	struct snd_soc_component *component = NULL;
+	unsigned int reg = BOLERO_CDC_TX2_TX_VOL_CTL;
+	unsigned int mask = 0xff;
+	unsigned int val = 0xac;
+	int tx_unmute_delay_plugout = 1200;
+
+	if (!g_tx_priv)
+		return;
+
+	component = g_tx_priv->component;
+	snd_soc_component_update_bits(component, reg, mask, val);
+
+	schedule_delayed_work(&g_tx_priv->tx_hs_unmute_dwork,
+			msecs_to_jiffies(tx_unmute_delay_plugout));
+	return;
+}
+EXPORT_SYMBOL(bolero_tx_macro_mute_hs);
+#endif
+
 static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 			       struct snd_kcontrol *kcontrol, int event)
 {
@@ -1113,18 +1172,29 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 				hpf_gate_reg, 0x03, 0x02);
 		if (!is_smic_enabled(component, decimator))
 			snd_soc_component_update_bits(component,
+#ifndef CONFIG_MACH_XIAOMI
 				hpf_gate_reg, 0x03, 0x00);
 		snd_soc_component_update_bits(component,
 				hpf_gate_reg, 0x03, 0x01);
+#else
+				hpf_gate_reg, 0x02, 0x00);
+#endif
 		/*
 		 * 6ms delay is required as per HW spec
 		 */
 		usleep_range(6000, 6010);
+#ifdef CONFIG_MACH_XIAOMI
+		snd_soc_component_update_bits(component,
+				hpf_gate_reg, 0x02, 0x00);
+#endif
 		/* apply gain after decimator is enabled */
 		snd_soc_component_write(component, tx_gain_ctl_reg,
-			      snd_soc_component_read32(component,
-					tx_gain_ctl_reg));
+			      snd_soc_component_read32(component, tx_gain_ctl_reg));
+#ifndef CONFIG_MACH_XIAOMI
 		if (tx_priv->bcs_enable) {
+#else
+		if (tx_priv->bcs_enable && decimator == 0) {
+#endif
 			if (tx_priv->version == BOLERO_VERSION_2_1)
 				snd_soc_component_update_bits(component,
 					BOLERO_CDC_VA_TOP_CSR_SWR_CTRL, 0x0F,
@@ -1218,7 +1288,11 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 			dec_cfg_reg, 0x06, 0x00);
 		snd_soc_component_update_bits(component, tx_vol_ctl_reg,
 						0x10, 0x00);
+#ifndef CONFIG_MACH_XIAOMI
 		if (tx_priv->bcs_enable) {
+#else
+		if (tx_priv->bcs_enable && decimator == 0) {
+#endif
 			snd_soc_component_update_bits(component, dec_cfg_reg,
 					0x01, 0x00);
 			snd_soc_component_update_bits(component,
@@ -3187,6 +3261,9 @@ static int tx_macro_init(struct snd_soc_component *component)
 		INIT_DELAYED_WORK(&tx_priv->tx_mute_dwork[i].dwork,
 			  tx_macro_mute_update_callback);
 	}
+#ifdef CONFIG_MACH_XIAOMI
+	INIT_DELAYED_WORK(&tx_priv->tx_hs_unmute_dwork, tx_macro_hs_unmute_dwork);
+#endif
 	tx_priv->component = component;
 
 	for (i = 0; i < ARRAY_SIZE(tx_macro_reg_init); i++)
@@ -3384,6 +3461,9 @@ static int tx_macro_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, tx_priv);
 
+#ifdef CONFIG_MACH_XIAOMI
+	g_tx_priv = tx_priv;
+#endif
 	tx_priv->dev = &pdev->dev;
 	ret = of_property_read_u32(pdev->dev.of_node, "reg",
 				   &tx_base_addr);

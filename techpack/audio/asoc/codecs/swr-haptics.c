@@ -60,7 +60,11 @@ static struct reg_default swr_hap_reg_defaults[] = {
 	{AUTO_RES_CAL_DONE_REG, 0},
 	{SWR_READ_DATA_REG, 0},
 	{SWR_PLAY_REG, 4},
+#ifdef CONFIG_MACH_XIAOMI
+	{SWR_VMAX_REG, 100},
+#else
 	{SWR_VMAX_REG, 0},
+#endif
 };
 
 enum {
@@ -377,7 +381,12 @@ static const struct snd_kcontrol_new haptics_snd_controls[] = {
 };
 
 static const struct snd_soc_dapm_widget haptics_comp_dapm_widgets[] = {
+#ifdef CONFIG_MACH_XIAOMI
+	SND_SOC_DAPM_AIF_IN("HAP_IN", "HAPTICS_AIF Playback", 0,
+			SND_SOC_NOPM, 0, 0),
+#else
 	SND_SOC_DAPM_INPUT("HAP_IN"),
+#endif
 	SND_SOC_DAPM_MIXER_E("SWR DAC_Port", SND_SOC_NOPM, 0, 0,
 			hap_swr_dac_port, ARRAY_SIZE(hap_swr_dac_port),
 			hap_enable_swr_dac_port,
