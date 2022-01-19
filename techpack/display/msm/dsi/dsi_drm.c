@@ -12,6 +12,9 @@
 #include "dsi_drm.h"
 #include "sde_trace.h"
 #include "sde_dbg.h"
+#ifdef CONFIG_MACH_XIAOMI
+#include "mi_dsi_display.h"
+#endif
 
 #define to_dsi_bridge(x)     container_of((x), struct dsi_bridge, base)
 #define to_dsi_state(x)      container_of((x), struct dsi_connector_state, base)
@@ -255,6 +258,14 @@ static void dsi_bridge_enable(struct drm_bridge *bridge)
 			sde_connector_schedule_status_work(display->drm_conn,
 				true);
 	}
+
+#ifdef CONFIG_MACH_XIAOMI
+	rc = mi_dsi_display_esd_irq_ctrl(c_bridge->display, true);
+	if (rc) {
+		DSI_ERR("[%d] DSI display enable esd irq failed, rc=%d\n",
+				c_bridge->id, rc);
+	}
+#endif
 }
 
 static void dsi_bridge_disable(struct drm_bridge *bridge)
@@ -274,6 +285,14 @@ static void dsi_bridge_disable(struct drm_bridge *bridge)
 
 	if (display)
 		display->enabled = false;
+
+#ifdef CONFIG_MACH_XIAOMI
+	rc = mi_dsi_display_esd_irq_ctrl(c_bridge->display, false);
+	if (rc) {
+		DSI_ERR("[%d] DSI display disable esd irq failed, rc=%d\n",
+				c_bridge->id, rc);
+	}
+#endif
 
 	if (display && display->drm_conn) {
 		display->poms_pending =

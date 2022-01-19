@@ -279,7 +279,11 @@ static int sde_rsc_mode2_entry_trigger(struct sde_rsc_priv *rsc)
 			rc = 0;
 			break;
 		}
+#ifndef CONFIG_MACH_XIAOMI
 		usleep_range(50, 100);
+#else
+		usleep_range(100, 200);
+#endif
 	}
 
 	return rc;
