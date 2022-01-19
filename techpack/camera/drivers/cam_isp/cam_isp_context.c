@@ -866,6 +866,9 @@ static int __cam_isp_ctx_handle_buf_done_for_req_list(
 		req_isp->cdm_reset_before_apply = false;
 		req_isp->num_acked = 0;
 		req_isp->num_deferred_acks = 0;
+#ifdef CONFIG_MACH_XIAOMI
+		req_isp->bubble_detected = false;
+#else
 		/*
 		 * Only update the process_bubble and bubble_frame_cnt
 		 * when bubble is detected on this req, in case the other
@@ -876,6 +879,7 @@ static int __cam_isp_ctx_handle_buf_done_for_req_list(
 			ctx_isp->bubble_frame_cnt = 0;
 			req_isp->bubble_detected = false;
 		}
+#endif
 
 		CAM_DBG(CAM_REQ,
 			"Move active request %lld to free list(cnt = %d) [all fences done], ctx %u",
@@ -1367,7 +1371,6 @@ static int __cam_isp_ctx_handle_buf_done(
 	struct cam_context *ctx = ctx_isp->base;
 	struct cam_isp_hw_done_event_data done_next_req;
 	int i, j;
-
 	if (list_empty(&ctx->active_req_list)) {
 		CAM_WARN(CAM_ISP, "Buf done with no active request");
 
@@ -2105,6 +2108,12 @@ static int __cam_isp_ctx_reg_upd_in_sof(struct cam_isp_context *ctx_isp,
 		else
 			CAM_ERR(CAM_ISP,
 				"receive rup in unexpected state");
+#ifdef CONFIG_MACH_XIAOMI
+	} else {
+		atomic_set(&ctx_isp->deferred_reg_upd, 1);
+		CAM_WARN(CAM_ISP,
+			"Got a reg_upd in sof/epoch sub state");
+#endif
 	}
 	if (req != NULL) {
 		__cam_isp_ctx_update_state_monitor_array(ctx_isp,
@@ -3334,6 +3343,9 @@ static int __cam_isp_ctx_apply_req_in_activated_state(
 	cfg.cdm_reset_before_apply = req_isp->cdm_reset_before_apply;
 
 	atomic_set(&ctx_isp->apply_in_progress, 1);
+#ifdef CONFIG_MACH_XIAOMI
+	atomic_set(&ctx_isp->deferred_reg_upd, 0);
+#endif
 
 	rc = ctx->hw_mgr_intf->hw_config(ctx->hw_mgr_intf->hw_mgr_priv, &cfg);
 	if (!rc) {
@@ -3352,6 +3364,20 @@ static int __cam_isp_ctx_apply_req_in_activated_state(
 			req->request_id);
 		__cam_isp_ctx_update_event_record(ctx_isp,
 			CAM_ISP_CTX_EVENT_APPLY, req);
+#ifdef CONFIG_MACH_XIAOMI
+		/*
+		* Sometimes, we get reg_upd before getting the cdm callback,
+		* then the sub state is SOF, we need to record the reg upd event,
+		* and process it once configured the hw.
+		*/
+		if (atomic_read(&ctx_isp->deferred_reg_upd)) {
+			__cam_isp_ctx_reg_upd_in_applied_state(
+			ctx_isp, NULL);
+			CAM_DBG(CAM_ISP,
+				"processed deferred reg upd for req:%lld",
+				apply->request_id);
+		}
+#endif
 	} else if (rc == -EALREADY) {
 		spin_lock_bh(&ctx->lock);
 		req_isp->bubble_detected = true;

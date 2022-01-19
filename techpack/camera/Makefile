@@ -37,7 +37,9 @@ endif
 ifeq ($(CONFIG_ARCH_YUPIK), y)
 include $(srctree)/techpack/camera/config/yupikcamera.conf
 endif
-
+ifeq ($(CONFIG_MACH_XIAOMI_REDWOOD), y)
+include $(srctree)/techpack/camera/config/redwood.conf
+endif
 ifeq ($(CONFIG_ARCH_SM6150), y)
 include $(srctree)/techpack/camera/config/sm6150camera.conf
 endif
@@ -85,6 +87,10 @@ endif
 ifeq ($(CONFIG_ARCH_YUPIK), y)
 LINUXINCLUDE    += \
 		-include $(srctree)/techpack/camera/config/yupikcameraconf.h
+endif
+ifeq ($(CONFIG_MACH_XIAOMI_REDWOOD), y)
+LINUXINCLUDE    += \
+		-include $(srctree)/techpack/camera/config/redwood.h
 endif
 
 ifeq ($(CONFIG_ARCH_SM6150), y)

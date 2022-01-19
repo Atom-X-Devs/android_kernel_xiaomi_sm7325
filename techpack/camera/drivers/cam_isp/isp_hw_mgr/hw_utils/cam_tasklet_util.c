@@ -286,7 +286,11 @@ int cam_tasklet_start(void  *tasklet_info)
 	struct cam_tasklet_info       *tasklet = tasklet_info;
 	int i = 0;
 
+#ifndef CONFIG_MACH_XIAOMI
 	if (atomic_read(&tasklet->tasklet_active)) {
+#else
+	if (atomic_cmpxchg(&tasklet->tasklet_active, 0, 1)) {
+#endif
 		CAM_ERR(CAM_ISP, "Tasklet already active idx:%d",
 			tasklet->index);
 		return -EBUSY;
@@ -299,7 +303,9 @@ int cam_tasklet_start(void  *tasklet_info)
 			&tasklet->free_cmd_list);
 	}
 
+#ifndef CONFIG_MACH_XIAOMI
 	atomic_set(&tasklet->tasklet_active, 1);
+#endif
 
 	tasklet_enable(&tasklet->tasklet);
 
@@ -310,10 +316,16 @@ void cam_tasklet_stop(void  *tasklet_info)
 {
 	struct cam_tasklet_info  *tasklet = tasklet_info;
 
+#ifndef CONFIG_MACH_XIAOMI
 	if (!atomic_read(&tasklet->tasklet_active))
+#else
+	if (!atomic_cmpxchg(&tasklet->tasklet_active, 1, 0))
+#endif
 		return;
 
+#ifndef CONFIG_MACH_XIAOMI
 	atomic_set(&tasklet->tasklet_active, 0);
+#endif
 	tasklet_kill(&tasklet->tasklet);
 	tasklet_disable(&tasklet->tasklet);
 	cam_tasklet_flush(tasklet);
