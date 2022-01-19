@@ -1245,21 +1245,33 @@ retry_flush_dents:
 		goto retry_flush_quotas;
 	}
 
+#ifndef CONFIG_MACH_XIAOMI
 retry_flush_nodes:
+#endif
 	f2fs_down_write(&sbi->node_write);
 
 	if (get_pages(sbi, F2FS_DIRTY_NODES)) {
 		f2fs_up_write(&sbi->node_write);
+#ifdef CONFIG_MACH_XIAOMI
+		f2fs_up_write(&sbi->node_change);
+		f2fs_unlock_all(sbi);
+#endif
 		atomic_inc(&sbi->wb_sync_req[NODE]);
 		err = f2fs_sync_node_pages(sbi, &wbc, false, FS_CP_NODE_IO);
 		atomic_dec(&sbi->wb_sync_req[NODE]);
 		if (err) {
+#ifndef CONFIG_MACH_XIAOMI
 			f2fs_up_write(&sbi->node_change);
 			f2fs_unlock_all(sbi);
+#endif
 			return err;
 		}
 		cond_resched();
+#ifndef CONFIG_MACH_XIAOMI
 		goto retry_flush_nodes;
+#else
+		goto retry_flush_quotas;
+#endif
 	}
 
 	/*
@@ -1630,6 +1642,14 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	}
 
 	trace_f2fs_write_checkpoint(sbi->sb, cpc->reason, "start block_ops");
+
+#ifdef CONFIG_F2FS_CP_OPT
+	/*
+	 * checkpoint will maintain the xattr consistency of dirs,
+	 * so we can remove them from tracking list when do_checkpoint
+	 */
+	f2fs_clear_xattr_set_ilist(sbi);
+#endif
 
 	err = block_operations(sbi);
 	if (err)
