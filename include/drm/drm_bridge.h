@@ -428,6 +428,10 @@ void drm_atomic_bridge_pre_enable(struct drm_bridge *bridge,
 void drm_atomic_bridge_enable(struct drm_bridge *bridge,
 			      struct drm_atomic_state *state);
 
+#ifdef CONFIG_MACH_XIAOMI
+int dsi_bridge_interface_enable(int timeout);
+#endif
+
 #ifdef CONFIG_DRM_PANEL_BRIDGE
 struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel,
 					u32 connector_type);

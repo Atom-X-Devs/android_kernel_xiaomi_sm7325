@@ -16,6 +16,10 @@
 #include "sde_kms.h"
 #include "sde_fence.h"
 
+#ifdef CONFIG_MACH_XIAOMI
+#include "mi_sde_connector.h"
+#endif
+
 #define SDE_CONNECTOR_NAME_SIZE	16
 #define SDE_CONNECTOR_DHDR_MEMPOOL_MAX_SIZE	SZ_32
 #define MAX_CMD_RECEIVE_SIZE       256
@@ -512,6 +516,9 @@ struct sde_connector {
 	int dpms_mode;
 	int lp_mode;
 	int last_panel_power_mode;
+#ifdef CONFIG_MACH_XIAOMI
+	int max_esd_check_power_mode;
+#endif
 	struct device *sysfs_dev;
 
 	struct msm_property_info property_info;
@@ -528,6 +535,9 @@ struct sde_connector {
 
 	struct backlight_device *bl_device;
 	struct sde_cdev *cdev;
+#ifdef CONFIG_MACH_XIAOMI
+	struct mi_sde_cdev *mi_cdev;
+#endif
 	struct notifier_block n;
 	unsigned long thermal_max_brightness;
 	struct delayed_work status_work;
@@ -564,6 +574,9 @@ struct sde_connector {
 	u8 cmd_rx_buf[MAX_CMD_RECEIVE_SIZE];
 	int rx_len;
 
+#ifdef CONFIG_MACH_XIAOMI
+	struct mi_layer_state mi_layer_state;
+#endif
 	struct edid *cached_edid;
 };
 
@@ -1115,5 +1128,10 @@ int sde_connector_get_panel_vfp(struct drm_connector *connector,
  * @connector: Pointer to DRM connector object
  */
 int sde_connector_esd_status(struct drm_connector *connector);
+
+#ifdef CONFIG_MACH_XIAOMI
+void _sde_connector_report_panel_dead(struct sde_connector *conn,
+		bool skip_pre_kickoff);
+#endif
 
 #endif /* _SDE_CONNECTOR_H_ */
