@@ -84,6 +84,11 @@ static inline int wcd938x_slave_get_master_ch_val(int ch)
 
 static inline int wcd938x_slave_get_master_ch(int idx)
 {
+#ifdef CONFIG_MACH_XIAOMI
+	if (idx < 0 || idx >= ARRAY_SIZE(swr_master_ch_map))
+		idx = 0;
+#endif
+
 	return swr_master_ch_map[idx];
 }
 
