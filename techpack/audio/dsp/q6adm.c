@@ -52,6 +52,11 @@ enum adm_cal_status {
 	ADM_STATUS_MAX,
 };
 
+#ifdef CONFIG_MACH_XIAOMI
+static bool is_usb_timeout;
+static bool close_usb;
+#endif
+
 struct adm_copp {
 
 	atomic_t id[AFE_MAX_PORTS][MAX_COPPS_PER_PORT];
@@ -1784,6 +1789,17 @@ static int32_t adm_callback(struct apr_client_data *data, void *priv)
 				   open->copp_id);
 			pr_debug("%s: coppid rxed=%d\n", __func__,
 				 open->copp_id);
+#ifdef CONFIG_MACH_XIAOMI
+			if (is_usb_timeout && (IDX_AFE_PORT_ID_USB_RX == port_idx)) {
+				pr_debug("%s:usb port need be closed\n", __func__);
+				close_usb = true;
+			}
+
+			if (close_usb && (IDX_AFE_PORT_ID_USB_RX != port_idx)) {
+				pr_debug("%s: enable usb port\n", __func__);
+				is_usb_timeout = false;
+			}
+#endif
 			wake_up(&this_adm.copp.wait[port_idx][copp_idx]);
 			}
 			break;
@@ -2559,6 +2575,61 @@ fail_cmd:
 }
 EXPORT_SYMBOL(adm_connect_afe_port);
 
+#ifdef CONFIG_MACH_XIAOMI
+/**
+ * adm_set_device_model -
+ *        command to send device model to adsp
+ *
+ * @model: value of model
+ *
+ * Returns 0 on success or error on failure
+ */
+int adm_set_device_model(int device_model)
+{
+	struct adm_cmd_set_device_model	cmd;
+	int ret = 0;
+
+	pr_debug("%s: mode:%d\n", __func__, device_model);
+
+	if (this_adm.apr == NULL) {
+		this_adm.apr = apr_register("ADSP", "ADM", adm_callback,
+						0xFFFFFFFF, &this_adm);
+		if (this_adm.apr == NULL) {
+			pr_err("%s: Unable to register ADM\n", __func__);
+			return -ENODEV;
+		}
+		rtac_set_adm_handle(this_adm.apr);
+	}
+
+	cmd.hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
+			APR_HDR_LEN(APR_HDR_SIZE), APR_PKT_VER);
+	cmd.hdr.pkt_size = sizeof(cmd);
+	cmd.hdr.src_svc = APR_SVC_ADM;
+	cmd.hdr.src_domain = APR_DOMAIN_APPS;
+	cmd.hdr.src_port = 0;
+	cmd.hdr.dest_svc = APR_SVC_ADM;
+	cmd.hdr.dest_domain = APR_DOMAIN_ADSP;
+	cmd.hdr.dest_port = 0; /* Ignored */
+	cmd.hdr.token = 0;
+	cmd.hdr.opcode = ADM_CMD_SET_DEVICE_MODEL;
+	cmd.model = device_model;
+
+	ret = apr_send_pkt(this_adm.apr, (uint32_t *)&cmd);
+	if (ret < 0) {
+		pr_err("%s: send device model: 0x%x failed ret %d\n",
+				__func__, device_model, ret);
+		ret = -EINVAL;
+		goto fail_cmd;
+	}
+	return 0;
+
+fail_cmd:
+
+	return ret;
+}
+EXPORT_SYMBOL(adm_set_device_model);
+#endif
+
 int adm_arrange_mch_map(struct adm_cmd_device_open_v5 *open, int path,
 			 int channel_mode, int port_idx)
 {
@@ -3253,6 +3324,14 @@ int adm_open_v2(int port_id, int path, int rate, int channel_mode, int topology,
 
 	port_id = q6audio_convert_virtual_to_portid(port_id);
 	port_idx = adm_validate_and_get_port_index(port_id);
+
+#ifdef CONFIG_MACH_XIAOMI
+	if (is_usb_timeout && (AFE_PORT_ID_USB_RX == port_id)) {
+		pr_err("%s: USB RX timeout return\n", __func__);
+		return -EINVAL;
+	}
+#endif
+
 	if (port_idx < 0) {
 		pr_err("%s: Invalid port_id 0x%x\n", __func__, port_id);
 		return -EINVAL;
@@ -4072,6 +4151,11 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 	struct cal_block_data *cal_block = NULL;
 	struct audio_cal_info_audproc *audproc_cal_info = NULL;
 	int cal_index = ADM_AUDPROC_PERSISTENT_CAL;
+#ifdef CONFIG_MACH_XIAOMI
+	int usb_copp_id = RESET_COPP_ID;
+	int usb_copp_idx = 0;
+	struct apr_hdr usb_close;
+#endif
 
 	pr_debug("%s: port_id=0x%x perf_mode: %d copp_idx: %d\n", __func__,
 		 port_id, perf_mode, copp_idx);
@@ -4139,6 +4223,56 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 			atomic_set(&this_adm.mem_map_handles[
 					ADM_MEM_MAP_INDEX_SOURCE_TRACKING], 0);
 		}
+
+#ifdef CONFIG_MACH_XIAOMI
+		if (close_usb) {
+			for (usb_copp_idx = 0; usb_copp_idx < 8; usb_copp_idx++) {
+				usb_copp_id = adm_get_copp_id(IDX_AFE_PORT_ID_USB_RX, usb_copp_idx);
+				if (usb_copp_id == RESET_COPP_ID)
+					continue;
+				pr_err("%s: usb_copp_id = %d\n", __func__, usb_copp_id);
+				usb_close.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
+							APR_HDR_LEN(APR_HDR_SIZE), APR_PKT_VER);
+				usb_close.pkt_size = sizeof(usb_close);
+				usb_close.src_svc = APR_SVC_ADM;
+				usb_close.src_domain = APR_DOMAIN_APPS;
+				usb_close.src_port = AFE_PORT_ID_USB_RX;
+				usb_close.dest_svc = APR_SVC_ADM;
+				usb_close.dest_domain = APR_DOMAIN_ADSP;
+				usb_close.dest_port = usb_copp_id;
+				usb_close.token = IDX_AFE_PORT_ID_USB_RX << 16 | usb_copp_idx;
+				usb_close.opcode = ADM_CMD_DEVICE_CLOSE_V5;
+				atomic_set(&this_adm.copp.id[IDX_AFE_PORT_ID_USB_RX][usb_copp_idx],
+					   RESET_COPP_ID);
+				atomic_set(&this_adm.copp.cnt[IDX_AFE_PORT_ID_USB_RX][usb_copp_idx], 0);
+				atomic_set(&this_adm.copp.topology[IDX_AFE_PORT_ID_USB_RX][usb_copp_idx], 0);
+				atomic_set(&this_adm.copp.mode[IDX_AFE_PORT_ID_USB_RX][usb_copp_idx], 0);
+				atomic_set(&this_adm.copp.stat[IDX_AFE_PORT_ID_USB_RX][usb_copp_idx], -1);
+				atomic_set(&this_adm.copp.rate[IDX_AFE_PORT_ID_USB_RX][usb_copp_idx], 0);
+				atomic_set(&this_adm.copp.channels[IDX_AFE_PORT_ID_USB_RX][usb_copp_idx], 0);
+				atomic_set(&this_adm.copp.bit_width[IDX_AFE_PORT_ID_USB_RX][usb_copp_idx], 0);
+				atomic_set(&this_adm.copp.app_type[IDX_AFE_PORT_ID_USB_RX][usb_copp_idx], 0);
+				clear_bit(ADM_STATUS_CALIBRATION_REQUIRED,
+				(void *)&this_adm.copp.adm_status[IDX_AFE_PORT_ID_USB_RX][usb_copp_idx]);
+				ret = apr_send_pkt(this_adm.apr, (uint32_t *)&usb_close);
+				if (ret < 0)
+					pr_err("%s: ADM close failed %d\n", __func__, ret);
+				else
+					pr_info("%s: ADM close ok %d\n", __func__, ret);
+			}
+
+			close_usb = false;
+			pr_err("%s: close_usb done \n", __func__);
+			if (AFE_PORT_ID_USB_RX == port_id) {
+				pr_err("%s: close_usb return\n", __func__);
+				if (perf_mode != ULTRA_LOW_LATENCY_PCM_MODE) {
+					pr_debug("%s: remove adm device from rtac\n", __func__);
+					rtac_remove_adm_device(port_id, copp_id);
+				}
+				return 0;
+			}
+		}
+#endif
 
 		close.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
 						APR_HDR_LEN(APR_HDR_SIZE),
@@ -5903,6 +6037,10 @@ int __init adm_init(void)
 	this_adm.sourceTrackingData.memmap.kvaddr = NULL;
 	this_adm.sourceTrackingData.memmap.paddr = 0;
 	this_adm.sourceTrackingData.apr_cmd_status = -1;
+#ifdef CONFIG_MACH_XIAOMI
+	is_usb_timeout = false;
+	close_usb = false;
+#endif
 
 	return 0;
 }

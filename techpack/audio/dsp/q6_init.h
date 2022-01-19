@@ -23,6 +23,11 @@ static inline int avtimer_init(void)
 	return 0;
 }
 #endif
+/* for mius start */
+#ifdef CONFIG_MIUS_PROXIMITY
+int mius_driver_init(void);
+#endif
+/* for mius end */
 #ifdef CONFIG_MSM_MDF
 int msm_mdf_init(void);
 void msm_mdf_exit(void);
@@ -65,6 +70,11 @@ void audio_cal_exit(void);
 void voice_exit(void);
 void q6lsm_exit(void);
 void q6asm_exit(void);
+/* for mius start */
+#ifdef CONFIG_MIUS_PROXIMITY
+int mius_driver_exit(void);
+#endif
+/* for mius end */
 void afe_exit(void);
 void adm_exit(void);
 void adsp_err_exit(void);
