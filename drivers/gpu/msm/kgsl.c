@@ -21,6 +21,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/security.h>
 #include <linux/sort.h>
+#ifdef CONFIG_MIMISC_MC
+#include <linux/memcontrol.h>
+#endif
 #include <soc/qcom/boot_stats.h>
 
 #include "kgsl_compat.h"
@@ -1037,6 +1040,11 @@ static void process_release_memory(struct kgsl_process_private *private)
 		if (!entry->pending_free) {
 			entry->pending_free = 1;
 			spin_unlock(&private->mem_lock);
+#ifdef CONFIG_MIMISC_MC
+			if (likely(entry->memdesc.page_count))
+				memcg_misc_uncharge(&(entry->memdesc.memgroup),
+					entry->memdesc.page_count, MEMCG_GPU_TYPE);
+#endif
 			kgsl_mem_entry_put(entry);
 		} else {
 			spin_unlock(&private->mem_lock);
@@ -2212,6 +2220,12 @@ long gpumem_free_entry(struct kgsl_mem_entry *entry)
 	if (!kgsl_mem_entry_set_pend(entry))
 		return -EBUSY;
 
+#ifdef CONFIG_MIMISC_MC
+	if (likely(entry->memdesc.page_count))
+		memcg_misc_uncharge(&(entry->memdesc.memgroup),
+				entry->memdesc.page_count, MEMCG_GPU_TYPE);
+#endif
+
 	trace_kgsl_mem_free(entry);
 	kgsl_memfree_add(pid_nr(entry->priv->pid),
 			entry->memdesc.pagetable ?
@@ -2230,6 +2244,12 @@ static void gpumem_free_func(struct kgsl_device *device,
 	struct kgsl_context *context = group->context;
 	struct kgsl_mem_entry *entry = priv;
 	unsigned int timestamp;
+
+#ifdef CONFIG_MIMISC_MC
+	if (likely(entry->memdesc.page_count))
+		memcg_misc_uncharge(&(entry->memdesc.memgroup),
+				entry->memdesc.page_count, MEMCG_GPU_TYPE);
+#endif
 
 	kgsl_readtimestamp(device, context, KGSL_TIMESTAMP_RETIRED, &timestamp);
 
@@ -2334,6 +2354,12 @@ static long gpuobj_free_on_timestamp(struct kgsl_device_private *dev_priv,
 static bool gpuobj_free_fence_func(void *priv)
 {
 	struct kgsl_mem_entry *entry = priv;
+
+#ifdef CONFIG_MIMISC_MC
+	if (likely(entry->memdesc.page_count))
+		memcg_misc_uncharge(&(entry->memdesc.memgroup),
+				entry->memdesc.page_count, MEMCG_GPU_TYPE);
+#endif
 
 	trace_kgsl_mem_free(entry);
 	kgsl_memfree_add(pid_nr(entry->priv->pid),
@@ -3597,6 +3623,13 @@ struct kgsl_mem_entry *gpumem_alloc_entry(
 	trace_kgsl_mem_alloc(entry);
 
 	kgsl_mem_entry_commit_process(entry);
+
+#ifdef CONFIG_MIMISC_MC
+	if (likely(entry->memdesc.page_count))
+		memcg_misc_charge(&(entry->memdesc.memgroup), 0,
+				entry->memdesc.page_count, MEMCG_GPU_TYPE);
+#endif
+
 	return entry;
 err:
 	kfree(entry);
