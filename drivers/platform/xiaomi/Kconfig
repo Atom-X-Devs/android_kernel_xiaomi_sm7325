@@ -34,3 +34,9 @@ config MIMISC_MC
 	depends on MACH_XIAOMI && MEMCG
 	help
 	  Acct ion/gpu misc memory to memory cgroup
+
+config QGKI_SYSTEM
+	bool "QGKI config"
+	depends on MACH_XIAOMI
+	help
+ 	  Some QGKI Stuff by xiaomeme
