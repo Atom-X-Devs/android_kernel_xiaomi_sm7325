@@ -1336,7 +1336,20 @@ int cam_sensor_apply_settings(struct cam_sensor_ctrl_t *s_ctrl,
 					CAM_ERR(CAM_SENSOR,
 						"Failed to apply settings: %d",
 						rc);
+#ifndef CONFIG_MACH_XIAOMI
 					return rc;
+#else
+					msleep(20);
+					rc = cam_sensor_i2c_modes_util(
+						&(s_ctrl->io_master_info),
+						i2c_list);
+					if (rc < 0 ) {
+						CAM_ERR(CAM_SENSOR,
+							"retry Failed to apply settings: %d",
+							rc);
+						return rc;
+					}
+#endif
 				}
 			}
 			CAM_DBG(CAM_SENSOR, "applied req_id: %llu", req_id);
