@@ -289,9 +289,18 @@ struct cam_hw_config_args {
 struct cam_hw_flush_args {
 	void                           *ctxt_to_hw_map;
 	uint32_t                        num_req_pending;
+#ifndef CONFIG_MACH_XIAOMI
 	void                           *flush_req_pending[20];
+#else
+    void                           *flush_req_pending[40];
+#endif
 	uint32_t                        num_req_active;
+#ifndef CONFIG_MACH_XIAOMI
 	void                           *flush_req_active[20];
+#else
+    void                           *flush_req_active[40];
+#endif
+
 	enum flush_type_t               flush_type;
 	uint32_t                        last_flush_req;
 };

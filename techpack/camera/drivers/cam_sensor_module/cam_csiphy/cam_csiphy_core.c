@@ -960,7 +960,9 @@ void cam_csiphy_shutdown(struct csiphy_device *csiphy_dev)
 		cam_csiphy_reset(csiphy_dev);
 		cam_soc_util_disable_platform_resource(soc_info, true, true);
 
+#ifndef CONFIG_MACH_XIAOMI
 		cam_cpas_stop(csiphy_dev->cpas_handle);
+#endif
 		csiphy_dev->csiphy_state = CAM_CSIPHY_ACQUIRE;
 	}
 
@@ -976,6 +978,9 @@ void cam_csiphy_shutdown(struct csiphy_device *csiphy_dev)
 		}
 	}
 
+#ifdef CONFIG_MACH_XIAOMI
+	cam_cpas_stop(csiphy_dev->cpas_handle);
+#endif
 	csiphy_dev->ref_count = 0;
 	csiphy_dev->acquire_count = 0;
 	csiphy_dev->start_dev_count = 0;
