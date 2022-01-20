@@ -1,3 +1,4 @@
+ifneq ($(CONFIG_MACH_XIAOMI), y)
 ifneq ($(CONFIG_ARCH_QTI_VM), y)
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 dtbo-$(CONFIG_ARCH_LAHAINA) += lahaina-rumi-overlay.dtbo \
@@ -481,6 +482,11 @@ dtb-$(CONFIG_ARCH_QTI_VM) += yupik-vm-rumi.dtb \
 	yupik-vm-idp.dtb \
 	yupik-vm-qrd.dtb
 endif
+endif
+else
+dtbo-$(CONFIG_MACH_XIAOMI_LISA) += lisa-sm7325-overlay.dtbo
+
+lisa-sm7325-overlay.dtbo-base := yupik.dtb
 endif
 
 dtb-$(CONFIG_QTI_QUIN_GVM) += sa8155-vm-la.dtb \
