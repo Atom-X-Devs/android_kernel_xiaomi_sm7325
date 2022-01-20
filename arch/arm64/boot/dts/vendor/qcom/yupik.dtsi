@@ -35,7 +35,7 @@
 	#size-cells = <2>;
 
 	chosen {
-		bootargs = "log_buf_len=256K earlycon=msm_geni_serial,0x994000 rcupdate.rcu_expedited=1 rcu_nocbs=0-7 kpti=off";
+		bootargs = "log_buf_len=256K rcupdate.rcu_expedited=1 rcu_nocbs=0-7 kpti=off";
 	};
 
 	memory { device_type = "memory"; reg = <0 0 0 0>; };
@@ -310,9 +310,9 @@
 		reg = <0x0 0x80000000 0x0 0x600000>;
 	};
 
-	xbl_aop_mem: xbl_aop_mem@80700000 {
+	xbl_aop_mem: xbl_aop_mem@80600000 {
 		no-map;
-		reg = <0x0 0x80700000 0x0 0x160000>;
+		reg = <0x0 0x80600000 0x0 0x260000>;
 	};
 
 	cmd_db: cmd_db@80860000 {
@@ -358,12 +358,7 @@
 
 	pil_adsp_mem: adsp@86700000 {
 		no-map;
-		reg = <0x0 0x86700000 0x0 0x2800000>;
-	};
-
-	pil_cdsp_mem: cdsp@88f00000 {
-		no-map;
-		reg = <0x0 0x88f00000 0x0 0x1e00000>;
+		reg = <0x0 0x86700000 0x0 0x4000000>;
 	};
 
 	adsp_mem: adsp_region {
@@ -407,6 +402,11 @@
 	pil_wpss_mem: wlan@9ae00000 {
 		no-map;
 		reg = <0x0 0x9ae00000 0x0 0x1900000>;
+	};
+
+	pil_cdsp_mem: cdsp@9c700000 {
+		no-map;
+		reg = <0x0 0x9c700000 0x0 0x1e00000>;
 	};
 
 	removed_mem: removed_region@c0000000 {
@@ -481,7 +481,8 @@
 
 	qcom: ramoops {
 		compatible = "ramoops";
-		reg = <0x0 0xa9000000 0x0 0x200000>;
+		reg = <0x0 0xb0000000 0x0 0x400000>;
+		console-size = <0x200000>;
 		pmsg-size = <0x200000>;
 		mem-type = <2>;
 	};
@@ -2819,6 +2820,7 @@
 		qcom,wlan-msa-fixed-region = <&wlan_fw_mem>;
 		qcom,cmd_db_name = "smpb7";
 		cnss-daemon-support;
+		use-nv-mac;
 		dma-coherent;
 		qcom,fw-prefix;
 		vdd-cx-mx-supply = <&S7B>;

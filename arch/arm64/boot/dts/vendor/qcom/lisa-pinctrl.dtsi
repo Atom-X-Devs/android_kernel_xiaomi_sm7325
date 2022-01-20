@@ -1,0 +1,132 @@
+&tlmm {
+	qcom,gpios-reserved = <32 33 48 49 50 51 56 57 57 59>;
+
+	/* active state */
+	smartpa_enable_active: smartpa_enable_active {
+		/* GPIO 2 rst pin */
+		mux {
+			pins = "gpio2";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio2";
+			drive-strength = <2>;
+			bias-disable;
+			bias-pull-down;
+			output-low;
+		};
+	};
+
+	/* sleep state */
+	smartpa_enable_suspend: smartpa_enable_suspend {
+		mux {
+			/* GPIO 2 rst pin */
+			pins = "gpio2";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio2";
+			drive-strength = <2>;
+			bias-disable;
+			bias-pull-down;
+			output-low;
+		};
+	};
+
+	/* active state */
+	smartpa_top_int_active: smartpa_top_int_active {
+		/* GPIO 102 Interrupt */
+		mux {
+			pins = "gpio102";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio102";
+			drive-strength = <2>; /* 2 MA */
+			bias-disable;
+			input-enable;
+		};
+	};
+
+	/* sleep state */
+	smartpa_top_int_suspend: smartpa_top_int_suspend {
+		/* GPIO 102 Interrupt */
+		mux {
+			pins = "gpio102";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio102";
+			drive-strength = <2>; /* 2 MA */
+			bias-disable;
+			input-enable;
+		};
+	};
+
+	/* active state */
+	smartpa_bot_int_active: smartpa_bot_int_active {
+		/* GPIO 24 Interrupt */
+		mux {
+			pins = "gpio24";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio24";
+			drive-strength = <2>; /* 2 MA */
+			bias-disable;
+			input-enable;
+		};
+	};
+
+	/* sleep state */
+	smartpa_bot_int_suspend: smartpa_bot_int_suspend {
+		/* GPIO 24 Interrupt */
+		mux {
+			pins = "gpio24";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio24";
+			drive-strength = <2>; /* 2 MA */
+			bias-disable;
+			input-enable;
+		};
+	};
+
+	/* speaker switch */
+	spk_sw_active: spk_sw_active {
+		mux {
+			pins = "gpio101";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio101";
+			drive-strength = <2>;
+			bias-disable;
+			bias-pull-down;
+			output-low;
+		};
+	};
+
+	spk_sw_inactive: spk_sw_inactive {
+		mux {
+			pins = "gpio101";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio101";
+			drive-strength = <2>;
+			bias-disable;
+			bias-pull-down;
+			output-low;
+		};
+	};
+};

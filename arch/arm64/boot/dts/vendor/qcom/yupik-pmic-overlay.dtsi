@@ -26,6 +26,18 @@
 			interrupts = <0x0 0x13 0x6 IRQ_TYPE_EDGE_BOTH>;
 			linux,code = <KEY_VOLUMEDOWN>;
 		};
+
+		pwrkey-bark {
+			compatible = "qcom,pmk8350-pwrkey-bark";
+			interrupts = <0x0 0x13 0x0 IRQ_TYPE_EDGE_BOTH>;
+			linux,code = <KEY_POWER>;
+		};
+
+		pwrkey-resin-bark {
+			compatible = "qcom,pmk8350-pwrkey-resin-bark";
+			interrupts = <0x0 0x13 0x2 IRQ_TYPE_EDGE_BOTH>;
+			linux,code = <KEY_POWER>;
+		};
 	};
 };
 
@@ -65,7 +77,7 @@
 
 &pmk8350 {
 	pon_pbs@800 {
-		status = "disabled";
+		status = "ok";
 	};
 };
 
@@ -182,7 +194,7 @@
 };
 
 &thermal_zones {
-	quiet-therm-usr {
+	quiet_therm {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
@@ -203,7 +215,7 @@
 		};
 	};
 
-	camera-therm-usr {
+	flash_therm {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
@@ -218,7 +230,7 @@
 		};
 	};
 
-	sdm-skin-therm-usr {
+	cpu_therm {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
@@ -233,7 +245,7 @@
 		};
 	};
 
-	rear-cam-therm-usr {
+	wifi_therm {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";

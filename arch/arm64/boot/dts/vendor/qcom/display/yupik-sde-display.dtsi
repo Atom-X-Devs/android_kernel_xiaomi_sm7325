@@ -2,6 +2,14 @@
 #include <dt-bindings/clock/qcom,dispcc-yupik.h>
 
 &soc {
+	display_panel_dvdd: display_gpio_regulator@1 {
+		compatible = "qti-regulator-fixed";
+		regulator-name = "display_panel_dvdd";
+		gpio = <&tlmm 46 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
 	sde_wb: qcom,wb-display@0 {
 		compatible = "qcom,wb-display";
 		cell-index = <0>;
@@ -50,6 +58,7 @@
 	qcom,panel-te-source = <0>;
 
 	vddio-supply = <&L8C>;
+	dvdd-supply = <&display_panel_dvdd>;
 	lab-supply = <&lcdb_ldo_vreg>;
 	ibb-supply = <&lcdb_ncp_vreg>;
 };
@@ -137,4 +146,45 @@
 	qcom,mdss-dsi-panel-status-command-state = "dsi_lp_mode";
 	qcom,mdss-dsi-panel-status-value = <0x1c>;
 	qcom,mdss-dsi-panel-status-read-length = <1>;
+};
+
+&dsi_k9d_36_02_0a_dsc_cmd {
+	qcom,esd-check-enabled;
+	qcom,esd-aod-check-enabled;
+
+	qcom,mdss-dsi-panel-status-check-mode = "reg_read";
+	qcom,mdss-dsi-panel-status-offset-command = [
+		39 01 00 00 00 00 05 FF
+		AA 55 A5 81 15 01 00 00
+		00 00 02 6F 0F
+	];
+	qcom,mdss-dsi-panel-status-offset-command-state = "dsi_lp_mode";
+	qcom,mdss-dsi-panel-status-command = [06 01 00 00 00 00 01 FA];
+	qcom,mdss-dsi-panel-status-command-state = "dsi_lp_mode";
+	qcom,mdss-dsi-panel-status-value = <0x00>;
+	qcom,mdss-dsi-panel-status-read-length = <1>;
+};
+
+&dsi_k9d_42_0d_0b_dsc_cmd {
+	qcom,esd-check-enabled;
+	qcom,esd-aod-check-enabled;
+
+	qcom,mdss-dsi-panel-status-check-mode = "reg_read";
+	qcom,mdss-dsi-panel-status-offset-command = [
+		39 01 00 00 00 00 03 FF
+		5A 80 15 01 00 00 00 00
+		02 65 37
+	];
+	qcom,mdss-dsi-panel-status-offset-command-state = "dsi_lp_mode";
+	qcom,mdss-dsi-panel-status-command = [
+		06 01 00 00 00 00 01 F5
+		06 01 00 00 00 00 01 0A
+		06 01 00 00 00 00 01 AA
+	];
+	qcom,mdss-dsi-panel-status-command-state = "dsi_lp_mode";
+	qcom,mdss-dsi-panel-status-value = <
+		0x00 0x00 0x00 0x9c 0x53
+		0x00 0x00 0x00 0xdc 0x93
+	>;
+	qcom,mdss-dsi-panel-status-read-length = <3 1 1>;
 };
