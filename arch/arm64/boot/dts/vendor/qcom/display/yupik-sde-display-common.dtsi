@@ -9,10 +9,85 @@
 #include "dsi-panel-r66451-dsc-fhd-plus-120hz-video-cphy.dtsi"
 #include "dsi-panel-r66451-dsc-fhd-plus-144hz-cmd-cphy.dtsi"
 #include "dsi-panel-r66451-dsc-fhd-plus-144hz-video-cphy.dtsi"
+#include "dsi-panel-k9d-36-02-0a-dsc-cmd.dtsi"
+#include "dsi-panel-k9d-42-0d-0b-dsc-cmd.dtsi"
 #include "dsi-panel-sim-video.dtsi"
 #include <dt-bindings/clock/mdss-5nm-pll-clk.h>
 
 &soc {
+	dsi_panel_pwr_supply_k9d: dsi_panel_pwr_supply_k9d {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,panel-supply-entry@0 {
+			reg = <0>;
+			qcom,supply-name = "vddio";
+			qcom,supply-min-voltage = <1800000>;
+			qcom,supply-max-voltage = <1800000>;
+			qcom,supply-enable-load = <60700>;
+			qcom,supply-disable-load = <80>;
+			qcom,supply-post-on-sleep = <5>;
+			qcom,supply-pre-off-sleep = <4>;
+		};
+
+		qcom,panel-supply-entry@1 {
+			reg = <0>;
+			qcom,supply-name = "dvdd";
+			qcom,supply-min-voltage = <1200000>;
+			qcom,supply-max-voltage = <1200000>;
+			qcom,supply-enable-load = <60700>;
+			qcom,supply-disable-load = <80>;
+			qcom,supply-post-on-sleep = <5>;
+			qcom,supply-pre-off-sleep = <2>;
+		};
+
+		qcom,panel-supply-entry@2 {
+			reg = <1>;
+			qcom,supply-name = "vdd";
+			qcom,supply-min-voltage = <3000000>;
+			qcom,supply-max-voltage = <3000000>;
+			qcom,supply-enable-load = <10000>;
+			qcom,supply-disable-load = <0>;
+		};
+	};
+
+	dsi_panel_pwr_supply_k9d_0b: dsi_panel_pwr_supply_k9d_0b {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,panel-supply-entry@0 {
+			reg = <0>;
+			qcom,supply-name = "vddio";
+			qcom,supply-min-voltage = <1800000>;
+			qcom,supply-max-voltage = <1800000>;
+			qcom,supply-enable-load = <60700>;
+			qcom,supply-disable-load = <80>;
+			qcom,supply-post-on-sleep = <5>;
+			qcom,supply-pre-off-sleep = <6>;
+		};
+
+		qcom,panel-supply-entry@1 {
+			reg = <1>;
+			qcom,supply-name = "vdd";
+			qcom,supply-min-voltage = <3000000>;
+			qcom,supply-max-voltage = <3000000>;
+			qcom,supply-enable-load = <10000>;
+			qcom,supply-disable-load = <80>;
+			qcom,supply-post-on-sleep = <5>;
+			qcom,supply-pre-off-sleep = <4>;
+		};
+
+		qcom,panel-supply-entry@2 {
+			reg = <2>;
+			qcom,supply-name = "dvdd";
+			qcom,supply-min-voltage = <1200000>;
+			qcom,supply-max-voltage = <1200000>;
+			qcom,supply-enable-load = <60700>;
+			qcom,supply-disable-load = <0>;
+			qcom,supply-post-on-sleep = <13>;
+		};
+	};
+
 	dsi_panel_pwr_supply: dsi_panel_pwr_supply {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -345,6 +420,49 @@
 			qcom,mdss-dsi-panel-phy-timings = [01 05 01 01 03 03 01
 				01 01 02 04 00 06 06];
 			qcom,display-topology = <1 0 1>;
+			qcom,default-topology-index = <0>;
+		};
+	};
+};
+
+&dsi_k9d_36_02_0a_dsc_cmd {
+	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
+	qcom,mdss-dsi-clk-strength = <0xff>;
+
+	qcom,mdss-dsi-display-timings {
+		timing@0 {
+			qcom,mdss-dsi-panel-phy-timings = [00 18 06 06 21 20 06
+				06 04 02 04 00 15 16];
+			qcom,display-topology = <1 1 1>;
+			qcom,default-topology-index = <0>;
+		};
+
+		timing@1 {
+			qcom,mdss-dsi-panel-phy-timings = [00 18 06 06 21 20 06
+				06 04 02 04 00 15 16];
+			qcom,display-topology = <1 1 1>;
+			qcom,default-topology-index = <0>;
+		};
+	};
+};
+
+&dsi_k9d_42_0d_0b_dsc_cmd {
+	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
+	qcom,mdss-dsi-clk-strength = <0xff>;
+
+	qcom,mdss-dsi-display-timings {
+		timing@0 {
+			qcom,mdss-dsi-panel-phy-timings = [00 18 06 06 21 20 06
+				06 04 02 04 00 15 16];
+			qcom,display-topology = <1 1 1>;
+			qcom,default-topology-index = <0>;
+
+		};
+
+		timing@1 {
+			qcom,mdss-dsi-panel-phy-timings = [00 18 06 06 21 20 06
+				06 04 02 04 00 15 16];
+			qcom,display-topology = <1 1 1>;
 			qcom,default-topology-index = <0>;
 		};
 	};
