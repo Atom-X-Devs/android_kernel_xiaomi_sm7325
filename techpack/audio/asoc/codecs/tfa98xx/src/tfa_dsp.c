@@ -713,7 +713,7 @@ enum Tfa98xx_Error tfa98xx_dsp_system_stable(struct tfa_device *tfa, int *ready)
 #else
 	enum Tfa98xx_Error error = (tfa->dev_ops.dsp_system_stable)(tfa, ready);
 
-	pr_debug("%s error=%d  ready=%d\n", __func__, error, *ready);
+	pr_debug("%s error=%d ready=%d\n", __func__, error, *ready);
 
 	return error; 
 #endif
