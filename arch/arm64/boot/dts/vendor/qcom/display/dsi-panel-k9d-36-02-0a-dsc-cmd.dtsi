@@ -239,6 +239,9 @@
 				qcom,mdss-dsc-bit-per-pixel = <8>;
 				qcom,mdss-dsc-block-prediction-enable;
 
+				qcom,panel-roi-alignment = <1080 12 1080 12 1080 12>;
+				qcom,partial-update-enabled = "single_roi";
+
 				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-timing-switch-command-state = "dsi_lp_mode";
@@ -439,6 +442,9 @@
 				qcom,mdss-dsc-bit-per-component = <10>;
 				qcom,mdss-dsc-bit-per-pixel = <8>;
 				qcom,mdss-dsc-block-prediction-enable;
+
+				qcom,panel-roi-alignment = <1080 12 1080 12 1080 12>;
+				qcom,partial-update-enabled = "single_roi";
 
 				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
