@@ -232,7 +232,7 @@ int devfreq_add_icc(struct device *dev)
 	}
 
 	p = &d->dp;
-	p->polling_ms = 500;
+	p->polling_ms = 50;
 	p->target = icc_target;
 	p->get_dev_status = icc_get_dev_status;
 
