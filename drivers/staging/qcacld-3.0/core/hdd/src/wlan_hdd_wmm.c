@@ -1917,6 +1917,11 @@ void hdd_wmm_classify_pkt(struct hdd_adapter *adapter,
 	 */
 	hdd_check_and_upgrade_udp_qos(adapter, skb, user_pri);
 
+#ifdef CONFIG_MACH_XIAOMI
+	if (!tos && skb->priority && skb->priority < HDD_WMM_UP_TO_AC_MAP_SIZE)
+		*user_pri = skb->priority;
+#endif
+
 #ifdef HDD_WMM_DEBUG
 	hdd_debug("tos is %d, dscp is %d, up is %d", tos, dscp, *user_pri);
 #endif /* HDD_WMM_DEBUG */
