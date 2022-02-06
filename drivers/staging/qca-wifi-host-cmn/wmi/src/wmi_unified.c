@@ -2608,7 +2608,11 @@ static int __wmi_process_qmi_fw_event(void *wmi_cb_ctx, void *buf, int len)
 	wmi_buf_t evt_buf;
 	uint32_t evt_id;
 
+#ifndef CONFIG_MACH_XIAOMI
 	if (!wmi_handle || !buf)
+#else
+	if (!wmi_handle || !buf || (len < WMI_MIN_HEAD_ROOM))
+#endif
 		return -EINVAL;
 
 	evt_buf = wmi_buf_alloc(wmi_handle, len);
