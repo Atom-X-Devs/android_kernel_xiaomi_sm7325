@@ -321,12 +321,17 @@ static void reg_modify_chan_list_for_indoor_channels(
 	enum channel_enum chan_enum;
 	struct regulatory_channel *chan_list = pdev_priv_obj->cur_chan_list;
 
+#ifndef CONFIG_MACH_XIAOMI
 	if (!pdev_priv_obj->indoor_chan_enabled) {
+#endif
 		for (chan_enum = 0; chan_enum < NUM_CHANNELS; chan_enum++) {
 			if (REGULATORY_CHAN_INDOOR_ONLY &
 			    chan_list[chan_enum].chan_flags) {
 				chan_list[chan_enum].state =
 					CHANNEL_STATE_DFS;
+#ifdef CONFIG_MACH_XIAOMI
+			if (!pdev_priv_obj->indoor_chan_enabled) {
+#endif
 				chan_list[chan_enum].chan_flags |=
 					REGULATORY_CHAN_NO_IR;
 			}
