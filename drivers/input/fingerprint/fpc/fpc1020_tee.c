@@ -769,6 +769,16 @@ static int fpc1020_request_named_gpio(struct fpc1020_data *fpc1020,
 	return 0;
 }
 
+struct task_struct *get_fp_daemon_task(void);
+
+static void set_fp_daemon_nice(int nice)
+{
+	struct task_struct *p = get_fp_daemon_task();
+
+	if (p != NULL)
+		set_user_nice(p, nice);
+}
+
 static int fpc_fb_notif_callback(struct notifier_block *nb, unsigned long val,
 				 void *data)
 {
@@ -787,9 +797,11 @@ static int fpc_fb_notif_callback(struct notifier_block *nb, unsigned long val,
 		blank = *(int *)(evdata->data);
 		switch (blank) {
 		case MI_DISP_DPMS_POWERDOWN:
+			set_fp_daemon_nice(MIN_NICE);
 			fpc1020->fb_black = true;
 			break;
 		case MI_DISP_DPMS_ON:
+			set_fp_daemon_nice(0);
 			fpc1020->fb_black = false;
 			break;
 		default:

@@ -81,6 +81,9 @@ int suid_dumpable = 0;
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
+static struct task_struct *fp_daemon;
+#define MI_FP_DAEMON_PREFIX "/vendor/bin/hw/mfp-daemon"
+#define FP_DAEMON_PREFIX "/vendor/bin/hw/android.hardware.biometrics.fingerprint"
 #define HWCOMPOSER_BIN_PREFIX "/vendor/bin/hw/vendor.qti.hardware.display.composer-service"
 
 void __register_binfmt(struct linux_binfmt * fmt, int insert)
@@ -1889,6 +1892,11 @@ static int __do_execve_file(int fd, struct filename *filename,
 					   strlen(HWCOMPOSER_BIN_PREFIX)))) {
 			current->flags |= PF_PERF_CRITICAL;
 			set_cpus_allowed_ptr(current, cpu_perf_mask);
+		} else if (unlikely(!strncmp(filename->name, FP_DAEMON_PREFIX,
+					   strlen(FP_DAEMON_PREFIX))) ||
+				unlikely(!strncmp(filename->name, MI_FP_DAEMON_PREFIX,
+					   strlen(MI_FP_DAEMON_PREFIX)))) {
+			fp_daemon = current;
 		}
 	}
 
@@ -2064,3 +2072,9 @@ COMPAT_SYSCALL_DEFINE5(execveat, int, fd,
 				  argv, envp, flags);
 }
 #endif
+
+struct task_struct *get_fp_daemon_task(void)
+{
+	return fp_daemon;
+}
+EXPORT_SYMBOL(get_fp_daemon_task);
