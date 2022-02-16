@@ -10,6 +10,7 @@
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -619,40 +620,28 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	return pm8xxx_rtc_init_alarm(rtc_dd);
-}
+	rc = pm8xxx_rtc_init_alarm(rtc_dd);
+	if (rc)
+		return rc;
 
-#ifdef CONFIG_PM_SLEEP
-static int pm8xxx_rtc_resume(struct device *dev)
-{
-	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		disable_irq_wake(rtc_dd->rtc_alarm_irq);
+	rc = dev_pm_set_wake_irq(&pdev->dev, rtc_dd->rtc_alarm_irq);
+	if (rc)
+		return rc;
 
 	return 0;
 }
 
-static int pm8xxx_rtc_suspend(struct device *dev)
+static int pm8xxx_remove(struct platform_device *pdev)
 {
-	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		enable_irq_wake(rtc_dd->rtc_alarm_irq);
-
+	dev_pm_clear_wake_irq(&pdev->dev);
 	return 0;
 }
-#endif
-
-static SIMPLE_DEV_PM_OPS(pm8xxx_rtc_pm_ops,
-			 pm8xxx_rtc_suspend,
-			 pm8xxx_rtc_resume);
 
 static struct platform_driver pm8xxx_rtc_driver = {
 	.probe		= pm8xxx_rtc_probe,
+	.remove		= pm8xxx_remove,
 	.driver	= {
 		.name		= "rtc-pm8xxx",
-		.pm		= &pm8xxx_rtc_pm_ops,
 		.of_match_table	= pm8xxx_id_table,
 	},
 };
