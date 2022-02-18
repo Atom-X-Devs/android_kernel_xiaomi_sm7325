@@ -246,7 +246,11 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 			spin_unlock(&fi->lock);
 		}
 		kfree(forget);
+#ifndef CONFIG_MACH_XIAOMI
 		if (ret == -ENOMEM)
+#else
+		if ((ret == -ENOMEM) || (ret == -EINTR))
+#endif
 			goto out;
 		if (ret || fuse_invalid_attr(&outarg.attr) ||
 		    (outarg.attr.mode ^ inode->i_mode) & S_IFMT)

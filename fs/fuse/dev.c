@@ -1057,13 +1057,18 @@ __releases(fiq->lock)
 	unsigned reqsize = sizeof(ih) + sizeof(arg);
 	int err;
 
+#ifndef CONFIG_MACH_XIAOMI
 	list_del_init(&req->intr_entry);
+#endif
 	memset(&ih, 0, sizeof(ih));
 	memset(&arg, 0, sizeof(arg));
 	ih.len = reqsize;
 	ih.opcode = FUSE_INTERRUPT;
 	ih.unique = (req->in.h.unique | FUSE_INT_REQ_BIT);
 	arg.unique = req->in.h.unique;
+#ifdef CONFIG_MACH_XIAOMI
+	list_del_init(&req->intr_entry);
+#endif
 
 	spin_unlock(&fiq->lock);
 	if (nbytes < reqsize)
