@@ -1247,6 +1247,7 @@ bool conf_set_all_new_symbols(enum conf_def_mode mode)
 					 * pty: probability of tristate = y
 					 * ptm: probability of tristate = m
 					 */
+	bool has_changed;
 
 	pby = 50; pty = ptm = 33; /* can't go as the default in switch-case
 				   * below, otherwise gcc whines about
@@ -1288,8 +1289,8 @@ bool conf_set_all_new_symbols(enum conf_def_mode mode)
 			exit( 1 );
 		}
 	}
-	bool has_changed = false;
 
+	has_changed = false;
 	for_all_symbols(i, sym) {
 		if (sym_has_value(sym) || (sym->flags & SYMBOL_VALID))
 			continue;
