@@ -181,6 +181,7 @@ config ARM64
 	select OF_EARLY_FLATTREE
 	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_ECAM if (ACPI && PCI)
+	select PCI_LOCKLESS_CONFIG if PCI && ARCH_QCOM
 	select PCI_SYSCALL if PCI
 	select POWER_RESET
 	select POWER_SUPPLY
