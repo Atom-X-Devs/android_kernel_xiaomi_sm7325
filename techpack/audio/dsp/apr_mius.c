@@ -185,7 +185,7 @@ int32_t mi_ultrasound_apr_set_parameter(int32_t port_id, uint32_t param_id,
 	if(param_id == MIUS_ULTRASOUND_UPLOAD_NONE) {
 #ifdef CONFIG_QGKI_SYSTEM
 		ret = (int32_t)us_afe_callback((const uint32_t)ups_event);
-		pr_info("[MIUS]: %s force reprot event %d ret %d\n", __func__, ups_event, ret);
+		pr_debug("[MIUS]: %s force reprot event %d ret %d\n", __func__, ups_event, ret);
 #endif
 		return ret;
 	}
@@ -195,7 +195,7 @@ int32_t mi_ultrasound_apr_set_parameter(int32_t port_id, uint32_t param_id,
 		(struct afe_mi_ultrasound_set_params_t *)user_params,
 		length);
 
-	pr_info("[MIUS]: %s param_id %x status %d\n", __func__, param_id, ret);
+	pr_debug("[MIUS]: %s param_id %x status %d\n", __func__, param_id, ret);
 
 	return ret;
 }
