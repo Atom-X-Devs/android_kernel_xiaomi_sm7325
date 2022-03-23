@@ -2366,19 +2366,7 @@ static struct platform_driver spi_geni_driver = {
 		.of_match_table = spi_geni_dt_match,
 	},
 };
-
-static int __init spi_dev_init(void)
-{
-	return platform_driver_register(&spi_geni_driver);
-}
-
-static void __exit spi_dev_exit(void)
-{
-	platform_driver_unregister(&spi_geni_driver);
-}
-
-module_init(spi_dev_init);
-module_exit(spi_dev_exit);
+module_platform_driver(spi_geni_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:spi_geni");
