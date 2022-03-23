@@ -1651,18 +1651,7 @@ static struct platform_driver geni_i2c_driver = {
 		.of_match_table = geni_i2c_dt_match,
 	},
 };
+module_platform_driver(geni_i2c_driver);
 
-static int __init i2c_dev_init(void)
-{
-	return platform_driver_register(&geni_i2c_driver);
-}
-
-static void __exit i2c_dev_exit(void)
-{
-	platform_driver_unregister(&geni_i2c_driver);
-}
-
-module_init(i2c_dev_init);
-module_exit(i2c_dev_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:i2c_geni");
