@@ -54,7 +54,7 @@
 #include "ufshpb_skh.h"
 #include <asm/unaligned.h>
 
-u32 skhpb_debug_mask = SKHPB_LOG_ERR | SKHPB_LOG_INFO;
+u32 skhpb_debug_mask = SKHPB_LOG_ERR;
 int debug_map_req = SKHPB_MAP_RSP_DISABLE;
 
 /*
