@@ -262,6 +262,7 @@ failed_create_dir:
 struct dentry *msm_vidc_debugfs_init_core(struct msm_vidc_core *core,
 		struct dentry *parent)
 {
+#ifdef CONFIG_DEBUG_FS
 	struct dentry *dir = NULL;
 	char debugfs_name[MAX_DEBUGFS_NAME];
 
@@ -293,6 +294,9 @@ struct dentry *msm_vidc_debugfs_init_core(struct msm_vidc_core *core,
 	}
 failed_create_dir:
 	return dir;
+#else
+	return NULL;
+#endif
 }
 
 static int inst_info_open(struct inode *inode, struct file *file)
