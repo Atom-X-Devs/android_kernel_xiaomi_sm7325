@@ -164,7 +164,7 @@ enum uart_error_code {
 	UART_ERROR_RX_CANCEL_FAIL,
 	UART_ERROR_RX_ABORT_FAIL,
 	UART_ERROR_RX_FSM_RESET_FAIL,
-	UART_ERROR_RX_TTY_INSET_FAIL,
+	UART_ERROR_RX_TTY_INSERT_FAIL,
 	UART_ERROR_ILLEGAL_INTERRUPT,
 	UART_ERROR_BUFFER_OVERRUN,
 	UART_ERROR_RX_PARITY_ERROR,
@@ -1958,7 +1958,7 @@ static int msm_geni_serial_handle_dma_rx(struct uart_port *uport, bool drop_rx)
 	if (ret != rx_bytes) {
 		dev_err(uport->dev, "%s: ret %d rx_bytes %d\n", __func__,
 								ret, rx_bytes);
-		msm_geni_update_uart_error_code(msm_port, UART_ERROR_RX_TTY_INSET_FAIL);
+		msm_geni_update_uart_error_code(msm_port, UART_ERROR_RX_TTY_INSERT_FAIL);
 		WARN_ON(1);
 	}
 	uport->icount.rx += ret;
