@@ -189,7 +189,7 @@ config DEVFREQ_SIMPLE_DEV
 	select DEVFREQ_GOV_PERFORMANCE
 	select DEVFREQ_GOV_POWERSAVE
 	select DEVFREQ_GOV_USERSPACE
-	select DEVFREQ_GOV_CPUFREQ
+	select DEVFREQ_GOV_CPUFREQ if ARCH_SDXNIGHTJAR
 	help
 	  Device driver for simple devices that control their frequency using
 	  clock APIs and don't have any form of status reporting.
@@ -200,7 +200,7 @@ config QCOM_DEVFREQ_ICC
 	select DEVFREQ_GOV_PERFORMANCE
 	select DEVFREQ_GOV_POWERSAVE
 	select DEVFREQ_GOV_USERSPACE
-	select DEVFREQ_GOV_CPUFREQ
+	select DEVFREQ_GOV_CPUFREQ if ARCH_SDXNIGHTJAR
 	select INTERCONNECT
 	default n
 	help
