@@ -2352,7 +2352,7 @@ struct dsi_ctrl *dsi_ctrl_get(struct device_node *of_node)
 	mutex_unlock(&dsi_ctrl_list_lock);
 
 	if (!ctrl) {
-		DSI_CTRL_ERR(ctrl, "Device with of node not found rc=%d\n",
+		DSI_CTRL_DEBUG(ctrl, "Device with of node not found rc=%d\n",
 				-EPROBE_DEFER);
 		ctrl = ERR_PTR(-EPROBE_DEFER);
 		return ctrl;

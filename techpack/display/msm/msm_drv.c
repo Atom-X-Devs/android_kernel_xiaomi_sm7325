@@ -2160,7 +2160,7 @@ static int msm_drm_component_dependency_check(struct device *dev)
 			struct platform_device *pdev =
 					of_find_device_by_node(node);
 			if (!platform_get_drvdata(pdev)) {
-				dev_err(dev,
+				dev_dbg(dev,
 					"qcom,sde_rscc not probed yet\n");
 				return -EPROBE_DEFER;
 			} else {
