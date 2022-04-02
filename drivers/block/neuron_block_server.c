@@ -556,7 +556,7 @@ static int app_block_server_probe(struct neuron_application *app_dev)
 		err = strscpy(blk_dev->bdev_name, name_prop,
 			      strlen(name_prop) + 1);
 	} else {
-		pr_err("No device name found in device tree.\n");
+		pr_debug("No device name found in device tree.\n");
 		return 0;
 	}
 
