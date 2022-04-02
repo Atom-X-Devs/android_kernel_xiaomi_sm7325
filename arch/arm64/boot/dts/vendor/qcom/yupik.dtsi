@@ -5304,7 +5304,6 @@
 		qcom,bw-monitor-supported;
 		qcom,lan-rx-napi;
 		qcom,tx-napi;
-		qcom,wan-use-skb-page;
 		qcom,rmnet-ctl-enable;
 		qcom,use-gsi-ipa-fw = "yupik_ipa_fws";
 		qcom,tx-wrapper-cache-max-size = <400>;
