@@ -19,8 +19,8 @@ static int msm_pcm_hostless_prepare(struct snd_pcm_substream *substream)
 		pr_err("%s: invalid params\n", __func__);
 		return -EINVAL;
 	}
-	if (pm_qos_request_active(&substream->latency_pm_qos_req))
-		pm_qos_remove_request(&substream->latency_pm_qos_req);
+	if (cpu_latency_qos_request_active(&substream->latency_pm_qos_req))
+		cpu_latency_qos_remove_request(&substream->latency_pm_qos_req);
 	return 0;
 }
 
