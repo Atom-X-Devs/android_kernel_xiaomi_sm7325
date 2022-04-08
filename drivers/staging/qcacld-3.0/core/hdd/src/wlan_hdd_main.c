@@ -3790,7 +3790,6 @@ static int hdd_wlan_register_ip6_notifier(struct hdd_context *hdd_ctx)
 #endif
 
 #ifdef FEATURE_RUNTIME_PM
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
 static int hdd_pm_qos_add_notifier(struct hdd_context *hdd_ctx)
 {
 	return dev_pm_qos_add_notifier(hdd_ctx->parent_dev,
@@ -3804,19 +3803,6 @@ static int hdd_pm_qos_remove_notifier(struct hdd_context *hdd_ctx)
 					  &hdd_ctx->pm_qos_notifier,
 					  DEV_PM_QOS_RESUME_LATENCY);
 }
-#else
-static int hdd_pm_qos_add_notifier(struct hdd_context *hdd_ctx)
-{
-	return pm_qos_add_notifier(PM_QOS_CPU_DMA_LATENCY,
-				   &hdd_ctx->pm_qos_notifier);
-}
-
-static int hdd_pm_qos_remove_notifier(struct hdd_context *hdd_ctx)
-{
-	return pm_qos_remove_notifier(PM_QOS_CPU_DMA_LATENCY,
-				      &hdd_ctx->pm_qos_notifier);
-}
-#endif
 
 /**
  * hdd_wlan_register_pm_qos_notifier() - register PM QOS notifier
