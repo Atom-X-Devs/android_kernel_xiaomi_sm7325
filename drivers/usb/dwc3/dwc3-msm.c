@@ -3614,7 +3614,7 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 	if (!mdwc->dual_port)
 		dwc3_pwr_event_handler(mdwc);
 
-	if (pm_qos_request_active(&mdwc->pm_qos_req_dma))
+	if (cpu_latency_qos_request_active(&mdwc->pm_qos_req_dma))
 		schedule_delayed_work(&mdwc->perf_vote_work,
 			msecs_to_jiffies(1000 * PM_QOS_SAMPLE_SEC));
 
@@ -5268,9 +5268,9 @@ static void msm_dwc3_perf_vote_update(struct dwc3_msm *mdwc, bool perf_mode)
 		return;
 
 	if (perf_mode)
-		pm_qos_update_request(&mdwc->pm_qos_req_dma, latency);
+		cpu_latency_qos_update_request(&mdwc->pm_qos_req_dma, latency);
 	else
-		pm_qos_update_request(&mdwc->pm_qos_req_dma,
+		cpu_latency_qos_update_request(&mdwc->pm_qos_req_dma,
 						PM_QOS_DEFAULT_VALUE);
 
 	mdwc->perf_mode = perf_mode;
@@ -5428,8 +5428,7 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 			atomic_read(&mdwc->dev->power.usage_count));
 		pm_runtime_mark_last_busy(mdwc->dev);
 		pm_runtime_put_sync_autosuspend(mdwc->dev);
-		pm_qos_add_request(&mdwc->pm_qos_req_dma,
-				PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
+		cpu_latency_qos_add_request(&mdwc->pm_qos_req_dma, PM_QOS_DEFAULT_VALUE);
 		/* start in perf mode for better performance initially */
 		msm_dwc3_perf_vote_update(mdwc, true);
 		schedule_delayed_work(&mdwc->perf_vote_work,
@@ -5446,7 +5445,7 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 
 		cancel_delayed_work_sync(&mdwc->perf_vote_work);
 		msm_dwc3_perf_vote_update(mdwc, false);
-		pm_qos_remove_request(&mdwc->pm_qos_req_dma);
+		cpu_latency_qos_remove_request(&mdwc->pm_qos_req_dma);
 
 		pm_runtime_get_sync(mdwc->dev);
 		dbg_event(0xFF, "StopHost gsync",
@@ -5557,8 +5556,7 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 		}
 
 		usb_gadget_vbus_connect(&dwc->gadget);
-		pm_qos_add_request(&mdwc->pm_qos_req_dma,
-				PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
+		cpu_latency_qos_add_request(&mdwc->pm_qos_req_dma, PM_QOS_DEFAULT_VALUE);
 		/* start in perf mode for better performance initially */
 		msm_dwc3_perf_vote_update(mdwc, true);
 		schedule_delayed_work(&mdwc->perf_vote_work,
@@ -5568,7 +5566,7 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 					__func__, dwc->gadget.name);
 		cancel_delayed_work_sync(&mdwc->perf_vote_work);
 		msm_dwc3_perf_vote_update(mdwc, false);
-		pm_qos_remove_request(&mdwc->pm_qos_req_dma);
+		cpu_latency_qos_remove_request(&mdwc->pm_qos_req_dma);
 
 		mdwc->in_device_mode = false;
 		usb_gadget_vbus_disconnect(&dwc->gadget);
