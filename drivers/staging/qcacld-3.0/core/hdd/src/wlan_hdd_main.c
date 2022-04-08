@@ -9918,10 +9918,10 @@ static inline void hdd_pm_qos_update_request(struct hdd_context *hdd_ctx,
 	COPY_CPU_MASK(&hdd_ctx->pm_qos_req.cpus_affine, pm_qos_cpu_mask);
 
 	if (cpumask_empty(pm_qos_cpu_mask))
-		pm_qos_update_request(&hdd_ctx->pm_qos_req,
+		cpu_latency_qos_update_request(&hdd_ctx->pm_qos_req,
 				      PM_QOS_DEFAULT_VALUE);
 	else
-		pm_qos_update_request(&hdd_ctx->pm_qos_req, 1);
+		cpu_latency_qos_update_request(&hdd_ctx->pm_qos_req, 1);
 }
 
 #if defined(CONFIG_SMP) && defined(MSM_PLATFORM)
@@ -9946,14 +9946,13 @@ static inline void hdd_set_default_pm_qos_mask(struct hdd_context *hdd_ctx)
 static inline void hdd_pm_qos_add_request(struct hdd_context *hdd_ctx)
 {
 	hdd_set_default_pm_qos_mask(hdd_ctx);
-	pm_qos_add_request(&hdd_ctx->pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
-			   PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_add_request(&hdd_ctx->pm_qos_req, PM_QOS_DEFAULT_VALUE);
 	DUMP_CPU_AFFINE();
 }
 
 static inline void hdd_pm_qos_remove_request(struct hdd_context *hdd_ctx)
 {
-	pm_qos_remove_request(&hdd_ctx->pm_qos_req);
+	cpu_latency_qos_remove_request(&hdd_ctx->pm_qos_req);
 }
 #endif /* CLD_DEV_PM_QOS */
 
@@ -10012,14 +10011,14 @@ void wlan_hdd_set_pm_qos_request(struct hdd_context *hdd_ctx,
 		hdd_ctx->pm_qos_request = true;
 		if (!hdd_ctx->hbw_requested) {
 			cpumask_setall(&hdd_ctx->pm_qos_req.cpus_affine);
-			pm_qos_update_request(&hdd_ctx->pm_qos_req,
+			cpu_latency_qos_update_request(&hdd_ctx->pm_qos_req,
 					      DISABLE_KRAIT_IDLE_PS_VAL);
 			hdd_ctx->hbw_requested = true;
 		}
 	} else {
 		if (hdd_ctx->hbw_requested) {
 			cpumask_clear(&hdd_ctx->pm_qos_req.cpus_affine);
-			pm_qos_update_request(&hdd_ctx->pm_qos_req,
+			cpu_latency_qos_update_request(&hdd_ctx->pm_qos_req,
 					      PM_QOS_DEFAULT_VALUE);
 			hdd_ctx->hbw_requested = false;
 		}
