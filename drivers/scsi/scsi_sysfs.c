@@ -25,6 +25,9 @@
 
 #include "scsi_priv.h"
 #include "scsi_logging.h"
+#ifdef CONFIG_MACH_XIAOMI
+#include "ufs/ufshcd.h"
+#endif
 
 static struct device_type scsi_dev_type;
 
@@ -1190,6 +1193,52 @@ static DEVICE_ATTR(queue_ramp_up_period, S_IRUGO | S_IWUSR,
 		   sdev_show_queue_ramp_up_period,
 		   sdev_store_queue_ramp_up_period);
 
+#ifdef CONFIG_MACH_XIAOMI
+static ssize_t
+sdev_show_hr(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct scsi_device *sdev;
+	int i, n = 0;
+	int err = 0;
+	int len = 512; /*0x200*/
+	char *hr;
+
+	sdev = to_scsi_device(dev);
+	if (!sdev) {
+		pr_err("get sdev fail\n");
+		return n;
+	}
+
+	hr =  kzalloc(len, GFP_KERNEL);
+	if (!hr) {
+		pr_err("kzalloc fail\n");
+		return -ENOMEM;
+	}
+
+	if (!strncmp(sdev->vendor, "SKhynix", 7))
+		err = ufshcd_get_hynix_hr(sdev, hr, len);
+	else {
+		n += snprintf(buf,  PAGE_SIZE - n, "NOT SUPPORTED %s\n", sdev->vendor);
+		goto out;
+	}
+
+	if (err)
+		n += snprintf(buf,  PAGE_SIZE - n, "Fail to get hr, err is: %d\n", err);
+	else {
+		for (i = 0; i < 512; i++)
+			n += snprintf(buf + n, PAGE_SIZE - n, "%02x", hr[i]);
+
+		n += snprintf(buf + n, PAGE_SIZE - n, "\n");
+	}
+
+out:
+	kfree(hr);
+	return n;
+}
+
+static DEVICE_ATTR(hr, S_IRUGO | S_IWUSR, sdev_show_hr, NULL);
+#endif
+
 static umode_t scsi_sdev_attr_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int i)
 {
@@ -1255,6 +1304,9 @@ static struct attribute *scsi_sdev_attrs[] = {
 	&dev_attr_queue_type.attr,
 	&dev_attr_wwid.attr,
 	&dev_attr_blacklist.attr,
+#ifdef CONFIG_MACH_XIAOMI
+	&dev_attr_hr.attr,
+#endif
 #ifdef CONFIG_SCSI_DH
 	&dev_attr_dh_state.attr,
 	&dev_attr_access_state.attr,

@@ -3449,6 +3449,23 @@ static int ufshcd_read_device_desc(struct ufs_hba *hba, u8 *buf, u32 size)
 	return ufshcd_read_desc(hba, QUERY_DESC_IDN_DEVICE, 0, buf, size);
 }
 
+#ifdef CONFIG_MACH_XIAOMI
+int ufshcd_get_hynix_hr(struct scsi_device *sdev, u8 *buf, u32 size)
+{
+	struct ufs_hba *hba;
+	int ret = 0;
+
+	hba = shost_priv(sdev->host);
+	size = QUERY_DESC_HEALTH_DEF_SIZE;
+
+	pm_runtime_get_sync(hba->dev);
+	ret = ufshcd_read_desc(hba, QUERY_DESC_IDN_HEALTH, 0, buf, size);
+	pm_runtime_put_sync(hba->dev);
+
+	return ret;
+}
+#endif
+
 /**
  * struct uc_string_id - unicode string
  *
@@ -7701,6 +7718,47 @@ void ufshcd_parse_dev_ref_clk_freq(struct ufs_hba *hba, struct clk *refclk)
 		"invalid ref_clk setting = %ld\n", freq);
 }
 
+#ifdef CONFIG_MACH_XIAOMI
+static char serial[QUERY_DESC_MAX_SIZE] = { 0 };
+
+static int ufs_init_serial(struct ufs_hba *hba)
+{
+	u8 index;
+	int ret, i;
+	int desc_len = QUERY_DESC_MAX_SIZE;
+	u8 *desc_buf;
+
+	desc_buf = kzalloc(QUERY_DESC_MAX_SIZE, GFP_ATOMIC);
+	if (!desc_buf)
+		return -ENOMEM;
+
+	ret = ufshcd_query_descriptor_retry(hba,
+		UPIU_QUERY_OPCODE_READ_DESC, QUERY_DESC_IDN_DEVICE,
+		0, 0, desc_buf, &desc_len);
+	if (ret) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	index = desc_buf[DEVICE_DESC_PARAM_SN];
+	kfree(desc_buf);
+	desc_buf = NULL;
+
+	ret = ufshcd_read_string_desc(hba, index, &desc_buf, false);
+	if (ret < 0)
+		goto out;
+
+	for (i = 2; i <  desc_buf[QUERY_DESC_LENGTH_OFFSET]; i += 2)
+		snprintf(serial+i*2 - 4, QUERY_DESC_MAX_SIZE, "%02x%02x", desc_buf[i], desc_buf[i+1]);
+
+	dev_info(hba->dev, "Serial Number: %s\n", serial);
+
+out:
+	kfree(desc_buf);
+	return ret;
+}
+#endif
+
 static int ufshcd_set_dev_ref_clk(struct ufs_hba *hba)
 {
 	int err;
@@ -7886,6 +7944,9 @@ reinit:
 	}
 #endif
 	ufshcd_tune_unipro_params(hba);
+#ifdef CONFIG_MACH_XIAOMI
+	ufs_init_serial(hba);
+#endif
 
 	/* UFS device is also active now */
 	ufshcd_set_ufs_dev_active(hba);
