@@ -1,5 +1,0 @@
-#include "sdxlemur-1024mb.dtsi"
-
-&mpss_adsp_mem {
-	reg = <0x90800000 0x12000000>;
-};

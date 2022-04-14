@@ -1,3 +1,0 @@
-&monaco_snd {
-	qcom,model = "monaco-idp-slate_amic-snd-card";
-};
