@@ -47,7 +47,9 @@
 
 #define GOODIX_XIAOMI_TOUCHFEATURE
 
+#ifdef CONFIG_DEBUG_FS
 #define GOODIX_DEBUGFS_ENABLE
+#endif
 
 #define PANEL_ORIENTATION_DEGREE_0 0 /* normal portrait orientation */
 #define PANEL_ORIENTATION_DEGREE_90 1 /* anticlockwise 90 degrees */
