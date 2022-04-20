@@ -2588,15 +2588,15 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 			if (map->attr & FASTRPC_ATTR_NOVA) {
 				offset = 0;
 			} else {
-				down_read(&current->mm->mmap_sem);
+				mmap_read_lock(current->mm);
 				VERIFY(err, NULL != (vma = find_vma(current->mm,
 								map->va)));
 				if (err) {
-					up_read(&current->mm->mmap_sem);
+					mmap_read_unlock(current->mm);
 					goto bail;
 				}
 				offset = buf_page_start(buf) - vma->vm_start;
-				up_read(&current->mm->mmap_sem);
+				mmap_read_unlock(current->mm);
 				VERIFY(err, offset + len <= (uintptr_t)map->size);
 				if (err) {
 					ADSPRPC_ERR(
@@ -2714,11 +2714,11 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 					uint64_t flush_len;
 					struct vm_area_struct *vma;
 
-					down_read(&current->mm->mmap_sem);
+					mmap_read_lock(current->mm);
 					VERIFY(err, NULL != (vma = find_vma(
 						current->mm, rpra[i].buf.pv)));
 					if (err) {
-						up_read(&current->mm->mmap_sem);
+						mmap_read_unlock(current->mm);
 						goto bail;
 					}
 					if (ctx->overps[oix]->do_cmo) {
@@ -2733,7 +2733,7 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 						ctx->overps[oix]->mend -
 						ctx->overps[oix]->mstart;
 					}
-					up_read(&current->mm->mmap_sem);
+					mmap_read_unlock(current->mm);
 					dma_buf_begin_cpu_access_partial(
 						map->buf, DMA_TO_DEVICE, offset,
 						flush_len);
