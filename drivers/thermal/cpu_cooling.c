@@ -86,32 +86,6 @@ static DEFINE_IDA(cpufreq_ida);
 static DEFINE_MUTEX(cooling_list_lock);
 static LIST_HEAD(cpufreq_cdev_list);
 
-#ifdef CONFIG_MACH_XIAOMI
-void cpu_limits_set_level(unsigned int cpu, unsigned int max_freq)
-{
-	struct cpufreq_cooling_device *cpufreq_cdev;
-	struct thermal_cooling_device *cdev;
-	unsigned int cdev_cpu;
-	unsigned int level;
-
-	list_for_each_entry(cpufreq_cdev, &cpufreq_cdev_list, node) {
-		sscanf(cpufreq_cdev->cdev->type, "thermal-cpufreq-%d", &cdev_cpu);
-		if (cdev_cpu == cpu) {
-			for (level = 0; level <= cpufreq_cdev->max_level; level++) {
-				int target_freq = cpufreq_cdev->freq_table[level].frequency;
-				if (max_freq >= target_freq) {
-					cdev = cpufreq_cdev->cdev;
-					if (cdev)
-						cdev->ops->set_cur_state(cdev, level);
-					break;
-				}
-			}
-			break;
-		}
-	}
-}
-#endif
-
 #ifdef CONFIG_THERMAL_GOV_POWER_ALLOCATOR
 /**
  * get_level: Find the level for a particular frequency
@@ -486,6 +460,32 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 
 	return ret;
 }
+
+#ifdef CONFIG_MACH_XIAOMI
+void cpu_limits_set_level(unsigned int cpu, unsigned int max_freq)
+{
+	struct cpufreq_cooling_device *cpufreq_cdev;
+	struct thermal_cooling_device *cdev;
+	unsigned int cdev_cpu;
+	unsigned int level;
+
+	list_for_each_entry(cpufreq_cdev, &cpufreq_cdev_list, node) {
+		sscanf(cpufreq_cdev->cdev->type, "thermal-cpufreq-%d", &cdev_cpu);
+		if (cdev_cpu == cpu) {
+			for (level = 0; level <= cpufreq_cdev->max_level; level++) {
+				int target_freq = get_state_freq(cpufreq_cdev, level);
+				if (max_freq >= target_freq) {
+					cdev = cpufreq_cdev->cdev;
+					if (cdev)
+						cdev->ops->set_cur_state(cdev, level);
+					break;
+				}
+			}
+			break;
+		}
+	}
+}
+#endif
 
 /* Bind cpufreq callbacks to thermal cooling device ops */
 
