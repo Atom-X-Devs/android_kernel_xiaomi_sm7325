@@ -1,4 +1,6 @@
 &tlmm {
+	qcom,gpios-reserved = <32 33 48 49 50 51 56 57 57 59>;
+
 	sbu_uart_en_ctrl {
 		sbu_uart_en_idle: uart_audio_en_idle {
 			mux {
