@@ -107,7 +107,7 @@ struct free_area {
 static inline void add_to_free_area(struct page *page, struct free_area *area,
 			     int migratetype)
 {
-	list_add(&page->lru, &area->free_list[migratetype]);
+	list_add(&page->buddy_list, &area->free_list[migratetype]);
 	area->nr_free++;
 }
 
@@ -115,7 +115,7 @@ static inline void add_to_free_area(struct page *page, struct free_area *area,
 static inline void add_to_free_area_tail(struct page *page, struct free_area *area,
 				  int migratetype)
 {
-	list_add_tail(&page->lru, &area->free_list[migratetype]);
+	list_add_tail(&page->buddy_list, &area->free_list[migratetype]);
 	area->nr_free++;
 }
 
@@ -135,7 +135,7 @@ static inline void add_to_free_area_random(struct page *page,
 static inline void move_to_free_area(struct page *page, struct free_area *area,
 			     int migratetype)
 {
-	list_move(&page->lru, &area->free_list[migratetype]);
+	list_move(&page->buddy_list, &area->free_list[migratetype]);
 }
 
 static inline struct page *get_page_from_free_area(struct free_area *area,
@@ -148,7 +148,7 @@ static inline struct page *get_page_from_free_area(struct free_area *area,
 static inline void del_page_from_free_area(struct page *page,
 		struct free_area *area)
 {
-	list_del(&page->lru);
+	list_del(&page->buddy_list);
 	__ClearPageBuddy(page);
 	set_page_private(page, 0);
 	area->nr_free--;
