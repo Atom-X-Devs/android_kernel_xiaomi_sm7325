@@ -1894,7 +1894,9 @@ cpu_limits_store(struct device *dev,
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_MI_THERMAL_CPU_THROTTLE
 	cpu_limits_set_level(cpu, max);
+#endif
 
 	return len;
 }

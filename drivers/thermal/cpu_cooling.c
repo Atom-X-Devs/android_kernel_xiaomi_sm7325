@@ -89,7 +89,7 @@ struct cpufreq_cooling_device {
 	struct list_head node;
 	struct time_in_idle *idle_time;
 	struct freq_qos_request qos_req;
-#ifdef CONFIG_MACH_XIAOMI
+#ifdef CONFIG_MI_THERMAL_CPU_THROTTLE
 	struct thermal_cooling_device *cdev;
 #endif
 };
@@ -98,7 +98,7 @@ static DEFINE_IDA(cpufreq_ida);
 static DEFINE_MUTEX(cooling_list_lock);
 static LIST_HEAD(cpufreq_cdev_list);
 
-#ifdef CONFIG_MACH_XIAOMI
+#ifdef CONFIG_MI_THERMAL_CPU_THROTTLE
 void cpu_limits_set_level(unsigned int cpu, unsigned int max_freq)
 {
 	struct cpufreq_cooling_device *cpufreq_cdev;
@@ -662,7 +662,7 @@ __cpufreq_cooling_register(struct device_node *np,
 	if (IS_ERR(cdev))
 		goto remove_qos_req;
 
-#ifdef CONFIG_MACH_XIAOMI
+#ifdef CONFIG_MI_THERMAL_CPU_THROTTLE
 	cpufreq_cdev->cdev = cdev;
 #endif
 

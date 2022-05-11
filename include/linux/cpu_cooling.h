@@ -19,7 +19,7 @@
 
 struct cpufreq_policy;
 
-#ifdef CONFIG_MACH_XIAOMI
+#ifdef CONFIG_MI_THERMAL_CPU_THROTTLE
 void cpu_limits_set_level(unsigned int cpu, unsigned int max_freq);
 #endif
 
