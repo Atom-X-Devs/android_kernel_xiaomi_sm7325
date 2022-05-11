@@ -232,6 +232,7 @@ enum xm_property_id {
 	XM_PROP_OP_MODE,
 	XM_PROP_WLS_DIE_TEMP,
 	XM_PROP_WLS_TX_SPEED,
+	XM_PROP_WLS_CAR_ADAPTER,
 	/**********************/
 	XM_PROP_INPUT_SUSPEND,
 	XM_PROP_REAL_TYPE,
