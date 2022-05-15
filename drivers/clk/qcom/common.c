@@ -23,7 +23,7 @@
 #include "clk-regmap.h"
 #include "reset.h"
 #include "gdsc.h"
-#include "vdd-level.h"
+//#include "vdd-level.h"
 
 struct qcom_cc {
 	struct qcom_reset_controller reset;

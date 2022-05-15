@@ -295,6 +295,7 @@ static int btfm_slim_dai_get_channel_map(struct snd_soc_dai *dai,
 	switch (dai->id) {
 	case BTFM_FM_SLIM_TX:
 		num = 2;
+		/* fall through */
 	case BTFM_BT_SCO_SLIM_TX:
 		if (!tx_slot || !tx_num) {
 			BTFMSLIM_ERR("Invalid tx_slot %p or tx_num %p",
