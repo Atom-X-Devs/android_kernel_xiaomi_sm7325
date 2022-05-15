@@ -970,6 +970,9 @@ KBUILD_CFLAGS += -Wvla
 # disable pointer signed / unsigned warnings in gcc 4.0
 KBUILD_CFLAGS += -Wno-pointer-sign
 
+# disable non hazardous format warning in gcc
+KBUILD_CFLAGS += $(call cc-disable-warning, format)
+
 # disable stringop warnings in gcc 8+
 KBUILD_CFLAGS += $(call cc-disable-warning, stringop-truncation)
 
