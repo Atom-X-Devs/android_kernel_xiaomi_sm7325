@@ -1393,6 +1393,7 @@ static int _qcrypto_check_aes_keylen(struct crypto_ablkcipher *cipher,
 	case AES_KEYSIZE_192:
 		if (cp->ce_support.aes_key_192)
 			break;
+		/* fall through */
 	default:
 		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
@@ -3115,6 +3116,7 @@ static int _qcrypto_aead_ccm_setkey(struct crypto_aead *aead, const u8 *key,
 	case AES_KEYSIZE_192:
 		if (cp->ce_support.aes_key_192)
 			break;
+		/* fall through */
 	default:
 		ctx->enc_key_len = 0;
 		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
