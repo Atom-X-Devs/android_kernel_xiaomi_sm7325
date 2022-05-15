@@ -1273,7 +1273,7 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 			tsk->human_task = MAX_LEVER+1 ;
 		} else if (tmpbuf) {
 			memset(tmpbuf, 0, 128);
-			snprintf(tmpbuf, sizeof(tmpbuf), "Binder:%d_%X", tsk->tgid, 1);
+			snprintf(tmpbuf, sizeof(*tmpbuf), "Binder:%d_%X", tsk->tgid, 1);
 			//binder/ProcessState.cpp
 			if (!strcmp(tmpbuf, buf))
 				tsk->human_task = 1;
