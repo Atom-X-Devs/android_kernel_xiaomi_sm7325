@@ -522,6 +522,7 @@ struct goodix_ts_core {
 
 	struct notifier_block ts_notifier;
 	struct goodix_ts_esd ts_esd;
+	bool esd_initialized;
 
 #if IS_ENABLED(CONFIG_FB)
 	struct notifier_block fb_notifier;
@@ -682,6 +683,7 @@ int goodix_get_ic_type(struct device_node *node, struct goodix_bus_interface *bu
 int gesture_module_init(void);
 void gesture_module_exit(void);
 int goodix_gesture_enable(int enable);
+int goodix_ts_esd_init(struct goodix_ts_core *cd);
 
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_DEBUG
 int inspect_module_init(struct goodix_ts_core *core_data);
