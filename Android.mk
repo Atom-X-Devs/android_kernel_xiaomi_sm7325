@@ -1,38 +1,48 @@
 # Android makefile for display kernel modules
-TOUCH_SELECT := CONFIG_MSM_TOUCH=m
 
-LOCAL_PATH := $(call my-dir)
-include $(CLEAR_VARS)
+TOUCH_DLKM_ENABLE := true
+ifeq ($(TARGET_KERNEL_DLKM_DISABLE), true)
+	ifeq ($(TARGET_KERNEL_DLKM_TOUCH_OVERRIDE), false)
+		TOUCH_DLKM_ENABLE := false
+	endif
+endif
 
-# This makefile is only for DLKM
-ifneq ($(findstring vendor,$(LOCAL_PATH)),)
+ifeq ($(TOUCH_DLKM_ENABLE),  true)
+	TOUCH_SELECT := CONFIG_MSM_TOUCH=m
 
-ifneq ($(findstring opensource,$(LOCAL_PATH)),)
-	TOUCH_BLD_DIR := $(shell pwd)/vendor/qcom/opensource/touch-drivers
-endif # opensource
+	LOCAL_PATH := $(call my-dir)
+	include $(CLEAR_VARS)
 
-DLKM_DIR := $(TOP)/device/qcom/common/dlkm
+	# This makefile is only for DLKM
+	ifneq ($(findstring vendor,$(LOCAL_PATH)),)
 
-LOCAL_ADDITIONAL_DEPENDENCIES := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*)
+	ifneq ($(findstring opensource,$(LOCAL_PATH)),)
+		TOUCH_BLD_DIR := $(shell pwd)/vendor/qcom/opensource/touch-drivers
+	endif # opensource
 
-# Build
-###########################################################
-# This is set once per LOCAL_PATH, not per (kernel) module
-KBUILD_OPTIONS := TOUCH_ROOT=$(TOUCH_BLD_DIR)
+	DLKM_DIR := $(TOP)/device/qcom/common/dlkm
 
-KBUILD_OPTIONS += MODNAME=touch_dlkm
-KBUILD_OPTIONS += BOARD_PLATFORM=$(TARGET_BOARD_PLATFORM)
-KBUILD_OPTIONS += $(TOUCH_SELECT)
+	LOCAL_ADDITIONAL_DEPENDENCIES := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*)
 
-###########################################################
-include $(CLEAR_VARS)
-LOCAL_SRC_FILES   := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*)
-LOCAL_MODULE              := goodix_ts.ko
-LOCAL_MODULE_KBUILD_NAME  := goodix_ts.ko
-LOCAL_MODULE_TAGS         := optional
-#LOCAL_MODULE_DEBUG_ENABLE := true
-LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
-include $(DLKM_DIR)/Build_external_kernelmodule.mk
-###########################################################
+	# Build
+	###########################################################
+	# This is set once per LOCAL_PATH, not per (kernel) module
+	KBUILD_OPTIONS := TOUCH_ROOT=$(TOUCH_BLD_DIR)
 
-endif # DLKM check
+	KBUILD_OPTIONS += MODNAME=touch_dlkm
+	KBUILD_OPTIONS += BOARD_PLATFORM=$(TARGET_BOARD_PLATFORM)
+	KBUILD_OPTIONS += $(TOUCH_SELECT)
+
+	###########################################################
+	include $(CLEAR_VARS)
+	LOCAL_SRC_FILES   := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*)
+	LOCAL_MODULE              := goodix_ts.ko
+	LOCAL_MODULE_KBUILD_NAME  := goodix_ts.ko
+	LOCAL_MODULE_TAGS         := optional
+	#LOCAL_MODULE_DEBUG_ENABLE := true
+	LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+	include $(DLKM_DIR)/Build_external_kernelmodule.mk
+	###########################################################
+
+	endif # DLKM check
+endif
