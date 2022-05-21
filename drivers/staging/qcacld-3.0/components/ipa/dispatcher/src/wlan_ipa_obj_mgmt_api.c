@@ -28,11 +28,6 @@
 
 static bool g_ipa_is_ready;
 static qdf_mutex_t g_init_deinit_lock;
-bool ipa_is_ready(void)
-{
-	return g_ipa_is_ready;
-}
-
 void ipa_disable_register_cb(void)
 {
 	ipa_debug("Don't register ready cb with IPA driver");
