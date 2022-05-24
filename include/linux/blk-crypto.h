@@ -7,6 +7,7 @@
 #define __LINUX_BLK_CRYPTO_H
 
 #include <linux/bio.h>
+#include <linux/blkdev.h>
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
 
