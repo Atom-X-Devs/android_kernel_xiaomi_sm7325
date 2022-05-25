@@ -1425,7 +1425,7 @@ static const struct dentry_operations generic_encrypted_ci_dentry_ops = {
 void generic_set_encrypted_ci_d_ops(struct dentry *dentry)
 {
 #ifdef CONFIG_FS_ENCRYPTION
-	bool needs_encrypt_ops = dentry->d_flags & DCACHE_ENCRYPTED_NAME;
+	bool needs_encrypt_ops = dentry->d_flags & DCACHE_NOKEY_NAME;
 #endif
 #ifdef CONFIG_UNICODE
 	bool needs_ci_ops = dentry->d_sb->s_encoding;
