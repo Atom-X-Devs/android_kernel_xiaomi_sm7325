@@ -1667,12 +1667,11 @@ static int last_modem_sfr_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, last_modem_sfr_proc_show, NULL);
 }
 
-static const struct file_operations last_modem_sfr_file_ops = {
-	.owner   = THIS_MODULE,
-	.open    = last_modem_sfr_proc_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
+static const struct proc_ops last_modem_sfr_file_ops = {
+	.proc_open    = last_modem_sfr_proc_open,
+	.proc_read	  = seq_read,
+	.proc_lseek	  = seq_lseek,
+	.proc_release = single_release,
 };
 #endif
 
