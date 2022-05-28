@@ -552,45 +552,40 @@ static int DATARMNET18464ea5e3(struct inode *inode,
 	DATARMNETaea4c85748();
 	return (0xd2d + 202 - 0xdf7);
 }
-static const struct file_operations DATARMNET668485bd14 = {
-	.owner = THIS_MODULE,
-	.mmap = DATARMNET54418f934d,
-	.open = DATARMNET33a80d3bf7,
-	.release = DATARMNETcfbc4f0c39,
-	.read = DATARMNETaf2aa1d70f,
-	.write = DATARMNET4761dcd3fd,
+static const struct proc_ops DATARMNET668485bd14 = {
+	.proc_mmap = DATARMNET54418f934d,
+	.proc_open = DATARMNET33a80d3bf7,
+	.proc_release = DATARMNETcfbc4f0c39,
+	.proc_read = DATARMNETaf2aa1d70f,
+	.proc_write = DATARMNET4761dcd3fd,
 };
-static const struct file_operations DATARMNETe84fbaa6af = {
-	.owner = THIS_MODULE,
-	.mmap = DATARMNETc55748448d,
-	.open = DATARMNET0935e3beb9,
-	.release = DATARMNET2a9f67714f,
-	.read = DATARMNETaf2aa1d70f,
-	.write = DATARMNET4761dcd3fd,
+static const struct proc_ops DATARMNETe84fbaa6af = {
+	.proc_mmap = DATARMNETc55748448d,
+	.proc_open = DATARMNET0935e3beb9,
+	.proc_release = DATARMNET2a9f67714f,
+	.proc_read = DATARMNETaf2aa1d70f,
+	.proc_write = DATARMNET4761dcd3fd,
 };
-static const struct file_operations DATARMNET8fe5f892a8 = {
-	.owner = THIS_MODULE,
-	.mmap = DATARMNET43c6d751a2,
-	.open = DATARMNETfbd34e70a2,
-	.release = DATARMNET968bc5b80d,
-	.read = DATARMNETaf2aa1d70f,
-	.write = DATARMNET4761dcd3fd,
+static const struct proc_ops DATARMNET8fe5f892a8 = {
+	.proc_mmap = DATARMNET43c6d751a2,
+	.proc_open = DATARMNETfbd34e70a2,
+	.proc_release = DATARMNET968bc5b80d,
+	.proc_read = DATARMNETaf2aa1d70f,
+	.proc_write = DATARMNET4761dcd3fd,
 };
-static const struct file_operations DATARMNET0104d40d4b = {
-	.owner = THIS_MODULE,
-	.mmap = DATARMNET7cc042bdf3,
-	.open = DATARMNET57bcb932f3,
-	.release = DATARMNET59b415aded,
-	.read = DATARMNETaf2aa1d70f,
-	.write = DATARMNET4761dcd3fd,
+static const struct proc_ops DATARMNET0104d40d4b = {
+	.proc_mmap = DATARMNET7cc042bdf3,
+	.proc_open = DATARMNET57bcb932f3,
+	.proc_release = DATARMNET59b415aded,
+	.proc_read = DATARMNETaf2aa1d70f,
+	.proc_write = DATARMNET4761dcd3fd,
 };
-static const struct file_operations DATARMNET6eb63d9ad0 = {
-	.owner = THIS_MODULE,
-	.mmap = DATARMNET444e2eb654,
-	.open = DATARMNETb9d10d8cc0,
-	.release = DATARMNET18464ea5e3,
-	.read = DATARMNETaf2aa1d70f,
-	.write = DATARMNET4761dcd3fd,
+static const struct proc_ops DATARMNET6eb63d9ad0 = {
+	.proc_mmap = DATARMNET444e2eb654,
+	.proc_open = DATARMNETb9d10d8cc0,
+	.proc_release = DATARMNET18464ea5e3,
+	.proc_read = DATARMNETaf2aa1d70f,
+	.proc_write = DATARMNET4761dcd3fd,
 };
 void DATARMNET28a80d526e(struct DATARMNET6c78e47d24 *DATARMNETd2a694d52a,
 			 struct list_head *DATARMNETf0fb155a9c)
