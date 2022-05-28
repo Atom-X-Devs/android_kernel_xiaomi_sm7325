@@ -109,13 +109,12 @@ static int mi_disp_procfs_tx_cmd_set_open(struct inode *inode, struct file *file
 	return single_open(file, mi_disp_procfs_tx_cmd_set_show, PDE_DATA(inode));
 }
 
-const struct file_operations tx_cmd_set_proc_fops = {
-	.owner   = THIS_MODULE,
-	.open    = mi_disp_procfs_tx_cmd_set_open,
-	.write   = mi_disp_procfs_tx_cmd_set_write,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
+static const struct proc_ops tx_cmd_set_proc_fops = {
+	.proc_open    = mi_disp_procfs_tx_cmd_set_open,
+	.proc_write   = mi_disp_procfs_tx_cmd_set_write,
+	.proc_read    = seq_read,
+	.proc_lseek  = seq_lseek,
+	.proc_release = single_release,
 };
 
 static ssize_t mi_disp_procfs_mipi_rw_write(struct file *filp,
@@ -176,13 +175,12 @@ static int mi_disp_procfs_mipi_rw_open(struct inode *inode, struct file *file)
 	return single_open(file, mi_disp_procfs_mipi_rw_show, PDE_DATA(inode));
 }
 
-const struct file_operations mipi_rw_proc_fops = {
-	.owner   = THIS_MODULE,
-	.open    = mi_disp_procfs_mipi_rw_open,
-	.write   = mi_disp_procfs_mipi_rw_write,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
+static const struct proc_ops mipi_rw_proc_fops = {
+	.proc_open    = mi_disp_procfs_mipi_rw_open,
+	.proc_write   = mi_disp_procfs_mipi_rw_write,
+	.proc_read    = seq_read,
+	.proc_lseek  = seq_lseek,
+	.proc_release = single_release,
 };
 
 static int mi_disp_procfs_mipi_rw_init(void *d_display, int disp_id)
