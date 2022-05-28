@@ -16,11 +16,11 @@
 #include <linux/netdevice.h>
 #ifndef DATARMNET104309e08f
 #define DATARMNET104309e08f
-#define DATARMNETadb2d068fe	(0xd26+209-0xdf6)
-#define DATARMNET8120d41372	(0xd1f+216-0xdf5)
-#define DATARMNET47c2367f93	(0xd18+223-0xdf4)
-extern struct DATARMNETa6b20d7e8b DATARMNETecc0627c70;extern int 
-rmnet_is_real_dev_registered(const struct net_device*real_dev);int __init 
-DATARMNET163e93649e(void);void __exit DATARMNETf3298dab6f(void);
-#endif 
-
+#define DATARMNETadb2d068fe (0xd26 + 209 - 0xdf6)
+#define DATARMNET8120d41372 (0xd1f + 216 - 0xdf5)
+#define DATARMNET47c2367f93 (0xd18 + 223 - 0xdf4)
+extern struct DATARMNETa6b20d7e8b DATARMNETecc0627c70;
+extern int rmnet_is_real_dev_registered(const struct net_device *real_dev);
+int __init DATARMNET163e93649e(void);
+void __exit DATARMNETf3298dab6f(void);
+#endif
