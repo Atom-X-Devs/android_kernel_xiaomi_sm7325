@@ -1000,11 +1000,11 @@ static int rawdata_proc_open(struct inode *inode, struct file *file)
 	return single_open_size(file, rawdata_proc_show, PDE_DATA(inode), PAGE_SIZE * 10);
 }
 
-static const struct file_operations rawdata_proc_fops = {
-	.open = rawdata_proc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
+static const struct proc_ops rawdata_proc_fops = {
+	.proc_open 		= rawdata_proc_open,
+	.proc_read 		= seq_read,
+	.proc_lseek		= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static void goodix_ts_procfs_init(struct goodix_ts_core *core_data)
