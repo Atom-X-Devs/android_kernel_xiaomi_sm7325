@@ -14,6 +14,7 @@
 #define DATARMNETd4ae2cf0b5
 #include "rmnet_offload_main.h"
 #include "rmnet_offload_engine.h"
-bool DATARMNET8dc47eb7af(struct DATARMNETd7c9631acd*DATARMNETaa568481cf,struct 
-DATARMNETd812bcdbb5*DATARMNET5fe4c722a8,bool DATARMNETd87669e323);
+bool DATARMNET8dc47eb7af(struct DATARMNETd7c9631acd *DATARMNETaa568481cf,
+			 struct DATARMNETd812bcdbb5 *DATARMNET5fe4c722a8,
+			 bool DATARMNETd87669e323);
 #endif
