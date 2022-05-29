@@ -40,7 +40,7 @@ LIBFDT_SOURCE="fdt.c fdt.h fdt_addresses.c fdt_empty_tree.c \
 FDTOVERLAY_SOURCE=fdtoverlay.c
 
 get_last_dtc_version() {
-	git log --oneline scripts/dtc/ | grep 'upstream' | head -1 | sed -e 's/^.* \(.*\)/\1/'
+	git log --oneline --grep upstream scripts/dtc/ | head -1 | sed -e 's/^.* \(.*\)/\1/'
 }
 
 last_dtc_ver=$(get_last_dtc_version)
