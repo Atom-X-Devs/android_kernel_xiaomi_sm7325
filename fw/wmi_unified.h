@@ -4606,6 +4606,12 @@ typedef struct {
 #define WMI_RSRC_CFG_FLAGS2_SAWF_CONFIG_ENABLE_SET(flags2, value) \
     WMI_SET_BITS(flags2, 13, 1, value)
 
+#define WMI_RSRC_CFG_FLAGS2_NOTIFY_FRAME_CONFIG_ENABLE_GET(flags2) \
+    WMI_GET_BITS(flags2, 14, 1)
+#define WMI_RSRC_CFG_FLAGS2_NOTIFY_FRAME_CONFIG_ENABLE_SET(flags2, value) \
+    WMI_SET_BITS(flags2, 14, 1, value)
+
+
 #define WMI_RSRC_CFG_HOST_SERVICE_FLAG_NAN_IFACE_SUPPORT_GET(host_service_flags) \
     WMI_GET_BITS(host_service_flags, 0, 1)
 #define WMI_RSRC_CFG_HOST_SERVICE_FLAG_NAN_IFACE_SUPPORT_SET(host_service_flags, val) \
@@ -34419,6 +34425,11 @@ typedef enum {
      *  Bit : 2-31  - reserved
      */
     WMI_ROAM_PARAM_ROAM_EVENTS_CONFIG = 0x1,
+    /*
+     * Bit : 0 if unset, POOR_LINKSPEED
+     * Bit : 0 if set, GOOD_LINKSPEED
+     */
+    WMI_ROAM_PARAM_LINKSPEED_STATE = 0x2,
     /*=== END ROAM_PARAM_PROTOTYPE SECTION ===*/
 } WMI_ROAM_PARAM;
 
@@ -36280,7 +36291,11 @@ typedef struct {
 #define WMI_EHTCAP_MAC_MAXMPDULEN_GET(eht_cap_mac) WMI_GET_BITS(eht_cap_mac[0], 6, 2)
 #define WMI_EHTCAP_MAC_MAXMPDULEN_SET(eht_cap_mac, value) WMI_SET_BITS(eht_cap_mac[0], 6, 2, value)
 
-/* Bit 8-15: reserved */
+/* Bit 8: Maximum A-MPDU Length Exponent Extension */
+#define WMI_EHTCAP_MAC_MAXAMPDULEN_EXP_GET(eht_cap_mac) WMI_GET_BITS(eht_cap_mac[0], 8, 1)
+#define WMI_EHTCAP_MAC_MAXAMPDULEN_EXP_SET(eht_cap_mac, value) WMI_SET_BITS(eht_cap_mac[0], 8, 1, value)
+
+/* Bit 9-15: reserved */
 
 /****** End of 11BE EHT MAC Capabilities Information field ******/
 
