@@ -199,8 +199,9 @@ struct plat_stmmacenet_data {
 	unsigned int (*get_plat_tx_coal_frames)
 		(struct sk_buff *skb);
 	bool early_eth;
-	struct emac_emb_smmu_cb_ctx stmmac_emb_smmu_ctx;
+	bool sph_disable;
 	bool phy_intr_en_extn_stm;
+	struct emac_emb_smmu_cb_ctx stmmac_emb_smmu_ctx;
 	int (*handle_prv_ioctl)(struct net_device *dev, struct ifreq *ifr,
 				int cmd);
 	void (*request_phy_wol)(void *plat);
