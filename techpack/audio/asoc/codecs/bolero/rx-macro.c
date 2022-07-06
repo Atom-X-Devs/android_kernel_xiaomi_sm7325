@@ -1857,10 +1857,6 @@ static int rx_macro_config_compander(struct snd_soc_component *component,
 					(comp * RX_MACRO_RX_PATH_OFFSET);
 	pcm_rate = (snd_soc_component_read32(component, rx0_path_ctl_reg)
 						& 0x0F);
-
-	dev_info(component->dev, "%s: pcm_rate %d\n",
-		__func__, pcm_rate);
-
 	if (pcm_rate < 0x06)
 		val = 0x03;
 	else if (pcm_rate < 0x08)

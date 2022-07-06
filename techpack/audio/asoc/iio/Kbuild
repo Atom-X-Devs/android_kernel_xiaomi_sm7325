@@ -1,6 +1,6 @@
 ifeq ($(MODNAME),)
     KERNEL_BUILD := 1
-    else
+else
     KERNEL_BUILD := 0
 endif
 
@@ -33,7 +33,6 @@ ifeq ($(KERNEL_BUILD), 0)
 endif
 
 # for miui sensorhal
-
 ifdef CONFIG_MIUS_IIO
     MIUS_IIO_OBJS += us_prox.o
     MIUS_IIO_OBJS += kefifo_buf.o

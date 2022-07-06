@@ -7403,15 +7403,15 @@ static int __q6asm_media_format_block_multi_ch_pcm_v5(struct audio_client *ac,
 	pr_debug("%s: chnl map %d, %d, %d, %d\n",  __func__,
 		channel_mapping[0], channel_mapping[1], channel_mapping[2], channel_mapping[3]);
 
-	if (fmt.param.num_channels==2) {
-		if (channel_mapping[0] == 0 || channel_mapping[1] ==0) {
+	if (fmt.param.num_channels == 2) {
+		if (channel_mapping[0] == 0 || channel_mapping[1] == 0) {
 			pr_err("%s: chnl map wrong %d, %d\n", __func__,
 				channel_mapping[0], channel_mapping[1]);
 			channel_mapping[0] = 1;
 			channel_mapping[1] = 2;
 		}
-	} else if (fmt.param.num_channels==1) {
-		if (channel_mapping[0] !=3){
+	} else if (fmt.param.num_channels == 1) {
+		if (channel_mapping[0] != 3) {
 			pr_err("%s: chnl map wrong %d", __func__, channel_mapping[0]);
 			channel_mapping[0] = 3;
 		}

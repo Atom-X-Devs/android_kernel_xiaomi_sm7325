@@ -1,4 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2021 XiaoMi, Inc.
+ * SPDX-License-Identifier: GPL-2.0
+ */
+
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -23,7 +27,8 @@ struct iio_kefifo {
 #define iio_to_kefifo(r) container_of(r, struct iio_kefifo, buffer)
 
 static inline int __iio_allocate_kefifo(struct iio_kefifo *buf,
-			size_t bytes_per_datum, unsigned int length)
+					size_t bytes_per_datum,
+					unsigned int length)
 {
 	if ((length == 0) || (bytes_per_datum == 0))
 		return -EINVAL;
@@ -48,12 +53,11 @@ static int iio_request_update_kefifo(struct iio_buffer *r)
 	if (buf->update_needed) {
 		kfifo_free(&buf->kf);
 		ret = __iio_allocate_kefifo(buf, buf->buffer.bytes_per_datum,
-				   buf->buffer.length);
+					    buf->buffer.length);
 		if (ret >= 0)
 			buf->update_needed = false;
-	} else {
+	} else
 		kfifo_reset_out(&buf->kf);
-	}
 	mutex_unlock(&buf->user_lock);
 
 	return ret;
@@ -62,7 +66,9 @@ static int iio_request_update_kefifo(struct iio_buffer *r)
 static int iio_mark_update_needed_kefifo(struct iio_buffer *r)
 {
 	struct iio_kefifo *kf = iio_to_kefifo(r);
+
 	kf->update_needed = true;
+
 	return 0;
 }
 
@@ -72,6 +78,7 @@ static int iio_set_bytes_per_datum_kefifo(struct iio_buffer *r, size_t bpd)
 		r->bytes_per_datum = bpd;
 		iio_mark_update_needed_kefifo(r);
 	}
+
 	return 0;
 }
 
@@ -87,19 +94,19 @@ static int iio_set_length_kefifo(struct iio_buffer *r, unsigned int length)
 	return 0;
 }
 
-static int iio_store_to_kefifo(struct iio_buffer *r,
-			      const void *data)
+static int iio_store_to_kefifo(struct iio_buffer *r, const void *data)
 {
 	int ret;
 	struct iio_kefifo *kf = iio_to_kefifo(r);
 	ret = kfifo_in(&kf->kf, data, 1);
 	if (ret != 1)
 		return -EBUSY;
+
 	return 0;
 }
 
-static int iio_read_first_n_kefifo(struct iio_buffer *r,
-			   size_t n, char __user *buf)
+static int iio_read_first_n_kefifo(struct iio_buffer *r, size_t n,
+				   char __user *buf)
 {
 	int ret, copied;
 	struct iio_kefifo *kf = iio_to_kefifo(r);
@@ -111,6 +118,7 @@ static int iio_read_first_n_kefifo(struct iio_buffer *r,
 		ret = -EINVAL;
 	else
 		ret = kfifo_to_user(&kf->kf, buf, n, &copied);
+
 	mutex_unlock(&kf->user_lock);
 	if (ret < 0)
 		return ret;
@@ -147,7 +155,6 @@ static const struct iio_buffer_access_funcs kefifo_access_funcs = {
 	.set_bytes_per_datum = &iio_set_bytes_per_datum_kefifo,
 	.set_length = &iio_set_length_kefifo,
 	.release = &iio_kefifo_buffer_release,
-
 	.modes = INDIO_BUFFER_SOFTWARE | INDIO_BUFFER_TRIGGERED,
 };
 
@@ -172,7 +179,5 @@ void iio_kefifo_free(struct iio_buffer *r)
 {
 	iio_buffer_put(r);
 }
-
-
 
 MODULE_LICENSE("GPL");

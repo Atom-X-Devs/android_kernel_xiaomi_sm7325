@@ -1,36 +1,6 @@
 &tlmm {
 	qcom,gpios-reserved = <32 33 48 49 50 51 56 57 57 59>;
 
-	sbu_uart_en_ctrl {
-		sbu_uart_en_idle: uart_audio_en_idle {
-			mux {
-				pins = "gpio9";
-				function = "gpio";
-			};
-
-			config {
-				pins = "gpio9";
-				drive-strength = <2>;
-				bias-pull-down;
-				output-low;
-			};
-		};
-
-		sbu_uart_en_active: uart_audio_en_active {
-			mux {
-				pins = "gpio9";
-				function = "gpio";
-			};
-
-			config {
-				pins = "gpio9";
-				drive-strength = <2>;
-				bias-disable;
-				output-high;
-			};
-		};
-	};
-
 	/* active state */
 	smartpa_enable_active: smartpa_enable_active {
 		/* GPIO 2 rst pin */

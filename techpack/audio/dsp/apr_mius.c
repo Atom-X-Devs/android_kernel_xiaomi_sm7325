@@ -1,20 +1,25 @@
-/**
- * Mi
+/*
+ * Copyright (C) 2021 XiaoMi, Inc.
+ * SPDX-License-Identifier: GPL-2.0
  */
 
+#include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
-#include <linux/jiffies.h>
+
 #include <sound/asound.h>
-#include <sound/soc.h>
 #include <sound/control.h>
-#include "../asoc/msm-pcm-routing-v2.h"
+#include <sound/soc.h>
+
 #include <dsp/q6audio-v2.h>
 #include <dsp/q6common.h>
 #include <dsp/apr_audio-v2.h>
 #include <dsp/apr_mius.h>
+
 #include <mius/mius_mixer_controls.h>
 #include <mius/mius_data_io.h>
+
+#include "../asoc/msm-pcm-routing-v2.h"
 
 #ifndef min
 #define min(a, b) (((a) < (b)) ? (a) : (b))
@@ -43,17 +48,15 @@ static int ups_event;
 extern int us_afe_callback(int data);
 #endif
 
-static int afe_set_parameter(int port,
-		int param_id,
-		int module_id,
-		struct afe_mi_ultrasound_set_params_t *prot_config,
-		uint32_t length)
+static int afe_set_parameter(int port, int param_id, int module_id,
+			     struct afe_mi_ultrasound_set_params_t *prot_config,
+			     uint32_t length)
 {
 	struct afe_port_cmd_set_param_v2 *set_param_v2 = NULL;
 	uint32_t set_param_v2_size = sizeof(struct afe_port_cmd_set_param_v2);
 	struct afe_port_cmd_set_param_v3 *set_param_v3 = NULL;
 	uint32_t set_param_v3_size = sizeof(struct afe_port_cmd_set_param_v3);
-	struct param_hdr_v3 param_hdr = {0};
+	struct param_hdr_v3 param_hdr = { 0 };
 	u16 port_id = 0;
 	int index = 0;
 	u8 *packed_param_data = NULL;
@@ -81,8 +84,8 @@ static int afe_set_parameter(int port,
 	if (packed_param_data == NULL)
 		return -ENOMEM;
 
-	ret = q6common_pack_pp_params(packed_param_data, &param_hdr, (u8 *)prot_config,
-				      &packed_data_size);
+	ret = q6common_pack_pp_params(packed_param_data, &param_hdr,
+				      (u8 *)prot_config, &packed_data_size);
 	if (ret) {
 		pr_err("%s: Failed to pack param header and data, error %d\n",
 		       __func__, ret);
@@ -98,10 +101,11 @@ static int afe_set_parameter(int port,
 		}
 
 		set_param_v3->apr_hdr.hdr_field =
-			APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD, APR_HDR_LEN(APR_HDR_SIZE),
-					APR_PKT_VER);
-		set_param_v3->apr_hdr.pkt_size = sizeof(struct afe_port_cmd_set_param_v3) +
-											packed_data_size;
+			APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
+				      APR_HDR_LEN(APR_HDR_SIZE), APR_PKT_VER);
+		set_param_v3->apr_hdr.pkt_size =
+			sizeof(struct afe_port_cmd_set_param_v3) +
+			packed_data_size;
 		set_param_v3->apr_hdr.src_port = 0;
 		set_param_v3->apr_hdr.dest_port = 0;
 		set_param_v3->apr_hdr.token = index;
@@ -109,12 +113,12 @@ static int afe_set_parameter(int port,
 		set_param_v3->port_id = port_id;
 		set_param_v3->payload_size = packed_data_size;
 		memcpy(&set_param_v3->param_data, packed_param_data,
-			       packed_data_size);
+		       packed_data_size);
 
 		mutex_lock(mius_afe.ptr_afe_apr_lock);
 		atomic_set(mius_afe.ptr_state, 1);
 		atomic_set(mius_afe.ptr_status, 0);
-		ret = apr_send_pkt(*mius_afe.ptr_apr, (uint32_t *) set_param_v3);
+		ret = apr_send_pkt(*mius_afe.ptr_apr, (uint32_t *)set_param_v3);
 	} else {
 		set_param_v2_size += packed_data_size;
 		set_param_v2 = kzalloc(set_param_v2_size, GFP_KERNEL);
@@ -124,10 +128,11 @@ static int afe_set_parameter(int port,
 		}
 
 		set_param_v2->apr_hdr.hdr_field =
-			APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD, APR_HDR_LEN(APR_HDR_SIZE),
-				      APR_PKT_VER);
-		set_param_v2->apr_hdr.pkt_size = sizeof(struct afe_port_cmd_set_param_v2) +
-											packed_data_size;
+			APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
+				      APR_HDR_LEN(APR_HDR_SIZE), APR_PKT_VER);
+		set_param_v2->apr_hdr.pkt_size =
+			sizeof(struct afe_port_cmd_set_param_v2) +
+			packed_data_size;
 		set_param_v2->apr_hdr.src_port = 0;
 		set_param_v2->apr_hdr.dest_port = 0;
 		set_param_v2->apr_hdr.token = index;
@@ -135,21 +140,21 @@ static int afe_set_parameter(int port,
 		set_param_v2->port_id = port_id;
 		set_param_v2->payload_size = packed_data_size;
 		memcpy(&set_param_v2->param_data, packed_param_data,
-			       packed_data_size);
+		       packed_data_size);
 
 		mutex_lock(mius_afe.ptr_afe_apr_lock);
 		atomic_set(mius_afe.ptr_state, 1);
 		atomic_set(mius_afe.ptr_status, 0);
-		ret = apr_send_pkt(*mius_afe.ptr_apr, (uint32_t *) set_param_v2);
+		ret = apr_send_pkt(*mius_afe.ptr_apr, (uint32_t *)set_param_v2);
 	}
 	if (ret < 0) {
 		pr_err("%s: Setting param for port %d param[0x%x]failed\n",
-			   __func__, port, param_id);
+		       __func__, port, param_id);
 		goto fail_cmd_lock;
 	}
 	ret = wait_event_timeout(mius_afe.ptr_wait[index],
-		(atomic_read(mius_afe.ptr_state) == 0),
-		msecs_to_jiffies(mius_afe.timeout_ms));
+				 (atomic_read(mius_afe.ptr_state) == 0),
+				 msecs_to_jiffies(mius_afe.timeout_ms));
 	if (!ret) {
 		pr_err("%s: wait_event timeout\n", __func__);
 		ret = -EINVAL;
@@ -172,9 +177,9 @@ fail_cmd:
 }
 
 int32_t mi_ultrasound_apr_set_parameter(int32_t port_id, uint32_t param_id,
-	u8 *user_params, int32_t length)
+					u8 *user_params, int32_t length)
 {
-	int32_t  ret = 0;
+	int32_t ret = 0;
 	uint32_t module_id;
 
 	if (port_id == MIUS_PORT_ID)
@@ -182,18 +187,18 @@ int32_t mi_ultrasound_apr_set_parameter(int32_t port_id, uint32_t param_id,
 	else
 		module_id = MIUS_ULTRASOUND_MODULE_RX;
 
-	if(param_id == MIUS_ULTRASOUND_UPLOAD_NONE) {
+	if (param_id == MIUS_ULTRASOUND_UPLOAD_NONE) {
 #ifdef CONFIG_QGKI_SYSTEM
 		ret = (int32_t)us_afe_callback((const uint32_t)ups_event);
-		pr_debug("[MIUS]: %s force reprot event %d ret %d\n", __func__, ups_event, ret);
+		pr_debug("[MIUS]: %s force reprot event %d ret %d\n", __func__,
+			 ups_event, ret);
 #endif
 		return ret;
 	}
 
-	ret = afe_set_parameter(port_id,
-		param_id, module_id,
-		(struct afe_mi_ultrasound_set_params_t *)user_params,
-		length);
+	ret = afe_set_parameter(
+		port_id, param_id, module_id,
+		(struct afe_mi_ultrasound_set_params_t *)user_params, length);
 
 	pr_debug("[MIUS]: %s param_id %x status %d\n", __func__, param_id, ret);
 
@@ -203,7 +208,7 @@ int32_t mi_ultrasound_apr_set_parameter(int32_t port_id, uint32_t param_id,
 int32_t mius_process_apr_payload(uint32_t *payload)
 {
 	uint32_t payload_size = 0;
-	int32_t  ret = -1;
+	int32_t ret = -1;
 
 	/* payload format
 	 *   payload[0] = Module ID
@@ -213,24 +218,24 @@ int32_t mius_process_apr_payload(uint32_t *payload)
 	 *   payload[3] = US data payload starts from here
 	 */
 	payload_size = payload[2] & 0xFFFF;
-		if (payload[3] == 0 || payload[3] == 1) {
-			ups_event = payload[3];
+	if (payload[3] == 0 || payload[3] == 1) {
+		ups_event = payload[3];
 #ifdef CONFIG_QGKI_SYSTEM
-			ret = (int32_t)us_afe_callback((const uint32_t)payload[3]);
+		ret = (int32_t)us_afe_callback((const uint32_t)payload[3]);
 #endif
-		} else {
-			ups_event = ups_event ^ 1;
+	} else {
+		ups_event = ups_event ^ 1;
 #ifdef CONFIG_QGKI_SYSTEM
-			ret = (int32_t)us_afe_callback((uint32_t)ups_event);
+		ret = (int32_t)us_afe_callback((uint32_t)ups_event);
 #endif
-		}
+	}
 
-		if (ret != 0) {
-			pr_err("[MIUS] : failed to push apr payload to mius device");
-			return ret;
-		}
+	if (ret != 0) {
+		pr_err("[MIUS] : failed to push apr payload to mius device");
+		return ret;
+	}
 
-		ret = payload_size;
+	ret = payload_size;
 
 	return ret;
 }
@@ -257,10 +262,9 @@ int mius_set_hall_state(int state)
 		return ret;
 	}
 
-	ret = afe_set_parameter(MIUS_PORT_ID,
-		2, MIUS_ULTRASOUND_MODULE_TX,
-		(struct afe_mi_ultrasound_set_params_t *)&dse,
-		sizeof(dse));
+	ret = afe_set_parameter(MIUS_PORT_ID, 2, MIUS_ULTRASOUND_MODULE_TX,
+				(struct afe_mi_ultrasound_set_params_t *)&dse,
+				sizeof(dse));
 	return ret;
 }
 EXPORT_SYMBOL(mius_set_hall_state);

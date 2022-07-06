@@ -1,15 +1,6 @@
 /*
- * Copyright (C) 2018 XiaoMi, Inc.
  * Copyright (C) 2021 XiaoMi, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <linux/device.h>
@@ -30,49 +21,43 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of_irq.h>
-#include <../../../arch/mips/include/asm/bootinfo.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#define US_PROX_IIO_NAME		"distance"
 
 extern void iio_device_unregister(struct iio_dev *indio_dev);
 extern void iio_device_free(struct iio_dev *dev);
-extern int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod);
+extern int __iio_device_register(struct iio_dev *indio_dev,
+				 struct module *this_mod);
 extern struct iio_dev *iio_device_alloc(int sizeof_priv);
 struct iio_buffer *iio_kefifo_allocate(void);
 void iio_kefifo_free(struct iio_buffer *r);
-struct iio_poll_func
-*iio_alloc_pollfunc(irqreturn_t (*h)(int irq, void *p),
-        irqreturn_t (*thread)(int irq, void *p),
-        int type,
-        struct iio_dev *indio_dev,
-        const char *fmt,
-        ...);
+struct iio_poll_func *iio_alloc_pollfunc(irqreturn_t (*h)(int irq, void *p),
+			irqreturn_t (*thread)(int irq, void *p), int type,
+			struct iio_dev *indio_dev, const char *fmt, ...);
 int iio_trigger_buffer_setup(struct iio_dev *indio_dev,
-        irqreturn_t (*h)(int irq, void *p),
-        irqreturn_t (*thread)(int irq, void *p),
-        const struct iio_buffer_setup_ops *setup_ops);
+			irqreturn_t (*h)(int irq, void *p),
+			irqreturn_t (*thread)(int irq, void *p),
+			const struct iio_buffer_setup_ops *setup_ops);
 void iio_trigger_buffer_cleanup(struct iio_dev *indio_dev);
 int iio_triggered_buffer_postenable(struct iio_dev *indio_dev);
 int iio_triggered_buffer_predisable(struct iio_dev *indio_dev);
 void iio_dealloc_pollfunc(struct iio_poll_func *pf);
 
-
 static const struct iio_buffer_setup_ops iio_trigger_buffer_setup_ops = {
-    .postenable = &iio_triggered_buffer_postenable,
-    .predisable = &iio_triggered_buffer_predisable,
+	.postenable = &iio_triggered_buffer_postenable,
+	.predisable = &iio_triggered_buffer_predisable,
 };
 
 static struct us_prox_data *g_us_prox;
 
 struct us_prox_data {
-	struct platform_device	*pdev;
+	struct platform_device *pdev;
 	/* common state */
-	struct mutex		mutex;
+	struct mutex mutex;
 	/* for proximity sensor */
-	struct iio_dev		*prox_idev;
-	bool			prox_enabled;
-	int				raw_data;
+	struct iio_dev *prox_idev;
+	bool prox_enabled;
+	int raw_data;
 };
 
 struct us_prox_el_data {
@@ -81,41 +66,34 @@ struct us_prox_el_data {
 	int64_t timestamp;
 };
 
-#define US_SENSORS_CHANNELS(device_type, mask, index, mod, \
-					ch2, s, endian, rbits, sbits, addr) \
-{ \
-	.type = device_type, \
-	.modified = mod, \
-	.info_mask_separate = mask, \
-	.scan_index = index, \
-	.channel2 = ch2, \
-	.address = addr, \
-	.scan_type = { \
-		.sign = s, \
-		.realbits = rbits, \
-		.shift = sbits - rbits, \
-		.storagebits = sbits, \
-		.endianness = endian, \
-	}, \
-}
-
 static const struct iio_chan_spec us_proximity_channels[] = {
-	US_SENSORS_CHANNELS(IIO_PROXIMITY,
-		BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SAMP_FREQ),
-		0, 0, IIO_NO_MOD, 'u', IIO_LE, 16, 16, 0),
+	{
+		.type = IIO_PROXIMITY,
+		.modified = 0,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				      BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		.scan_index = 0,
+		.channel2 = IIO_NO_MOD,
+		.address = 0,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 16,
+			.shift = 16 - 16,
+			.storagebits = 16,
+			.endianness = IIO_LE,
+		},
+	},
 	IIO_CHAN_SOFT_TIMESTAMP(2)
 };
 
 static int us_buffer_postenable(struct iio_dev *indio_dev)
 {
-	int ret = 0;
-	return ret;
+	return 0;
 }
 
 static int us_buffer_predisable(struct iio_dev *indio_dev)
 {
-	int ret = 0;
-	return ret;
+	return 0;
 }
 
 static const struct iio_buffer_setup_ops us_buffer_setup_ops = {
@@ -123,9 +101,7 @@ static const struct iio_buffer_setup_ops us_buffer_setup_ops = {
 	.predisable = us_buffer_predisable,
 };
 
-static const struct iio_trigger_ops us_sensor_trigger_ops = {
-	//.owner = THIS_MODULE,
-};
+static const struct iio_trigger_ops us_sensor_trigger_ops = { };
 
 int us_setup_trigger_sensor(struct iio_dev *indio_dev)
 {
@@ -166,18 +142,19 @@ int us_afe_callback(int data)
 		el_data.data1 = 5;
 
 	if (g_us_prox) {
-		ret = iio_push_to_buffers(g_us_prox->prox_idev, (unsigned char *)&el_data);
+		ret = iio_push_to_buffers(g_us_prox->prox_idev,
+					  (unsigned char *)&el_data);
 		if (ret < 0)
-			pr_err("%s: failed to push us prox data to buffer, err=%d\n", __func__, ret);
+			pr_err("%s: failed to push us prox data to buffer, err=%d\n",
+			       __func__, ret);
 	}
 
 	return 0;
 }
-
 EXPORT_SYMBOL(us_afe_callback);
 
 static ssize_t us_show_dump_output(struct device *dev,
-				struct device_attribute *attr, char *buf)
+				   struct device_attribute *attr, char *buf)
 {
 	struct us_prox_data *data;
 	unsigned long value;
@@ -192,14 +169,14 @@ static ssize_t us_show_dump_output(struct device *dev,
 }
 
 static ssize_t us_store_dump_output(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
+				    struct device_attribute *attr,
+				    const char *buf, size_t size)
 {
 	return 0;
 }
 
-static DEVICE_ATTR(dump_output, S_IWUSR | S_IRUGO,
-		us_show_dump_output, us_store_dump_output);
-
+static DEVICE_ATTR(dump_output, S_IWUSR | S_IRUGO, us_show_dump_output,
+		   us_store_dump_output);
 
 static struct attribute *us_prox_attributes[] = {
 	&dev_attr_dump_output.attr,
@@ -211,55 +188,50 @@ static struct attribute_group us_prox_attribute_group = {
 };
 
 static const struct iio_info us_proximity_info = {
-	//.driver_module = THIS_MODULE,
 	.attrs = &us_prox_attribute_group,
 };
 
 int iio_trigger_buffer_setup(struct iio_dev *indio_dev,
-        irqreturn_t (*h)(int irq, void *p),
-        irqreturn_t (*thread)(int irq, void *p),
-        const struct iio_buffer_setup_ops *setup_ops)
+			     irqreturn_t (*h)(int irq, void *p),
+			     irqreturn_t (*thread)(int irq, void *p),
+			     const struct iio_buffer_setup_ops *setup_ops)
 {
-    struct iio_buffer *buffer;
-    int ret;
+	struct iio_buffer *buffer;
+	int ret;
 
-    buffer = iio_kefifo_allocate();
-    if (!buffer) {
-        ret = -ENOMEM;
-        goto error_ret;
-    }
+	buffer = iio_kefifo_allocate();
+	if (!buffer) {
+		ret = -ENOMEM;
+		goto error_ret;
+	}
 
-    iio_device_attach_buffer(indio_dev, buffer);
+	iio_device_attach_buffer(indio_dev, buffer);
 
-    indio_dev->pollfunc = iio_alloc_pollfunc(h,
-            thread,
-            IRQF_ONESHOT,
-            indio_dev,
-            "%s_consumer%d",
-            indio_dev->name,
-            indio_dev->id);
-    if (indio_dev->pollfunc == NULL) {
-        ret = -ENOMEM;
-        goto error_kfifo_free;
-    }
+	indio_dev->pollfunc =
+		iio_alloc_pollfunc(h, thread, IRQF_ONESHOT, indio_dev,
+				   "%s_consumer%d", indio_dev->name,
+				   indio_dev->id);
+	if (indio_dev->pollfunc == NULL) {
+		ret = -ENOMEM;
+		goto error_kfifo_free;
+	}
 
-    /* Ring buffer functions - here trigger setup related */
-    if (setup_ops)
-        indio_dev->setup_ops = setup_ops;
-    else
-        indio_dev->setup_ops = &iio_trigger_buffer_setup_ops;
+	/* Ring buffer functions - here trigger setup related */
+	if (setup_ops)
+		indio_dev->setup_ops = setup_ops;
+	else
+		indio_dev->setup_ops = &iio_trigger_buffer_setup_ops;
 
-    /* Flag that polled ring buffering is possible */
-    indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
+	/* Flag that polled ring buffering is possible */
+	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 
-    return 0;
+	return 0;
 
 error_kfifo_free:
-    iio_kefifo_free(indio_dev->buffer);
+	iio_kefifo_free(indio_dev->buffer);
 error_ret:
-    return ret;
+	return ret;
 }
-
 
 static int us_proximity_iio_setup(struct us_prox_data *data)
 {
@@ -279,13 +251,12 @@ static int us_proximity_iio_setup(struct us_prox_data *data)
 	idev->num_channels = ARRAY_SIZE(us_proximity_channels);
 	idev->dev.parent = &(data->pdev->dev);
 	idev->info = &us_proximity_info;
-	idev->name = US_PROX_IIO_NAME;
+	idev->name = "distance";
 	idev->modes = INDIO_DIRECT_MODE;
 
 	priv_data = iio_priv(idev);
 	*priv_data = data;
-	ret = iio_trigger_buffer_setup(idev, NULL, NULL,
-					&us_buffer_setup_ops);
+	ret = iio_trigger_buffer_setup(idev, NULL, NULL, &us_buffer_setup_ops);
 	if (ret < 0)
 		goto free_iio_p;
 
@@ -311,11 +282,10 @@ free_iio_p:
 	return ret;
 }
 
-
 void iio_trigger_buffer_cleanup(struct iio_dev *indio_dev)
 {
-    iio_dealloc_pollfunc(indio_dev->pollfunc);
-    iio_kefifo_free(indio_dev->buffer);
+	iio_dealloc_pollfunc(indio_dev->pollfunc);
+	iio_kefifo_free(indio_dev->buffer);
 }
 
 static int us_proximity_teardown(struct us_prox_data *data)
@@ -334,15 +304,12 @@ static int us_prox_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct us_prox_data *us_prox;
 
-	pr_info("%s: start\n", __func__);
-
 	us_prox = kzalloc(sizeof(*us_prox), GFP_KERNEL);
 	if (!us_prox)
 		return -ENOMEM;
 
 	us_prox->pdev = pdev;
 	dev_set_drvdata(&pdev->dev, us_prox);
-
 	g_us_prox = us_prox;
 
 	mutex_init(&us_prox->mutex);
@@ -352,7 +319,8 @@ static int us_prox_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pr_info("%s: end\n", __func__);
+	pr_info("%s: completed\n", __func__);
+
 	return ret;
 }
 
@@ -372,17 +340,11 @@ static int us_prox_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id dt_match[] = {
-	{ .compatible = "us_prox" },
-	{}
-};
-
 static struct platform_driver us_prox_driver = {
 	.probe		= us_prox_probe,
 	.remove		= us_prox_remove,
 	.driver		= {
 		.name		= "us_prox",
-		.of_match_table	= dt_match,
 	},
 };
 

@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2021 XiaoMi, Inc.
+ * SPDX-License-Identifier: GPL-2.0
+ */
+
 #ifndef MIUS_VERSION_H
 #define MIUS_VERSION_H
 

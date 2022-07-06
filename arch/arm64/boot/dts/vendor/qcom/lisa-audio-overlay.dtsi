@@ -50,7 +50,6 @@
 	qcom,swr-dmic-max-devs = <0>;
 	qcom,pri-mi2s-gpios = <&cdc_pri_tdm_gpios>;
 	qcom,msm-mbhc-usbc-audio-supported = <1>;
-	qcom,uart-audio-sw-gpio = <&sbu_uart_en>;
 	asoc-codec = <&stub_codec>, <&bolero>,
 				 <&wcd938x_codec>, <&swr_haptics>,
 				 <&wsa883x_0222>, <&ext_disp_audio_codec>;
@@ -127,17 +126,6 @@
 };
 
 &wsa_macro {
-	compatible = "qcom,wsa-macro";
 	status = "disabled";
 };
 
-&soc {
-	sbu_uart_en: msm_cdc_pinctrl@9 {
-		#gpio-cells = <0>;
-
-		compatible = "qcom,msm-cdc-pinctrl";
-		pinctrl-names = "aud_active", "aud_sleep";
-		pinctrl-0 = <&sbu_uart_en_active>;
-		pinctrl-1 = <&sbu_uart_en_idle>;
-	};
-};

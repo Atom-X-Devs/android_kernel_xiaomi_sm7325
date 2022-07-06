@@ -1,15 +1,22 @@
-#include <linux/kobject.h>
-#include <linux/sysfs.h>
+/*
+ * Copyright (C) 2021 XiaoMi, Inc.
+ * SPDX-License-Identifier: GPL-2.0
+ */
+
 #include <linux/device.h>
-#include <linux/uaccess.h>
+#include <linux/kobject.h>
 #include <linux/module.h>
+#include <linux/sysfs.h>
+#include <linux/uaccess.h>
+
 #include <mius/mius_device.h>
-#include <mius/mius_sysfs.h>
-#include "mius_version.h"
 #include <mius/mius_mixer_controls.h>
+#include <mius/mius_sysfs.h>
+
+#include "mius_version.h"
 
 #define MIUS_DIAGNOSTICS_DATA_SECTION_COUNT 16
-#define MIUS_CALIBRATION_MAX_DISPLAY_COUNT  96
+#define MIUS_CALIBRATION_MAX_DISPLAY_COUNT 96
 #define MIUS_ML_DISPLAY_COUNT 16
 
 static int kobject_create_and_add_failed;
@@ -19,9 +26,9 @@ extern struct mius_system_configuration_parameters_cache
 	mius_system_configuration_cache;
 
 static ssize_t calibration_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+				 struct device_attribute *attr, const char *buf,
+				 size_t count)
 {
-
 	ssize_t result;
 
 	struct mius_shared_data_block *calibration_obj =
@@ -43,9 +50,9 @@ static ssize_t calibration_store(struct device *dev,
 }
 
 static ssize_t calibration_v2_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
 {
-
 	ssize_t result;
 
 	struct mius_shared_data_block *calibration_obj =
@@ -67,9 +74,9 @@ static ssize_t calibration_v2_store(struct device *dev,
 }
 
 static ssize_t diagnostics_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+				 struct device_attribute *attr, const char *buf,
+				 size_t count)
 {
-
 	ssize_t result;
 
 	struct mius_shared_data_block *diagnostics_obj =
@@ -90,10 +97,9 @@ static ssize_t diagnostics_store(struct device *dev,
 	return result;
 }
 
-static ssize_t ml_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t ml_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
 {
-
 	ssize_t result;
 
 	struct mius_shared_data_block *ml_obj =
@@ -115,7 +121,8 @@ static ssize_t ml_store(struct device *dev,
 }
 
 static ssize_t calibration_show_core(struct device *dev,
-	struct device_attribute *attr, char *buf, int pretty)
+				     struct device_attribute *attr, char *buf,
+				     int pretty)
 {
 	ssize_t result;
 	int length;
@@ -144,21 +151,21 @@ static ssize_t calibration_show_core(struct device *dev,
 	caldata = (uint8_t *)calibration_obj->buffer;
 	length = 0;
 	if (pretty) {
-		if (caldata[0] == 0xDE &&
-			caldata[1] == 0xAD) {
+		if (caldata[0] == 0xDE && caldata[1] == 0xAD) {
 			length += snprintf(buf + length, PAGE_SIZE - length,
-								"Calibration Data: not loaded");
+					   "Calibration Data: not loaded");
 		} else {
 			length += snprintf(buf + length, PAGE_SIZE - length,
-								"Calibration Data: ");
+					   "Calibration Data: ");
 			for (i = 0; i < calibration_obj->size; ++i)
-				length += snprintf(buf + length, PAGE_SIZE - length,
-								"0x%02x ", caldata[i]);
+				length += snprintf(buf + length,
+						   PAGE_SIZE - length,
+						   "0x%02x ", caldata[i]);
 		}
 	} else {
 		for (i = 0; i < calibration_obj->size; ++i)
 			length += snprintf(buf + length, PAGE_SIZE - length,
-								"0x%02x ", caldata[i]);
+					   "0x%02x ", caldata[i]);
 	}
 	length += snprintf(buf + length, PAGE_SIZE - length, "\n\n");
 	result = (ssize_t)length;
@@ -166,13 +173,14 @@ static ssize_t calibration_show_core(struct device *dev,
 }
 
 static ssize_t calibration_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				struct device_attribute *attr, char *buf)
 {
 	return calibration_show_core(dev, attr, buf, 0);
 }
 
 static ssize_t calibration_v2_show_core(struct device *dev,
-	struct device_attribute *attr, char *buf, int pretty)
+					struct device_attribute *attr,
+					char *buf, int pretty)
 {
 	ssize_t result;
 	int length;
@@ -201,31 +209,32 @@ static ssize_t calibration_v2_show_core(struct device *dev,
 	caldata = (uint8_t *)calibration_obj->buffer;
 	length = 0;
 	if (pretty) {
-		if (caldata[0] == 0xDE &&
-			caldata[1] == 0xAD) {
+		if (caldata[0] == 0xDE && caldata[1] == 0xAD) {
 			length += snprintf(buf + length, PAGE_SIZE - length,
-								"Calibration Ext Data: not loaded");
+					   "Calibration Ext Data: not loaded");
 		} else {
-			int j = (MIUS_CALIBRATION_V2_DATA_SIZE>>2) - 1;
+			int j = (MIUS_CALIBRATION_V2_DATA_SIZE >> 2) - 1;
 
 			length += snprintf(buf + length, PAGE_SIZE - length,
-								"Calibration Ext Data: ");
+					   "Calibration Ext Data: ");
 			for (i = 0; i < MIUS_CALIBRATION_MAX_DISPLAY_COUNT; ++i)
-				length += snprintf(buf + length, PAGE_SIZE - length,
-								"0x%02x ", caldata[i]);
+				length += snprintf(buf + length,
+						   PAGE_SIZE - length,
+						   "0x%02x ", caldata[i]);
 			length += snprintf(buf + length, PAGE_SIZE - length,
-								"\nTruncated at %d",
-								MIUS_CALIBRATION_MAX_DISPLAY_COUNT);
+					   "\nTruncated at %d",
+					   MIUS_CALIBRATION_MAX_DISPLAY_COUNT);
 			length += snprintf(buf + length, PAGE_SIZE - length,
-						"\nmisc: %u %u %u %u %u %u %u %u\n",
-						caldata[j-7], caldata[j-6], caldata[j-5],
-						caldata[j-4], caldata[j-3], caldata[j-2],
-						caldata[j-1], caldata[j]);
+					   "\nmisc: %u %u %u %u %u %u %u %u\n",
+					   caldata[j - 7], caldata[j - 6],
+					   caldata[j - 5], caldata[j - 4],
+					   caldata[j - 3], caldata[j - 2],
+					   caldata[j - 1], caldata[j]);
 		}
 	} else {
 		for (i = 0; i < calibration_obj->size; ++i)
 			length += snprintf(buf + length, PAGE_SIZE - length,
-								"0x%02x ", caldata[i]);
+					   "0x%02x ", caldata[i]);
 	}
 	length += snprintf(buf + length, PAGE_SIZE - length, "\n\n");
 	result = (ssize_t)length;
@@ -233,13 +242,14 @@ static ssize_t calibration_v2_show_core(struct device *dev,
 }
 
 static ssize_t calibration_v2_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				   struct device_attribute *attr, char *buf)
 {
 	return calibration_v2_show_core(dev, attr, buf, 0);
 }
 
 static ssize_t diagnostics_show_core(struct device *dev,
-	struct device_attribute *attr, char *buf, int pretty)
+				     struct device_attribute *attr, char *buf,
+				     int pretty)
 {
 	ssize_t result;
 	int length;
@@ -270,14 +280,18 @@ static ssize_t diagnostics_show_core(struct device *dev,
 
 	if (pretty) {
 		length += snprintf(buf + length, PAGE_SIZE - length,
-							"Diagnostics:\n  counters:\n");
+				   "Diagnostics:\n  counters:\n");
 		for (i = 0; i < MIUS_DIAGNOSTICS_DATA_SECTION_COUNT; i++)
-			length += snprintf(buf + length, PAGE_SIZE - length, "   %u %u %u %u\n",
-				data32[4*i], data32[4*i+1], data32[4*i+2], data32[4*i+3]);
+			length += snprintf(buf + length, PAGE_SIZE - length,
+					   "   %u %u %u %u\n", data32[4 * i],
+					   data32[4 * i + 1], data32[4 * i + 2],
+					   data32[4 * i + 3]);
 	} else {
 		for (i = 0; i < (diagnostics_obj->size >> 4); ++i)
-			length += snprintf(buf + length, PAGE_SIZE - length, "   %u %u %u %u\n",
-				data32[4*i], data32[4*i+1], data32[4*i+2], data32[4*i+3]);
+			length += snprintf(buf + length, PAGE_SIZE - length,
+					   "   %u %u %u %u\n", data32[4 * i],
+					   data32[4 * i + 1], data32[4 * i + 2],
+					   data32[4 * i + 3]);
 	}
 	length += snprintf(buf + length, PAGE_SIZE - length, "\n\n");
 	result = (ssize_t)length;
@@ -285,13 +299,13 @@ static ssize_t diagnostics_show_core(struct device *dev,
 }
 
 static ssize_t diagnostics_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				struct device_attribute *attr, char *buf)
 {
 	return diagnostics_show_core(dev, attr, buf, 0);
 }
 
-static ssize_t ml_show_core(struct device *dev,
-	struct device_attribute *attr, char *buf, int pretty)
+static ssize_t ml_show_core(struct device *dev, struct device_attribute *attr,
+			    char *buf, int pretty)
 {
 	ssize_t result;
 	int length;
@@ -320,41 +334,41 @@ static ssize_t ml_show_core(struct device *dev,
 	mldata = (uint32_t *)ml_obj->buffer;
 	length = 0;
 	if (pretty) {
-		if (mldata[0] == 0x0 &&
-			mldata[1] == 0x0) {
+		if (mldata[0] == 0x0 && mldata[1] == 0x0) {
 			length += snprintf(buf + length, PAGE_SIZE - length,
-								"ML Data: not loaded");
+					   "ML Data: not loaded");
 		} else {
 			length += snprintf(buf + length, PAGE_SIZE - length,
-								"ML Data: ");
+					   "ML Data: ");
 			for (i = 0; i < MIUS_ML_DISPLAY_COUNT; ++i)
-				length += snprintf(buf + length, PAGE_SIZE - length,
-								"0x%08x ", mldata[i]);
+				length += snprintf(buf + length,
+						   PAGE_SIZE - length,
+						   "0x%08x ", mldata[i]);
 			length += snprintf(buf + length, PAGE_SIZE - length,
-								"\nTruncated at %d",
-								MIUS_ML_DISPLAY_COUNT);
+					   "\nTruncated at %d",
+					   MIUS_ML_DISPLAY_COUNT);
 		}
 	} else {
-		int values =  ml_obj->size >> 2;
+		int values = ml_obj->size >> 2;
 
 		for (i = 0; i < values; ++i)
 			length += snprintf(buf + length, PAGE_SIZE - length,
-								"0x%08x ", mldata[i]);
+					   "0x%08x ", mldata[i]);
 	}
 	length += snprintf(buf + length, PAGE_SIZE - length, "\n\n");
 	result = (ssize_t)length;
 	return result;
 }
 
-static ssize_t ml_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t ml_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
 {
 	return ml_show_core(dev, attr, buf, 0);
 }
 
-
 static ssize_t version_show_core(struct device *dev,
-	struct device_attribute *attr, char *buf, int pretty)
+				 struct device_attribute *attr, char *buf,
+				 int pretty)
 {
 	ssize_t result;
 	struct mius_engine_version_info *version_info;
@@ -379,36 +393,36 @@ static ssize_t version_show_core(struct device *dev,
 		return -EINVAL;
 	}
 
-	version_info = (struct mius_engine_version_info *)
-		version_obj->buffer;
+	version_info = (struct mius_engine_version_info *)version_obj->buffer;
 
 	if (pretty) {
 		if (version_info->major == 0xDE &&
-			version_info->minor == 0xAD) {
+		    version_info->minor == 0xAD) {
 			length = snprintf(buf, PAGE_SIZE, "Version: unknown\n");
 		} else {
-			length = snprintf(buf, PAGE_SIZE, "Version: %d.%d.%d.%d\n",
+			length = snprintf(
+				buf, PAGE_SIZE, "Version: %d.%d.%d.%d\n",
 				version_info->major, version_info->minor,
 				version_info->build, version_info->revision);
 		}
 	} else {
 		length = snprintf(buf, PAGE_SIZE, "%d.%d.%d.%d\n",
-			version_info->major, version_info->minor,
-			version_info->build, version_info->revision);
+				  version_info->major, version_info->minor,
+				  version_info->build, version_info->revision);
 	}
 	result = (ssize_t)length;
 	return result;
 }
 
-static ssize_t version_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t version_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	return version_show_core(dev, attr, buf, 0);
 }
 
-
 static ssize_t branch_show_core(struct device *dev,
-	struct device_attribute *attr, char *buf, int pretty)
+				struct device_attribute *attr, char *buf,
+				int pretty)
 {
 	int length;
 
@@ -426,23 +440,23 @@ static ssize_t branch_show_core(struct device *dev,
 	}
 	if (pretty) {
 		length = snprintf(buf, PAGE_SIZE - 1, "Branch: %s\n",
-			(const char *)(branch_obj->buffer));
+				  (const char *)(branch_obj->buffer));
 	} else {
 		length = snprintf(buf, PAGE_SIZE - 1, "%s\n",
-			(const char *)(branch_obj->buffer));
+				  (const char *)(branch_obj->buffer));
 	}
 
 	return (ssize_t)length;
 }
 
-static ssize_t branch_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t branch_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	return branch_show_core(dev, attr, buf, 0);
 }
 
-static ssize_t tag_show_core(struct device *dev,
-	struct device_attribute *attr, char *buf, int pretty)
+static ssize_t tag_show_core(struct device *dev, struct device_attribute *attr,
+			     char *buf, int pretty)
 {
 	int length;
 
@@ -460,17 +474,17 @@ static ssize_t tag_show_core(struct device *dev,
 	}
 	if (pretty) {
 		length = snprintf(buf, PAGE_SIZE - 1, "Tag: %s\n",
-			(const char *)(tag_obj->buffer));
+				  (const char *)(tag_obj->buffer));
 	} else {
 		length = snprintf(buf, PAGE_SIZE - 1, "%s\n",
-			(const char *)(tag_obj->buffer));
+				  (const char *)(tag_obj->buffer));
 	}
 
 	return (ssize_t)length;
 }
 
-static ssize_t tag_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t tag_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	return tag_show_core(dev, attr, buf, 0);
 }
@@ -478,56 +492,56 @@ static ssize_t tag_show(struct device *dev,
 static ssize_t cache_show(char *buf, int pretty)
 {
 	struct mius_system_configuration_parameters_cache *cache =
-				&mius_system_configuration_cache;
+		&mius_system_configuration_cache;
 
 	int length;
 
 	length = snprintf(buf, PAGE_SIZE - 1, "Cache:\n");
 	length += snprintf(buf + length, PAGE_SIZE - 1, "    mi:%d\n",
-						cache->microphone_index);
+			   cache->microphone_index);
 	length += snprintf(buf + length, PAGE_SIZE - 1, "    om:%d\n",
-						cache->operation_mode);
+			   cache->operation_mode);
 	length += snprintf(buf + length, PAGE_SIZE - 1, "   omf:%d\n",
-						cache->operation_mode_flags);
+			   cache->operation_mode_flags);
 	length += snprintf(buf + length, PAGE_SIZE - 1, "    cs:%d\n",
-						cache->calibration_state);
+			   cache->calibration_state);
 	length += snprintf(buf + length, PAGE_SIZE - 1, "    cp:%d\n",
-						cache->calibration_profile);
+			   cache->calibration_profile);
 	length += snprintf(buf + length, PAGE_SIZE - 1, "    ug:%d\n",
-						cache->ultrasound_gain);
+			   cache->ultrasound_gain);
 	length += snprintf(buf + length, PAGE_SIZE - 1, "    ll:%d\n",
-						cache->log_level);
+			   cache->log_level);
 	length += snprintf(buf + length, PAGE_SIZE - 1, "    es:%d\n",
-						cache->engine_suspend);
+			   cache->engine_suspend);
 
 	return (ssize_t)length;
 }
 
-static ssize_t opmode_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t opmode_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	int length = 0;
 	ssize_t result;
 
 	struct mius_system_configuration_parameters_cache *cache =
-				&mius_system_configuration_cache;
+		&mius_system_configuration_cache;
 
 	length += snprintf(buf + length, PAGE_SIZE - 1, "%d\n",
-							cache->operation_mode);
+			   cache->operation_mode);
 	result = (ssize_t)length;
 	return result;
 }
 
 static ssize_t opmode_flags_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				 struct device_attribute *attr, char *buf)
 {
 	int length = 0;
 	ssize_t result;
 	struct mius_system_configuration_parameters_cache *cache =
-				&mius_system_configuration_cache;
+		&mius_system_configuration_cache;
 
 	length += snprintf(buf + length, PAGE_SIZE - 1, "%d\n",
-							cache->operation_mode_flags);
+			   cache->operation_mode_flags);
 	result = (ssize_t)length;
 	return result;
 }
@@ -537,13 +551,13 @@ static ssize_t driver_version_show(char *buf)
 	int length = 0;
 
 	length = snprintf(buf, PAGE_SIZE, "Driver version: %s-%s (%s)\n",
-				build_name, build_number, build_source_version);
+			  build_name, build_number, build_source_version);
 
 	return (ssize_t)length;
 }
 
-static ssize_t state_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t state_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	int length = 0;
 
@@ -601,7 +615,7 @@ static struct attribute *mius_attrs[] = {
 };
 
 static struct attribute_group mius_attr_group = {
-	.name = MIUS_SYSFS_ENGINE_FOLDER,
+	.name = "engine",
 	.attrs = mius_attrs,
 };
 
@@ -611,9 +625,7 @@ int mius_initialize_sysfs(void)
 {
 	int err;
 
-	mius_sysfs_kobj = kobject_create_and_add(MIUS_SYSFS_ROOT_FOLDER,
-		kernel_kobj->parent);
-
+	mius_sysfs_kobj = kobject_create_and_add("mius", kernel_kobj->parent);
 	if (!mius_sysfs_kobj) {
 		kobject_create_and_add_failed = 1;
 		MI_PRINT_E("failed to create kobj");
@@ -621,7 +633,6 @@ int mius_initialize_sysfs(void)
 	}
 
 	err = sysfs_create_group(mius_sysfs_kobj, &mius_attr_group);
-
 	if (err) {
 		sysfs_create_group_failed = 1;
 		MI_PRINT_E("failed to create sysfs group");

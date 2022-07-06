@@ -2596,8 +2596,7 @@ int adm_set_device_model(int device_model)
 						0xFFFFFFFF, &this_adm);
 		if (this_adm.apr == NULL) {
 			pr_err("%s: Unable to register ADM\n", __func__);
-			ret = -ENODEV;
-			return ret;
+			return -ENODEV;
 		}
 		rtac_set_adm_handle(this_adm.apr);
 	}
@@ -2613,13 +2612,12 @@ int adm_set_device_model(int device_model)
 	cmd.hdr.dest_port = 0; /* Ignored */
 	cmd.hdr.token = 0;
 	cmd.hdr.opcode = ADM_CMD_SET_DEVICE_MODEL;
-
 	cmd.model = device_model;
 
 	ret = apr_send_pkt(this_adm.apr, (uint32_t *)&cmd);
 	if (ret < 0) {
 		pr_err("%s: send device model: 0x%x failed ret %d\n",
-					__func__, device_model, ret);
+				__func__, device_model, ret);
 		ret = -EINVAL;
 		goto fail_cmd;
 	}
@@ -4234,8 +4232,7 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 					continue;
 				pr_err("%s: usb_copp_id = %d\n", __func__, usb_copp_id);
 				usb_close.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
-								APR_HDR_LEN(APR_HDR_SIZE),
-								APR_PKT_VER);
+							APR_HDR_LEN(APR_HDR_SIZE), APR_PKT_VER);
 				usb_close.pkt_size = sizeof(usb_close);
 				usb_close.src_svc = APR_SVC_ADM;
 				usb_close.src_domain = APR_DOMAIN_APPS;
@@ -4258,17 +4255,16 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 				clear_bit(ADM_STATUS_CALIBRATION_REQUIRED,
 				(void *)&this_adm.copp.adm_status[IDX_AFE_PORT_ID_USB_RX][usb_copp_idx]);
 				ret = apr_send_pkt(this_adm.apr, (uint32_t *)&usb_close);
-				if (ret < 0) {
+				if (ret < 0)
 					pr_err("%s: ADM close failed %d\n", __func__, ret);
-				} else {
-					pr_err("%s: ADM close ok %d\n", __func__, ret);
-				}
+				else
+					pr_info("%s: ADM close ok %d\n", __func__, ret);
 			}
 
 			close_usb = false;
 			pr_err("%s: close_usb done \n", __func__);
 			if (AFE_PORT_ID_USB_RX == port_id) {
-				pr_err("%s: close_usb return \n", __func__);
+				pr_err("%s: close_usb return\n", __func__);
 				if (perf_mode != ULTRA_LOW_LATENCY_PCM_MODE) {
 					pr_debug("%s: remove adm device from rtac\n", __func__);
 					rtac_remove_adm_device(port_id, copp_id);

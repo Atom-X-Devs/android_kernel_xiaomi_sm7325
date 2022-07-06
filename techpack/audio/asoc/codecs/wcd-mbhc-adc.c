@@ -138,22 +138,7 @@ static int wcd_measure_adc_once(struct wcd_mbhc *mbhc, int mux_ctl)
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 0);
 	/* Set the appropriate MUX selection */
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MUX_CTL, mux_ctl);
-#ifdef CONFIG_MACH_XIAOMI
-	/*
-	 * Current source mode requires Auto zeroing to be enabled
-	 * automatically. If HW doesn't do it, SW has to take care of this
-	 * for button interrupts to work fine and to avoid
-	 * fake electrical removal interrupts by enabling autozero before FSM
-	 * enable and disable it after FSM enable
-	 */
-	if (mbhc->mbhc_cb->mbhc_comp_autozero_control)
-		mbhc->mbhc_cb->mbhc_comp_autozero_control(mbhc, true);
-#endif
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 1);
-#ifdef CONFIG_MACH_XIAOMI
-	if (mbhc->mbhc_cb->mbhc_comp_autozero_control)
-		mbhc->mbhc_cb->mbhc_comp_autozero_control(mbhc,	false);
-#endif
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_ADC_EN, 1);
 
 	while (retry--) {
@@ -366,22 +351,7 @@ done:
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 0);
 	/* Set the MUX selection to Auto */
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MUX_CTL, MUX_CTL_AUTO);
-#ifdef CONFIG_MACH_XIAOMI
-	/*
-	 * Current source mode requires Auto zeroing to be enabled
-	 * automatically. If HW doesn't do it, SW has to take care of this
-	 * for button interrupts to work fine and to avoid
-	 * fake electrical removal interrupts by enabling autozero before FSM
-	 * enable and disable it after FSM enable
-	 */
-	if (mbhc->mbhc_cb->mbhc_comp_autozero_control)
-		mbhc->mbhc_cb->mbhc_comp_autozero_control(mbhc, true);
-#endif
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 1);
-#ifdef CONFIG_MACH_XIAOMI
-	if (mbhc->mbhc_cb->mbhc_comp_autozero_control)
-		mbhc->mbhc_cb->mbhc_comp_autozero_control(mbhc,	false);
-#endif
 
 	/* Restore ADC Enable */
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_ADC_EN, adc_en);
@@ -787,7 +757,7 @@ correct_plug_type:
 		 * begin to detect without sound card registered. delay
 		 * about 150ms to wait sound card registe.
 		 */
-		if ((mbhc->mbhc_cfg->swap_gnd_mic == NULL) 
+		if ((mbhc->mbhc_cfg->swap_gnd_mic == NULL)
 			&& (mbhc->mbhc_cfg->enable_usbc_analog))
 			msleep(200);
 #endif

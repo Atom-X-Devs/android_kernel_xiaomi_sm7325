@@ -1106,15 +1106,13 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 			wake_up(&this_afe.wait[data->token]);
 		else
 			return -EINVAL;
-/* for mius start */
 #ifdef CONFIG_MIUS_PROXIMITY
 	} else if (data->opcode == MI_ULTRASOUND_OPCODE) {
-		if (NULL != data->payload) {
+		if (data->payload != NULL) {
 			mius_process_apr_payload(data->payload);
 		} else
 			pr_err("[EXPORT_SYMBOLLUS]: payload ptr is Invalid");
 #endif
-/* for mius end */
 	} else if (data->opcode == AFE_EVENT_MBHC_DETECTION_SW_WA) {
 		msm_aud_evt_notifier_call_chain(SWR_WAKE_IRQ_EVENT, NULL);
 	} else if (data->opcode ==
@@ -2801,7 +2799,6 @@ static void afe_send_cal_spv4_tx(int port_id)
 
 }
 
-/* for mius start */
 #ifdef CONFIG_MIUS_PROXIMITY
 afe_mi_ultrasound_state_t mius_afe = {
 	.ptr_apr = &this_afe.apr,
@@ -2813,7 +2810,6 @@ afe_mi_ultrasound_state_t mius_afe = {
 };
 EXPORT_SYMBOL(mius_afe);
 #endif
-/* for mius end */
 
 static void afe_send_cal_spkr_prot_tx(int port_id)
 {
@@ -8360,8 +8356,7 @@ int afe_send_data(phys_addr_t buf_addr_p,
 	afecmd_wr.hdr.opcode = AFE_PORT_SEND_DATA_CMD;
 	afecmd_wr.port_id = IDX_RSVD_2;
 	afecmd_wr.buffer_address_lsw = lower_32_bits(buf_addr_p);
-	afecmd_wr.buffer_address_msw =
-			msm_audio_populate_upper_32_bits(buf_addr_p);
+	afecmd_wr.buffer_address_msw = msm_audio_populate_upper_32_bits(buf_addr_p);
 	afecmd_wr.mem_map_handle = mem_map_handle;
 	afecmd_wr.available_bytes = bytes;
 	afecmd_wr.reserved = 0;
@@ -12066,31 +12061,27 @@ int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 	memset(&mem_hdr, 0x00, sizeof(mem_hdr));
 	memset(&param_hdr, 0x00, sizeof(param_hdr));
 
-	if (0 == tfa_cal->map_data.dma_buf ) {
+	if (tfa_cal->map_data.dma_buf == 0) {
 		/*Minimal chunk size is 4K*/
 		tfa_cal->map_data.map_size = SZ_4K;
 		result = msm_audio_ion_alloc(&(tfa_cal->map_data.dma_buf),
-								tfa_cal->map_data.map_size,
-								&(tfa_cal->cal_data.paddr),
-								&len,
-								&(tfa_cal->cal_data.kvaddr));
+					tfa_cal->map_data.map_size, &(tfa_cal->cal_data.paddr),
+					&len, &(tfa_cal->cal_data.kvaddr));
 		if (result < 0) {
 			pr_err("%s: allocate buffer failed! ret = %d\n",
 				__func__, result);
 			goto err;
 		}
+
 		pr_debug("%s: paddr 0x%pK, kvaddr 0x%pK, map_size 0x%x\n",
-				__func__,
-				&tfa_cal->cal_data.paddr,
-				tfa_cal->cal_data.kvaddr,
-				tfa_cal->map_data.map_size);
+				__func__, &tfa_cal->cal_data.paddr,
+				tfa_cal->cal_data.kvaddr, tfa_cal->map_data.map_size);
 	}
 
-	if (0 == tfa_cal->map_data.map_handle ) {
+	if (tfa_cal->map_data.map_handle == 0) {
 		result = afe_map_rtac_block(tfa_cal);
 		if (result < 0) {
-			pr_err("%s: map buffer failed! ret = %d\n",
-				__func__, result);
+			pr_err("%s: map buffer failed! ret = %d\n", __func__, result);
 			goto err;
 		}
 	}
@@ -12114,25 +12105,18 @@ int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 
 	if (!bRead) {
 		param_hdr.param_id = AFE_PARAM_ID_TFADSP_RX_CFG;
-
 		q6common_pack_pp_params(tfa_cal->cal_data.kvaddr,
-							&param_hdr,
-							buf,
-							&payload_size);
+					&param_hdr, buf, &payload_size);
 		tfa_cal->cal_data.size = payload_size;
-	}
-	else {
+	} else {
 		param_hdr.param_id = AFE_PARAM_ID_TFADSP_RX_GET_RESULT;
-		tfa_cal->cal_data.size = cmd_size + sizeof(struct param_hdr_v3) ;
+		tfa_cal->cal_data.size = cmd_size + sizeof(struct param_hdr_v3);
 	}
 
 	/*Send/Get package to/from ADSP*/
-	mem_hdr.data_payload_addr_lsw =
-		lower_32_bits(tfa_cal->cal_data.paddr);
-	mem_hdr.data_payload_addr_msw =
-		msm_audio_populate_upper_32_bits(tfa_cal->cal_data.paddr);
-	mem_hdr.mem_map_handle =
-		tfa_cal->map_data.map_handle;
+	mem_hdr.data_payload_addr_lsw =	lower_32_bits(tfa_cal->cal_data.paddr);
+	mem_hdr.data_payload_addr_msw =	msm_audio_populate_upper_32_bits(tfa_cal->cal_data.paddr);
+	mem_hdr.mem_map_handle = tfa_cal->map_data.map_handle;
 
 	pr_debug("%s: Sending tfa_cal port = 0x%x, cal size = %zd, cal addr = 0x%pK\n",
 		__func__, port_id, tfa_cal->cal_data.size, &tfa_cal->cal_data.paddr);
@@ -12152,11 +12136,10 @@ int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 		int8_t *resp = (int8_t *)tfa_cal->cal_data.kvaddr;
 
 		atomic_set(&this_afe.tfa_state, 1);
-		if (q6common_is_instance_id_supported()){
+		if (q6common_is_instance_id_supported()) {
 			result = q6afe_get_params_v3(port_id, port_index, &mem_hdr, &param_hdr);
 			resp += sizeof(struct param_hdr_v3);
-		}
-		else {
+		} else {
 			result = q6afe_get_params_v2(port_id, port_index, &mem_hdr, &param_hdr);
 			resp += sizeof(struct param_hdr_v1);
 		}
@@ -12164,8 +12147,7 @@ int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 		if (result) {
 			pr_err("%s: get response from port 0x%x failed %d\n", __func__, port_id, result);
 			goto err;
-		}
-		else {
+		} else {
 			/*Copy response data to command buffer*/
 			memcpy(buf,  resp,  cmd_size);
 		}
@@ -12181,9 +12163,8 @@ void send_tfa_cal_unmap_memory(void)
 	int result = 0;
 
 	if (this_afe.tfa_cal.map_data.map_handle) {
+		// Force to remap after unmap failed
 		result = afe_unmap_rtac_block(&this_afe.tfa_cal.map_data.map_handle);
-
-		/*Force to remap after unmap failed*/
 		if (result)
 			this_afe.tfa_cal.map_data.map_handle = 0;
 	}
@@ -12201,10 +12182,9 @@ int send_tfa_cal_in_band(void *buf, int cmd_size)
 	memcpy(&afe_spk_config, buf, cmd_size);
 
 	if (afe_spk_prot_prepare(port_id, 0,
-			AFE_PARAM_ID_TFADSP_RX_CFG,
-			&afe_spk_config,
-			sizeof(afe_spk_config))) {
-			pr_err("%s: AFE_PARAM_ID_TFADSP_RX_CFG failed\n",
+		AFE_PARAM_ID_TFADSP_RX_CFG,
+		&afe_spk_config, sizeof(afe_spk_config))) {
+		pr_err("%s: AFE_PARAM_ID_TFADSP_RX_CFG failed\n",
 				   __func__);
 	}
 
@@ -12223,9 +12203,8 @@ int send_tfa_cal_set_bypass(void *buf, int cmd_size)
 	memcpy(&afe_spk_config, buf, cmd_size);
 
 	if (afe_spk_prot_prepare(port_id, 0,
-			AFE_PARAM_ID_TFADSP_RX_SET_BYPASS,
-			&afe_spk_config,
-			sizeof(afe_spk_config))) {
+		AFE_PARAM_ID_TFADSP_RX_SET_BYPASS,
+		&afe_spk_config, sizeof(afe_spk_config))) {
 		pr_err("%s: AFE_PARAM_ID_TFADSP_RX_SET_BYPASS failed\n",
 				   __func__);
 	}
@@ -12245,9 +12224,8 @@ int send_tfa_cal_set_tx_enable(void *buf, int cmd_size)
 	memcpy(&afe_spk_config, buf, cmd_size);
 
 	if (afe_spk_prot_prepare(port_id, 0,
-			AFE_PARAM_ID_TFADSP_TX_SET_ENABLE,
-			&afe_spk_config,
-			sizeof(afe_spk_config))) {
+		AFE_PARAM_ID_TFADSP_TX_SET_ENABLE,
+		&afe_spk_config, sizeof(afe_spk_config))) {
 		pr_err("%s: AFE_PARAM_ID_TFADSP_TX_SET_ENABLE failed\n",
 				   __func__);
 	}

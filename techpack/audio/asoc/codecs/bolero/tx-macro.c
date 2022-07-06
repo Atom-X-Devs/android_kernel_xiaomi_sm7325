@@ -635,21 +635,12 @@ static void tx_macro_hs_unmute_dwork(struct work_struct *work)
 	struct tx_macro_priv *tx_priv = NULL;
 	struct delayed_work *delayed_work = NULL;
 	unsigned int reg = BOLERO_CDC_TX2_TX_VOL_CTL;
-	u16 reg_val = 0;
 
 	delayed_work = to_delayed_work(work);
 	tx_priv = container_of(delayed_work, struct tx_macro_priv, tx_hs_unmute_dwork);
 	component = tx_priv->component;
-	reg_val = snd_soc_component_read32(component, reg);
 
-	dev_info(tx_priv->dev, "%s: the reg(%#x) value before unmute is: %#x , reg_before_mute %#x \n",
-				__func__, reg, reg_val, tx_priv->reg_before_mute);
-
-	snd_soc_component_update_bits(component, reg,
-			0xff, tx_priv->reg_before_mute);
-	reg_val = snd_soc_component_read32(component, reg);
-
-	dev_info(tx_priv->dev, "%s: the reg(%#x) value after unmute is: %#x \n", __func__, reg, reg_val);
+	snd_soc_component_update_bits(component, reg, 0xff, tx_priv->reg_before_mute);
 }
 #endif
 
@@ -1063,23 +1054,17 @@ static int tx_macro_enable_dmic(struct snd_soc_dapm_widget *w,
 void bolero_tx_macro_mute_hs(void)
 {
 	struct snd_soc_component *component = NULL;
-	u16 reg_val = 0;
 	unsigned int reg = BOLERO_CDC_TX2_TX_VOL_CTL;
 	unsigned int mask = 0xff;
 	unsigned int val = 0xac;
-
 	int tx_unmute_delay_plugout = 1200;
+
 	if (!g_tx_priv)
 		return;
 
 	component = g_tx_priv->component;
-	g_tx_priv->reg_before_mute = snd_soc_component_read32(component, reg);
-	dev_info(component->dev, "%s: the reg(%#x) value before mute is: %#x \n",
-			__func__, reg, g_tx_priv->reg_before_mute);
 	snd_soc_component_update_bits(component, reg, mask, val);
-	reg_val = snd_soc_component_read32(component, reg);
-	dev_info(component->dev, "%s: the reg(%#x) value after mute is: %#x \n",
-			__func__, reg, reg_val);
+
 	schedule_delayed_work(&g_tx_priv->tx_hs_unmute_dwork,
 			msecs_to_jiffies(tx_unmute_delay_plugout));
 	return;
@@ -1105,9 +1090,6 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 	int unmute_delay = TX_MACRO_DMIC_UNMUTE_DELAY_MS;
 	struct device *tx_dev = NULL;
 	struct tx_macro_priv *tx_priv = NULL;
-#ifdef CONFIG_MACH_XIAOMI
-	u16 reg_val = 0;
-#endif
 
 	if (!tx_macro_get_data(component, &tx_dev, &tx_priv, __func__))
 		return -EINVAL;
@@ -1196,7 +1178,7 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component,
 				hpf_gate_reg, 0x03, 0x01);
 #else
-					hpf_gate_reg, 0x02, 0x00);
+				hpf_gate_reg, 0x02, 0x00);
 #endif
 		/*
 		 * 6ms delay is required as per HW spec
@@ -1207,20 +1189,11 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 				hpf_gate_reg, 0x02, 0x00);
 #endif
 		/* apply gain after decimator is enabled */
-#ifdef CONFIG_MACH_XIAOMI
-		reg_val = snd_soc_component_read32(component, tx_gain_ctl_reg);
-		dev_info(component->dev, "%s: the reg(%#x) value before enable dec is: %#x \n",
-			__func__, tx_gain_ctl_reg, reg_val);
-#endif
 		snd_soc_component_write(component, tx_gain_ctl_reg,
-			      snd_soc_component_read32(component,
-					tx_gain_ctl_reg));
+			      snd_soc_component_read32(component, tx_gain_ctl_reg));
 #ifndef CONFIG_MACH_XIAOMI
 		if (tx_priv->bcs_enable) {
 #else
-		reg_val = snd_soc_component_read32(component, tx_gain_ctl_reg);
-		dev_info(component->dev, "%s: the reg(%#x) value after enable dec is: %#x \n",
-			__func__, tx_gain_ctl_reg, reg_val);
 		if (tx_priv->bcs_enable && decimator == 0) {
 #endif
 			if (tx_priv->version == BOLERO_VERSION_2_1)
