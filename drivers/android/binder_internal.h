@@ -573,10 +573,6 @@ struct binder_transaction {
 	int debug_id;
 	struct binder_work work;
 	struct binder_thread *from;
-#ifdef CONFIG_MACH_XIAOMI
-	int async_from_pid;
-	int async_from_tid;
-#endif
 	struct binder_transaction *from_parent;
 	struct binder_proc *to_proc;
 	struct binder_thread *to_thread;
