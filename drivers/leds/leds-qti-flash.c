@@ -581,27 +581,24 @@ static int __qti_flash_led_brightness_set(struct led_classdev *led_cdev,
 	led_cdev->brightness = current_ma;
 
 #ifdef CONFIG_MACH_XIAOMI
-		if (!strncmp(led_cdev->name, "flashlight", strlen("flashlight"))) {
-			if (p_torch && p_switch) {
-				pr_debug("[flashlight] fnode %d value %d", __LINE__, brightness);
-				for (i = 0; i < flashlight_num_fnodes_torch; i++) {
-					qti_flash_led_enable(&p_torch[i]);
-					pr_debug("[flashlight] p_torch[%d] %s enable currrent %d ma\n",i,p_torch[i].fdev.led_cdev.name,p_torch[i].current_ma);
-				}
+	if (!strncmp(led_cdev->name, "flashlight", strlen("flashlight"))) {
+		if (p_torch && p_switch) {
+			for (i = 0; i < flashlight_num_fnodes_torch; i++)
+				qti_flash_led_enable(&p_torch[i]);
 
-				//traverse all fnodes from switch
-				for (i = 0; i < led->num_fnodes; i++) {
-					//select all torch node from switch
-					for (j = 0; j < flashlight_num_fnodes_torch; j++) {
-						if (!strncmp(p_torch[j].fdev.led_cdev.name, p_switch[2].led->fnode[i].fdev.led_cdev.name, strlen("led:torch_0")))
+			for (i = 0; i < led->num_fnodes; i++) {
+				for (j = 0; j < flashlight_num_fnodes_torch; j++) {
+					if (!strncmp(p_torch[j].fdev.led_cdev.name,
+						p_switch[2].led->fnode[i].fdev.led_cdev.name,
+						strlen("led:torch_0"))) {
 						p_switch[2].led->fnode[i].configured = true;
-						p_switch[2].led->fnode[i].current_ma = flashlight_current;
 					}
-					pr_debug("[flashlight] switch fnode name %s is configured %d\n",p_switch[2].led->fnode[i].fdev.led_cdev.name,p_switch[2].led->fnode[i].configured);
+					p_switch[2].led->fnode[i].current_ma = flashlight_current;
 				}
-				qti_flash_switch_enable(&p_switch[2]);
 			}
-		} else {
+			qti_flash_switch_enable(&p_switch[2]);
+		}
+	} else {
 #endif
 	rc = qti_flash_led_enable(fnode);
 	if (rc < 0)
@@ -609,7 +606,7 @@ static int __qti_flash_led_brightness_set(struct led_classdev *led_cdev,
 
 	return rc;
 #ifdef CONFIG_MACH_XIAOMI
-		}
+	}
 
 	return 0;
 #endif
@@ -1627,12 +1624,11 @@ static int register_flash_device(struct qti_flash_led *led,
 #ifdef CONFIG_MACH_XIAOMI
 	rc = of_property_read_u32(node, "qcom,flashlight-current-ma", &val);
 	if (rc < 0)
-		pr_debug("%s dont set current-ma, rc=%d\n", led->fnode->fdev.led_cdev.name,rc);
+		pr_err("%s dont set current-ma, rc=%d\n", led->fnode->fdev.led_cdev.name,rc);
 	else {
 		fnode->current_ma = val;
 		fnode->fdev.led_cdev.brightness = val;
 		flashlight_current = fnode->current_ma;
-		pr_debug("%s set flashlight current %d ma, rc=%d\n", fnode->fdev.led_cdev.name,fnode->current_ma,rc);
 	}
 #endif
 
@@ -1844,7 +1840,6 @@ static int qti_flash_led_register_device(struct qti_flash_led *led,
 #ifdef CONFIG_MACH_XIAOMI
 			if (!strcmp("torch", label)) {
 				p_torch[k] = led->fnode[i];
-				pr_debug("[flashlight] find led p_torch[%d] %s regist\n",k,p_torch[k].fdev.led_cdev.name);
 				k++;
 			}
 #endif
@@ -1859,11 +1854,10 @@ static int qti_flash_led_register_device(struct qti_flash_led *led,
 				goto unreg_led;
 			}
 #ifdef CONFIG_MACH_XIAOMI
-			if (!strcmp("switch", label)) {
+			if (!strcmp("switch", label))
 				p_switch[j] = led->snode[j];
-				pr_debug("[flashlight] find switch p_switch[%d] %s regist\n",j,p_switch[j].cdev.name);
-			}
 #endif
+
 			led->snode[j++].cdev.dev->of_node = temp;
 		}
 	}
