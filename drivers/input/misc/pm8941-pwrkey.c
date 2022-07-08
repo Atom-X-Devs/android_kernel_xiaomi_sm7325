@@ -21,6 +21,7 @@
 #ifdef CONFIG_MACH_XIAOMI
 #include <linux/nmi.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/signal.h>
 #endif
 
 #define PON_REV2			0x01
