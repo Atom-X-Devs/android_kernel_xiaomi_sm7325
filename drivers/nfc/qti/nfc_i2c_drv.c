@@ -132,8 +132,12 @@ int i2c_read(struct nfc_dev *nfc_dev, char *buf, size_t count, int timeout)
 					ret = wait_event_interruptible(nfc_dev->read_wq,
 						!i2c_dev->irq_enabled);
 					if (ret) {
+#ifdef CONFIG_MACH_XIAOMI
+						pr_info("%s unexpected wakeup of read wq, try again.\n", __func__);
+#else
 						pr_err("%s error wakeup of read wq\n", __func__);
 						ret = -EINTR;
+#endif
 						goto err;
 					}
 				}
@@ -147,6 +151,20 @@ int i2c_read(struct nfc_dev *nfc_dev, char *buf, size_t count, int timeout)
 				ret = -EIO;
 				goto err;
 			}
+#ifdef CONFIG_MACH_XIAOMI
+			/*
+			 * NFC service wanted to close the driver so,
+			 * release the calling reader thread asap.
+			 *
+			 * This can happen in case of nfc node close call from
+			 * eSE HAL in that case the NFC HAL reader thread
+			 * will again call read system call
+			 */
+			if (nfc_dev->release_read) {
+				pr_debug("%s: releasing read\n", __func__);
+				return 0;
+			}
+#endif
 			pr_warn("%s: spurious interrupt detected\n", __func__);
 		}
 	}
@@ -228,15 +246,24 @@ ssize_t nfc_i2c_dev_read(struct file *filp, char __user *buf,
 	int ret = 0;
 	struct nfc_dev *nfc_dev = (struct nfc_dev *)filp->private_data;
 
+#ifndef CONFIG_MACH_XIAOMI
 	if (filp->f_flags & O_NONBLOCK) {
 		pr_err(":f_flag has O_NONBLOCK. EAGAIN\n");
 		return -EAGAIN;
 	}
 	mutex_lock(&nfc_dev->read_mutex);
 	ret = i2c_read(nfc_dev, nfc_dev->read_kbuf, count, 0);
+#else
+	if (filp->f_flags & O_NONBLOCK) {
+		mutex_lock(&nfc_dev->read_mutex);
+		ret = i2c_master_recv(nfc_dev->i2c_dev.client, nfc_dev->read_kbuf, count);
+		pr_debug("%s: NONBLOCK read ret = %d\n", __func__, ret);
+	} else
+		ret = i2c_read(nfc_dev, nfc_dev->read_kbuf, count, 0);
+#endif
 	if (ret > 0) {
 		if (copy_to_user(buf, nfc_dev->read_kbuf, ret)) {
-			pr_warn("%s : failed to copy to user space\n", __func__);
+			pr_warn("%s: failed to copy to user space\n", __func__);
 			ret = -EFAULT;
 		}
 	}
@@ -273,6 +300,9 @@ static const struct file_operations nfc_i2c_dev_fops = {
 	.read = nfc_i2c_dev_read,
 	.write = nfc_i2c_dev_write,
 	.open = nfc_dev_open,
+#ifdef CONFIG_MACH_XIAOMI
+	.flush = nfc_dev_flush,
+#endif
 	.release = nfc_dev_close,
 	.unlocked_ioctl = nfc_dev_ioctl,
 };
