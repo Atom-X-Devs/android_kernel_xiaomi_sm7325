@@ -11,3 +11,4 @@ menuconfig INPUT_FINGERPRINT
 
 source "drivers/input/fingerprint/xiaomi_fp/Kconfig"
 source "drivers/input/fingerprint/goodix_tee/Kconfig"
+source "drivers/input/fingerprint/fpc/Kconfig"
