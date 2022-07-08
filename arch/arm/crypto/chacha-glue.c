@@ -297,7 +297,7 @@ static int __init chacha_simd_mod_init(void)
 {
 	int err = 0;
 
-	if (IS_REACHABLE(CONFIG_CRYPTO_BLKCIPHER)) {
+	if (IS_REACHABLE(CONFIG_CRYPTO_SKCIPHER)) {
 		err = crypto_register_skciphers(arm_algs, ARRAY_SIZE(arm_algs));
 		if (err)
 			return err;
@@ -321,7 +321,7 @@ static int __init chacha_simd_mod_init(void)
 			static_branch_enable(&use_neon);
 		}
 
-		if (IS_REACHABLE(CONFIG_CRYPTO_BLKCIPHER)) {
+		if (IS_REACHABLE(CONFIG_CRYPTO_SKCIPHER)) {
 			err = crypto_register_skciphers(neon_algs, ARRAY_SIZE(neon_algs));
 			if (err)
 				crypto_unregister_skciphers(arm_algs, ARRAY_SIZE(arm_algs));
@@ -332,7 +332,7 @@ static int __init chacha_simd_mod_init(void)
 
 static void __exit chacha_simd_mod_fini(void)
 {
-	if (IS_REACHABLE(CONFIG_CRYPTO_BLKCIPHER)) {
+	if (IS_REACHABLE(CONFIG_CRYPTO_SKCIPHER)) {
 		crypto_unregister_skciphers(arm_algs, ARRAY_SIZE(arm_algs));
 		if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && (elf_hwcap & HWCAP_NEON))
 			crypto_unregister_skciphers(neon_algs, ARRAY_SIZE(neon_algs));

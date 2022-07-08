@@ -11,7 +11,7 @@ static inline unsigned int null_zone_no(struct nullb_device *dev, sector_t sect)
 
 int null_zone_init(struct nullb_device *dev)
 {
-	sector_t dev_capacity_sects;
+	sector_t dev_capacity_sects, zone_capacity_sects;
 	sector_t sector = 0;
 	unsigned int i;
 
@@ -24,6 +24,7 @@ int null_zone_init(struct nullb_device *dev)
 		return -EINVAL;
 	}
 
+	zone_capacity_sects = MB_TO_SECTS(dev->zone_capacity);
 	dev_capacity_sects = MB_TO_SECTS(dev->size);
 	dev->zone_size_sects = MB_TO_SECTS(dev->zone_size);
 	dev->nr_zones = dev_capacity_sects >> ilog2(dev->zone_size_sects);
@@ -46,6 +47,7 @@ int null_zone_init(struct nullb_device *dev)
 
 		zone->start = sector;
 		zone->len = dev->zone_size_sects;
+		zone->capacity = zone->len;
 		zone->wp = zone->start + zone->len;
 		zone->type = BLK_ZONE_TYPE_CONVENTIONAL;
 		zone->cond = BLK_ZONE_COND_NOT_WP;
@@ -61,6 +63,8 @@ int null_zone_init(struct nullb_device *dev)
 			zone->len = dev_capacity_sects - zone->start;
 		else
 			zone->len = dev->zone_size_sects;
+		zone->capacity =
+			min_t(sector_t, zone->len, zone_capacity_sects);
 		zone->type = BLK_ZONE_TYPE_SEQWRITE_REQ;
 		zone->cond = BLK_ZONE_COND_EMPTY;
 
