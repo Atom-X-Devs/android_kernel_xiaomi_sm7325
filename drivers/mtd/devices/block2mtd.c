@@ -168,6 +168,7 @@ static int _block2mtd_write(struct block2mtd_dev *dev, const u_char *buf,
 		offset = 0;
 		index++;
 	}
+
 	return 0;
 }
 
@@ -183,6 +184,9 @@ static int block2mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 	mutex_unlock(&dev->write_mutex);
 	if (err > 0)
 		err = 0;
+#ifdef CONFIG_MACH_XIAOMI
+	dev->mtd._sync(mtd);
+#endif
 	return err;
 }
 
@@ -212,17 +216,37 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
 	kfree(dev);
 }
 
+#ifdef CONFIG_MACH_XIAOMI
+int delSubStr(char * src, char * sub,char * result)
+{
+	int i,find = 0;
+	int len_src = strlen(src);
+	int len_sub = strlen(sub);
+	for( i = 0 ; i <= len_src - len_sub; i++){
+		if(strncmp(src+i, sub, len_sub)==0){
+			strncpy(result,src,i);
+			strncpy(result+i,src+i+len_sub,len_src-i-len_sub);
+			find =1;
+			break;
+		}
+	}
+	return find;
+}
+#endif
 
 static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		int timeout)
 {
-#ifndef MODULE
+#if !defined(MODULE) || defined(CONFIG_MACH_XIAOMI)
 	int i;
 #endif
 	const fmode_t mode = FMODE_READ | FMODE_WRITE | FMODE_EXCL;
 	struct block_device *bdev;
 	struct block2mtd_dev *dev;
 	char *name;
+#ifdef CONFIG_MACH_XIAOMI
+	char name_for_find_devt[80]={0};
+#endif
 
 	if (!devname)
 		return NULL;
@@ -234,11 +258,16 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 	/* Get a handle on the device */
 	bdev = blkdev_get_by_path(devname, mode, dev);
 
-#ifndef MODULE
+#if !defined(MODULE) || defined(CONFIG_MACH_XIAOMI)
 	/*
 	 * We might not have the root device mounted at this point.
 	 * Try to resolve the device name by other means.
 	 */
+#ifdef CONFIG_MACH_XIAOMI
+	if (!delSubStr(devname, "block/", name_for_find_devt))
+		return NULL;
+#endif
+
 	for (i = 0; IS_ERR(bdev) && i <= timeout; i++) {
 		dev_t devt;
 
@@ -251,7 +280,11 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 			msleep(1000);
 		wait_for_device_probe();
 
+#ifdef CONFIG_MACH_XIAOMI
+		devt = name_to_dev_t(name_for_find_devt);
+#else
 		devt = name_to_dev_t(devname);
+#endif
 		if (!devt)
 			continue;
 		bdev = blkdev_get_by_dev(devt, mode, dev);
@@ -307,6 +340,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		dev->mtd.index,
 		dev->mtd.name + strlen("block2mtd: "),
 		dev->mtd.erasesize >> 10, dev->mtd.erasesize);
+
 	return dev;
 
 err_destroy_mutex:
