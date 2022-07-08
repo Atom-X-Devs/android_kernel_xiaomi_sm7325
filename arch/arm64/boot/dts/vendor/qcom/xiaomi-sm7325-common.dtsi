@@ -26,6 +26,13 @@
 		};
 	};
 
+	mtdoops_pmsg@0xb0000000 {
+		compatible = "mtdoops_pmsg";
+		reg = <0xb0000000 0x400000>;
+		console-size = <0x200000>;
+		pmsg-size = <0x200000>;
+	};
+
 	thermal_message: thermal-message {
 		board-sensor = "VIRTUAL-SENSOR";
 	};
