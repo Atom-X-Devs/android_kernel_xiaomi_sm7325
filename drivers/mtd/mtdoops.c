@@ -186,9 +186,8 @@ static void mtdoops_inc_counter(struct mtdoops_context *cxt)
 		cxt->nextcount = 0;
 
 #ifdef CONFIG_MACH_XIAOMI
-	pr_info("mtdoops: ready nextpage=%d, nextcount=%d (no erase),
-				oops_page_used_flag=%lx", cxt->nextpage, cxt->nextcount,
-				*cxt->oops_page_used);
+	pr_info("mtdoops: ready nextpage=%d, nextcount=%d (no erase), oops_page_used_flag=%lx",
+				cxt->nextpage, cxt->nextcount, *cxt->oops_page_used);
 #endif
 
 	if (page_is_used(cxt, cxt->nextpage)) {
@@ -417,9 +416,8 @@ static void mtdoops_do_dump(struct kmsg_dumper *dumper,
 
 	do_dump_count++;
 
-	pr_info("mtdoops: %s start, count = %d, page = %d,
-				reason = %d, dump_count = %d\n", __func__,
-				cxt->nextcount, cxt->nextpage, reason, do_dump_count);
+	pr_info("mtdoops: %s start, count = %d, page = %d, reason = %d, dump_count = %d\n",
+					__func__, cxt->nextcount, cxt->nextpage, reason, do_dump_count);
 
 	if (do_dump_count > 1) {
 		for (j = 0, ret = -1; (j < 3) && (ret < 0); j++)
