@@ -1420,7 +1420,11 @@ static bool ufshcd_is_busy(struct request *req, void *priv, bool reserved)
 }
 
 /* Whether or not any tag is in use by a request that is in progress. */
+#if !defined(CONFIG_SCSI_SKHPB)
 static bool ufshcd_any_tag_in_use(struct ufs_hba *hba)
+#else
+bool ufshcd_any_tag_in_use(struct ufs_hba *hba)
+#endif
 {
 	struct request_queue *q = hba->cmd_queue;
 	int busy = 0;

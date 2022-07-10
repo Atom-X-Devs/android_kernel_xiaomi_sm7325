@@ -1525,6 +1525,7 @@ static inline u8 ufshcd_scsi_to_upiu_lun(unsigned int scsi_lun)
 }
 
 #if defined(CONFIG_SCSI_SKHPB)
+bool ufshcd_any_tag_in_use(struct ufs_hba *hba);
 int ufshcd_query_flag_retry(struct ufs_hba *hba,
 	enum query_opcode opcode, enum flag_idn idn, u8 index, bool *flag_res);
 #endif
