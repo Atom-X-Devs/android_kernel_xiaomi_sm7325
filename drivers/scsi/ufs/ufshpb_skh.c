@@ -2341,7 +2341,7 @@ static int skhpb_init(struct ufs_hba *hba)
 		goto out_state;
 
 	for (retries = 0; retries < 20; retries++) {
-		if (!hba->lrb_in_use) {
+		if (!ufshcd_any_tag_in_use(hba)) {
 			ret = ufshcd_query_flag(hba,
 					UPIU_QUERY_OPCODE_SET_FLAG,
 					QUERY_FLAG_IDN_HPB_RESET, 0,
