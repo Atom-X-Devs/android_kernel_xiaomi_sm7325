@@ -38,7 +38,7 @@ static const struct snd_pcm_hardware no_host_hardware = {
 				  SNDRV_PCM_INFO_PAUSE |
 				  SNDRV_PCM_INFO_RESUME,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
-#ifdef COMFIG_MACH_XIAOMI
+#ifdef CONFIG_MACH_XIAOMI
 				  SNDRV_PCM_FMTBIT_S24_LE |
 				  SNDRV_PCM_FMTBIT_S24_3LE |
 #endif
