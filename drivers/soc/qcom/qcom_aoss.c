@@ -626,6 +626,7 @@ static int qmp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register aoss cooling devices\n");
 
 	platform_set_drvdata(pdev, qmp);
+	dev_set_drvdata(&pdev->dev, qmp);
 
 	return 0;
 
@@ -653,6 +654,28 @@ static int qmp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int aoss_qmp_mbox_freeze(struct device *dev)
+{
+	return 0;
+}
+
+static int aoss_qmp_mbox_restore(struct device *dev)
+{
+	struct qmp *qmp = dev_get_drvdata(dev);
+	int ret;
+
+	ret = qmp_open(qmp);
+	if (ret < 0)
+		dev_err(dev, "QMP restore failed, ret = %d\n", ret);
+
+	return 0;
+}
+
+static const struct dev_pm_ops aoss_qmp_mbox_pm_ops = {
+	.freeze_late = aoss_qmp_mbox_freeze,
+	.restore_early = aoss_qmp_mbox_restore,
+};
+
 static const struct of_device_id qmp_dt_match[] = {
 	{ .compatible = "qcom,sc7180-aoss-qmp", },
 	{ .compatible = "qcom,sdm845-aoss-qmp", },
@@ -668,6 +691,7 @@ static struct platform_driver qmp_driver = {
 		.name		= "qcom_aoss_qmp",
 		.of_match_table	= qmp_dt_match,
 		.suppress_bind_attrs = true,
+		.pm = &aoss_qmp_mbox_pm_ops,
 	},
 	.probe = qmp_probe,
 	.remove	= qmp_remove,
