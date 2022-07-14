@@ -714,9 +714,6 @@ static int geni_se_rmv_ab_ib(struct geni_se_device *geni_se_dev,
 	if (geni_se_dev->vectors == NULL)
 		return ret;
 
-	if (rsc->skip_bw_vote)
-		return 0;
-
 	if (unlikely(list_empty(&rsc->ab_list) || list_empty(&rsc->ib_list)))
 		return -EINVAL;
 
@@ -876,9 +873,6 @@ static int geni_se_add_ab_ib(struct geni_se_device *geni_se_dev,
 
 	if (geni_se_dev->vectors == NULL)
 		return ret;
-
-	if (rsc->skip_bw_vote)
-		return 0;
 
 	mutex_lock(&geni_se_dev->geni_dev_lock);
 
