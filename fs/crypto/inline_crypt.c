@@ -84,8 +84,7 @@ int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
 		return 0;
 
 	/* The filesystem must be mounted with -o inlinecrypt */
-	if (!sb->s_cop->inline_crypt_enabled ||
-	    !sb->s_cop->inline_crypt_enabled(sb))
+	if (!(sb->s_flags & SB_INLINECRYPT))
 		return 0;
 
 	/*

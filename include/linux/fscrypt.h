@@ -150,8 +150,6 @@ struct fscrypt_operations {
 	void (*get_ino_and_lblk_bits)(struct super_block *sb,
 				      int *ino_bits_ret, int *lblk_bits_ret);
 
-	bool (*inline_crypt_enabled)(struct super_block *sb);
-
 	/*
 	 * Return the number of block devices to which the filesystem may write
 	 * encrypted file contents.
