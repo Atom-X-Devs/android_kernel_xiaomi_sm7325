@@ -861,8 +861,6 @@ enum {
 
 extern const struct adreno_power_ops adreno_power_operations;
 
-extern const struct adreno_gpudev adreno_a3xx_gpudev;
-extern const struct adreno_gpudev adreno_a5xx_gpudev;
 extern const struct adreno_gpudev adreno_a6xx_gpudev;
 extern const struct adreno_gpudev adreno_a6xx_gmu_gpudev;
 extern const struct adreno_gpudev adreno_a6xx_rgmu_gpudev;
@@ -968,47 +966,21 @@ static inline int adreno_is_##_name(struct adreno_device *adreno_dev) \
 	return (ADRENO_GPUREV(adreno_dev) == (_id)); \
 }
 
-static inline int adreno_is_a3xx(struct adreno_device *adreno_dev)
-{
-	return ((ADRENO_GPUREV(adreno_dev) >= 300) &&
-		(ADRENO_GPUREV(adreno_dev) < 400));
-}
-
-ADRENO_TARGET(a304, ADRENO_REV_A304)
-ADRENO_TARGET(a306, ADRENO_REV_A306)
-ADRENO_TARGET(a306a, ADRENO_REV_A306A)
-
-static inline int adreno_is_a5xx(struct adreno_device *adreno_dev)
-{
-	return ADRENO_GPUREV(adreno_dev) >= 500 &&
-			ADRENO_GPUREV(adreno_dev) < 600;
-}
-
-ADRENO_TARGET(a505, ADRENO_REV_A505)
-ADRENO_TARGET(a506, ADRENO_REV_A506)
-ADRENO_TARGET(a508, ADRENO_REV_A508)
-ADRENO_TARGET(a510, ADRENO_REV_A510)
-ADRENO_TARGET(a512, ADRENO_REV_A512)
-ADRENO_TARGET(a530, ADRENO_REV_A530)
-ADRENO_TARGET(a540, ADRENO_REV_A540)
-
-static inline int adreno_is_a530v2(struct adreno_device *adreno_dev)
-{
-	return (ADRENO_GPUREV(adreno_dev) == ADRENO_REV_A530) &&
-		(ADRENO_CHIPID_PATCH(adreno_dev->chipid) == 1);
-}
-
-static inline int adreno_is_a530v3(struct adreno_device *adreno_dev)
-{
-	return (ADRENO_GPUREV(adreno_dev) == ADRENO_REV_A530) &&
-		(ADRENO_CHIPID_PATCH(adreno_dev->chipid) == 2);
-}
-
-static inline int adreno_is_a505_or_a506(struct adreno_device *adreno_dev)
-{
-	return ADRENO_GPUREV(adreno_dev) >= 505 &&
-			ADRENO_GPUREV(adreno_dev) <= 506;
-}
+#define adreno_is_a3xx(x) false
+#define adreno_is_a304(x) false
+#define adreno_is_a306(x) false
+#define adreno_is_a306a(x) false
+#define adreno_is_a5xx(x) false
+#define adreno_is_a505(x) false
+#define adreno_is_a506(x) false
+#define adreno_is_a508(x) false
+#define adreno_is_a510(x) false
+#define adreno_is_a512(x) false
+#define adreno_is_a530(x) false
+#define adreno_is_a530v2(x) false
+#define adreno_is_a530v3(x) false
+#define adreno_is_a540(x) false
+#define adreno_is_a505_or_a506(x) false
 
 static inline int adreno_is_a6xx(struct adreno_device *adreno_dev)
 {
