@@ -3311,7 +3311,6 @@ static inline bool check_full_flush(size_t size, int op)
 	return false;
 }
 #else
-#include <asm/cacheflush.h>
 /* Support full flush if the size is bigger than the threshold */
 static inline bool check_full_flush(size_t size, int op)
 {
@@ -4389,9 +4388,8 @@ static int _register_device(struct kgsl_device *device)
 
 	set_dma_ops(device->dev, NULL);
 
-	if (kobject_init_and_add(&device->gpu_sysfs_kobj, &kgsl_gpu_sysfs_ktype,
-		kernel_kobj, "gpu"))
-		dev_err(device->dev, "Unable to add sysfs for gpu\n");
+	kobject_init_and_add(&device->gpu_sysfs_kobj, &kgsl_gpu_sysfs_ktype,
+		kernel_kobj, "gpu");
 
 	return 0;
 }

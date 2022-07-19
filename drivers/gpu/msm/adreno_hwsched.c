@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020, The Linux Foundation. All rights reserved.
  */
 
 #include "adreno.h"
@@ -1378,7 +1378,7 @@ void adreno_hwsched_init(struct adreno_device *adreno_dev)
 		init_llist_head(&hwsched->requeue[i]);
 	}
 
-	WARN_ON(sysfs_create_files(&device->dev->kobj, _hwsched_attr_list));
+	sysfs_create_files(&device->dev->kobj, _hwsched_attr_list);
 }
 
 void adreno_hwsched_mark_drawobj(struct adreno_device *adreno_dev,
