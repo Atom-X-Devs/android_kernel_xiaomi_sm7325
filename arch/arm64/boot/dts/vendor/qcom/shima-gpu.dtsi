@@ -2,13 +2,6 @@
 #define MHZ_TO_KBPS(mhz, w) ((mhz * 1000000 * w) / (1024))
 
 &soc {
-	pil_gpu: qcom,kgsl-hyp {
-		compatible = "qcom,pil-tz-generic";
-		qcom,pas-id = <13>;
-		qcom,firmware-name = "a660_zap";
-		memory-region = <&pil_gpu_micro_code_mem>;
-	};
-
 	msm_gpu: qcom,kgsl-3d0@3d00000 {
 		compatible = "qcom,kgsl-3d0",
 			"qcom,adreno-gpu-a642";
@@ -87,6 +80,10 @@
 		qcom,bus-table-cnoc =
 			<0>,   /* Off */
 			<100>; /* On */
+
+		zap-shader {
+			memory-region = <&pil_gpu_micro_code_mem>;
+		};
 
 		nvmem-cells = <&gpu_speed_bin>, <&gpu_gaming_bin>;
 		nvmem-cell-names = "speed_bin", "gaming_bin";
