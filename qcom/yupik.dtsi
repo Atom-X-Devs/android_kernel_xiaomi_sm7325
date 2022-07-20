@@ -5242,7 +5242,7 @@
 		qcom,pas-id = <0xf>;
 		qcom,firmware-name = "yupik_ipa_fws";
 		qcom,pil-force-shutdown;
-		memory-region = <&pil_ipa_gsi_mem>;
+		status = "disabled";
 	};
 
 	ipa_hw: qcom,ipa@1e00000 {
@@ -5252,6 +5252,9 @@
 			<0x1e00000 0x84000>,
 			<0x1e04000 0x23000>;
 		reg-names = "ipa-base", "gsi-base";
+		pas-ids = <0xf>;
+		firmware-names = "yupik_ipa_fws";
+		memory-regions = <&pil_ipa_gsi_mem>;
 		interrupts =
 			<0 654 IRQ_TYPE_LEVEL_HIGH>,
 			<0 432 IRQ_TYPE_LEVEL_HIGH>;
