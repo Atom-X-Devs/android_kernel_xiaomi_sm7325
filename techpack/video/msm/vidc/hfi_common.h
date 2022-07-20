@@ -14,6 +14,10 @@
 #include <linux/soc/qcom/smem.h>
 #include <linux/irqreturn.h>
 #include <linux/reset.h>
+#include <linux/of_address.h>
+#include <linux/firmware.h>
+#include <linux/qcom_scm.h>
+#include <linux/soc/qcom/mdt_loader.h>
 #include "vidc_hfi_api.h"
 #include "vidc_hfi_helper.h"
 #include "vidc_hfi_api.h"
