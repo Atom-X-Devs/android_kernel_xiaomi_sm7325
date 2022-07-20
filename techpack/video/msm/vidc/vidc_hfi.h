@@ -829,7 +829,7 @@ struct hal_device_data {
 };
 
 struct msm_vidc_fw {
-	void *cookie;
+	int cookie;
 };
 
 int hfi_process_msg_packet(u32 device_id, struct vidc_hal_msg_pkt_hdr *msg_hdr,
