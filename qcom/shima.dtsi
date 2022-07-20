@@ -1163,21 +1163,16 @@
 		#interrupt-cells = <3>;
 		#mbox-cells = <2>;
 	};
-	qcom,trustedvm@d0800000 {
-		compatible = "qcom,pil-tz-generic";
+
+	qcom,guestvm_loader {
+		compatible = "qcom,guestvm-loader";
 		status = "ok";
 		qcom,pas-id = <28>;
 		qcom,firmware-name = "trustedvm";
 		memory-region = <&pil_trustedvm_mem>;
-	};
-
-	qcom,guestvm_loader {
-		compatible = "qcom,guestvm-loader";
-		image_to_be_loaded = "trustedvm";
 		qcom,reserved-cpus = <4 5>;
 		qcom,unisolate-timeout-ms = <8000>;
 	};
-
 
 	qcom,svm_neuron_block {
 		compatible = "qcom,neuron-service";
