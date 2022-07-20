@@ -5177,17 +5177,11 @@
 		mbox-names = "spss-pil";
 	};
 
-	qcom,trustedvm@d0800000 {
-		compatible = "qcom,pil-tz-generic";
-		status = "ok";
+	qcom,guestvm_loader {
+		compatible = "qcom,guestvm-loader";
 		qcom,pas-id = <28>;
 		qcom,firmware-name = "trustedvm";
 		memory-region = <&pil_trustedvm_mem>;
-	};
-
-	qcom,guestvm_loader {
-		compatible = "qcom,guestvm-loader";
-		image_to_be_loaded = "trustedvm";
 		qcom,reserved-cpus = <4 5>;
 		qcom,unisolate-timeout-ms = <8000>;
 	};
