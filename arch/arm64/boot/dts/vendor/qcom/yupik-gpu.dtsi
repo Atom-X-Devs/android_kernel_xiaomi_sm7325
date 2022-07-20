@@ -1,13 +1,6 @@
 #define MHZ_TO_KBPS(mhz, w) ((mhz * 1000000 * w) / (1024))
 
 &soc {
-	pil_gpu: qcom,kgsl-hyp {
-		compatible = "qcom,pil-tz-generic";
-		qcom,pas-id = <13>;
-		qcom,firmware-name = "a660_zap";
-		memory-region = <&pil_gpu_micro_code_mem>;
-	};
-
 	kgsl_ddr_qos: qcom,kgsl-ddr-qos {
 		compatible = "qcom,devfreq-qoslat";
 		governor = "powersave";
@@ -96,6 +89,10 @@
 		qcom,bus-table-cnoc =
 			<0>,   /* Off */
 			<100>; /* On */
+
+		zap-shader {
+			memory-region = <&pil_gpu_micro_code_mem>;
+		};
 
 		qcom,l3-pwrlevels {
 			#address-cells = <1>;
