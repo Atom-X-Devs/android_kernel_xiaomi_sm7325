@@ -678,6 +678,8 @@ static void kgsl_device_snapshot_atomic(struct kgsl_device *device)
 	struct kgsl_snapshot *snapshot;
 	phys_addr_t pa;
 
+	device->snapshot_atomic = true;
+
 	if (device->snapshot && device->force_panic)
 		return;
 
@@ -715,7 +717,6 @@ static void kgsl_device_snapshot_atomic(struct kgsl_device *device)
 	if (snapshot == NULL)
 		return;
 
-	device->snapshot_atomic = true;
 	INIT_LIST_HEAD(&snapshot->obj_list);
 	INIT_LIST_HEAD(&snapshot->cp_list);
 
