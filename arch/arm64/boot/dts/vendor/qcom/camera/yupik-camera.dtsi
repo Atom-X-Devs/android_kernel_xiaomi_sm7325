@@ -431,7 +431,7 @@
 		msm_cam_icp_fw {
 			compatible = "qcom,msm-cam-smmu-fw-dev";
 			label="icp";
-			memory-region = <&pil_camera_mem>;
+			memory-region = <&camera_mem>;
 		};
 
 		msm_cam_smmu_icp {
