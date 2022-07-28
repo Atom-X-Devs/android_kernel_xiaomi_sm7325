@@ -250,17 +250,6 @@ static int ion_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
 						    len);
 }
 
-static void *ion_dma_buf_map(struct dma_buf *dmabuf, unsigned long offset)
-{
-	struct ion_buffer *buffer = to_iommu_data(dmabuf->priv);
-	struct ion_heap *heap = buffer->heap;
-
-	if (heap->buf_ops.map)
-		return heap->buf_ops.map(dmabuf, offset);
-
-	return ion_buffer_kmap_get(buffer) + offset * PAGE_SIZE;
-}
-
 static int ion_dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 {
 	struct ion_buffer *buffer = to_iommu_data(dmabuf->priv);
@@ -284,17 +273,6 @@ static int ion_dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 		pr_err("%s: failure mapping buffer to userspace\n", __func__);
 
 	return ret;
-}
-
-static void ion_dma_buf_unmap(struct dma_buf *dmabuf, unsigned long offset,
-			      void *addr)
-{
-	struct ion_buffer *buffer = to_iommu_data(dmabuf->priv);
-	struct ion_heap *heap = buffer->heap;
-
-	if (!heap->buf_ops.unmap)
-		return;
-	heap->buf_ops.unmap(dmabuf, offset, addr);
 }
 
 static void *ion_dma_buf_vmap(struct dma_buf *dmabuf)
@@ -350,8 +328,6 @@ static const struct dma_buf_ops dma_buf_ops = {
 	.end_cpu_access = ion_dma_buf_end_cpu_access,
 	.end_cpu_access_partial = ion_dma_buf_end_cpu_access_partial,
 	.mmap = ion_dma_buf_mmap,
-	.map = ion_dma_buf_map,
-	.unmap = ion_dma_buf_unmap,
 	.vmap = ion_dma_buf_vmap,
 	.vunmap = ion_dma_buf_vunmap,
 	.get_flags = ion_dma_buf_get_flags,

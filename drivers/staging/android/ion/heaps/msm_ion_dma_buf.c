@@ -463,30 +463,6 @@ static void msm_ion_dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
 	mutex_unlock(&buffer->lock);
 }
 
-static void *msm_ion_dma_buf_kmap(struct dma_buf *dmabuf, unsigned long offset)
-{
-	/*
-	 * TODO: Once clients remove their hacks where they assume kmap(ed)
-	 * addresses are virtually contiguous implement this properly
-	 */
-	void *vaddr = msm_ion_dma_buf_vmap(dmabuf);
-
-	if (IS_ERR(vaddr))
-		return vaddr;
-
-	return vaddr + offset * PAGE_SIZE;
-}
-
-static void msm_ion_dma_buf_kunmap(struct dma_buf *dmabuf, unsigned long offset,
-			       void *ptr)
-{
-	/*
-	 * TODO: Once clients remove their hacks where they assume kmap(ed)
-	 * addresses are virtually contiguous implement this properly
-	 */
-	msm_ion_dma_buf_vunmap(dmabuf, ptr);
-}
-
 static int ion_sgl_sync_range(struct device *dev, struct scatterlist *sgl,
 			      unsigned int nents, unsigned long offset,
 			      unsigned long length,
@@ -821,8 +797,6 @@ const struct dma_buf_ops msm_ion_dma_buf_ops = {
 	.end_cpu_access = msm_ion_dma_buf_end_cpu_access,
 	.begin_cpu_access_partial = msm_ion_dma_buf_begin_cpu_access_partial,
 	.end_cpu_access_partial = msm_ion_dma_buf_end_cpu_access_partial,
-	.map = msm_ion_dma_buf_kmap,
-	.unmap = msm_ion_dma_buf_kunmap,
 	.vmap = msm_ion_dma_buf_vmap,
 	.vunmap = msm_ion_dma_buf_vunmap,
 	.get_flags = msm_ion_dma_buf_get_flags,
