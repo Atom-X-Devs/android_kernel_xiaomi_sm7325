@@ -62,19 +62,33 @@ config PHY_QCOM_UFS
 if PHY_QCOM_UFS
 
 config PHY_QCOM_UFS_V3
-	tristate
+	tristate "11nm UFS QMP phy"
 	default PHY_QCOM_UFS
 	help
 	  Support for 11nm UFS QMP phy present on QCOM chipsets.
 
 config PHY_QCOM_UFS_V4
-	tristate
+	tristate "7nm UFS QMP phy"
+	default PHY_QCOM_UFS
+	help
+	  Support for 7nm UFS QMP phy present on QCOM chipsets.
+
+config PHY_QCOM_UFS_V4_YUPIK
+	tristate "7nm UFS QMP phy for yupik platform"
+	depends on ARCH_YUPIK
+	default PHY_QCOM_UFS
+	help
+	  Support for 7nm UFS QMP phy present on QCOM chipsets.
+
+config PHY_QCOM_UFS_V4_LAHAINA
+	tristate "7nm UFS QMP phy for lahaina platform"
+	depends on ARCH_SHIMA || ARCH_LAHAINA
 	default PHY_QCOM_UFS
 	help
 	  Support for 7nm UFS QMP phy present on QCOM chipsets.
 
 config PHY_QCOM_UFS_14NM
-	tristate
+	tristate "14nm UFS QMP phy"
 	default PHY_QCOM_UFS
 	help
 	  Support for 14nm UFS QMP phy present on QCOM chipsets.
