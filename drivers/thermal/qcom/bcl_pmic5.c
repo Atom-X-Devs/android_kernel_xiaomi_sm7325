@@ -803,7 +803,9 @@ static int bcl_remove(struct platform_device *pdev)
 static int bcl_probe(struct platform_device *pdev)
 {
 	struct bcl_device *bcl_perph = NULL;
+#ifdef CONFIG_IPC_LOGGING
 	char bcl_name[40];
+#endif
 	int err = 0;
 
 	if (bcl_device_ct >= MAX_PERPH_COUNT) {
@@ -836,6 +838,7 @@ static int bcl_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, bcl_perph);
 
+#ifdef CONFIG_IPC_LOGGING
 	snprintf(bcl_name, sizeof(bcl_name), "bcl_0x%04x_%d",
 					bcl_perph->fg_bcl_addr,
 					bcl_device_ct - 1);
@@ -845,6 +848,7 @@ static int bcl_probe(struct platform_device *pdev)
 	if (!bcl_perph->ipc_log)
 		pr_err("%s: unable to create IPC Logging for %s\n",
 					__func__, bcl_name);
+#endif
 
 	return 0;
 }
