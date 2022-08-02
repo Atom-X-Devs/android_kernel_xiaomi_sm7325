@@ -274,8 +274,10 @@ enum fastrpc_msg_type {
 static int fastrpc_pdr_notifier_cb(struct notifier_block *nb,
 					unsigned long code,
 					void *data);
+#ifdef CONFIG_DEBUG_FS
 static struct dentry *debugfs_root;
 static struct dentry *debugfs_global_file;
+#endif
 
 static inline uint64_t buf_page_start(uint64_t buf)
 {
@@ -5836,6 +5838,7 @@ static int fastrpc_set_process_info(struct fastrpc_file *fl)
 	if (current->tgid != fl->tgid_open)
 		fl->untrusted_process = true;
 	snprintf(strpid, PID_SIZE, "%d", current->pid);
+#ifdef CONFIG_DEBUG_FS
 	if (debugfs_root) {
 		buf_size = strlen(cur_comm) + strlen("_")
 			+ strlen(strpid) + 1;
@@ -5865,6 +5868,7 @@ static int fastrpc_set_process_info(struct fastrpc_file *fl)
 			fl->debug_buf = NULL;
 		}
 	}
+#endif
 	return err;
 }
 
@@ -6685,6 +6689,7 @@ static int fastrpc_cb_probe(struct device *dev)
 	}
 
 	chan->sesscount++;
+#ifdef CONFIG_DEBUG_FS
 	if (debugfs_root && !debugfs_global_file) {
 		debugfs_global_file = debugfs_create_file("global", 0644,
 			debugfs_root, NULL, &debugfs_fops);
@@ -6694,6 +6699,7 @@ static int fastrpc_cb_probe(struct device *dev)
 			debugfs_global_file = NULL;
 		}
 	}
+#endif
 bail:
 	return err;
 }
@@ -7034,6 +7040,7 @@ static int __init fastrpc_device_init(void)
 	struct fastrpc_apps *me = &gfa;
 	int err = 0, i;
 
+#ifdef CONFIG_DEBUG_FS
 	debugfs_root = debugfs_create_dir("adsprpc", NULL);
 	if (IS_ERR_OR_NULL(debugfs_root)) {
 		pr_warn("Error: %s: %s: failed to create debugfs root dir\n",
@@ -7041,6 +7048,7 @@ static int __init fastrpc_device_init(void)
 		debugfs_remove_recursive(debugfs_root);
 		debugfs_root = NULL;
 	}
+#endif
 	memset(me, 0, sizeof(*me));
 	fastrpc_init(me);
 	fastrpc_get_dsp_status(me);
@@ -7176,7 +7184,9 @@ static void __exit fastrpc_device_exit(void)
 	if (me->rpmsg_register == 1)
 		unregister_rpmsg_driver(&fastrpc_rpmsg_client);
 	kfree(me->gidlist.gids);
+#ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(debugfs_root);
+#endif
 }
 
 module_init(fastrpc_device_init);
