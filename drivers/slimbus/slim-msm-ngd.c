@@ -1749,6 +1749,7 @@ static void ngd_dom_up(struct work_struct *work)
 	mutex_unlock(&dev->ssr_lock);
 }
 
+#ifdef CONFIG_IPC_LOGGING
 static ssize_t debug_mask_show(struct device *device,
 				struct device_attribute *attr,
 				char *buf)
@@ -1773,6 +1774,7 @@ static ssize_t debug_mask_store(struct device *device,
 }
 
 static DEVICE_ATTR_RW(debug_mask);
+#endif
 
 static const struct of_device_id ngd_slim_dt_match[] = {
 	{
@@ -1822,7 +1824,9 @@ static int ngd_slim_probe(struct platform_device *pdev)
 	bool			rxreg_access = false;
 	bool			slim_mdm = false;
 	const char		*ext_modem_id = NULL;
+#ifdef CONFIG_IPC_LOGGING
 	char			ipc_err_log_name[30];
+#endif
 
 	if (of_device_is_compatible(pdev->dev.of_node,
 				    "qcom,iommu-slim-ctrl-cb"))
@@ -1891,6 +1895,7 @@ static int ngd_slim_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 	slim_set_ctrldata(&dev->ctrl, dev);
 
+#ifdef CONFIG_IPC_LOGGING
 	/* Create IPC log context */
 	dev->ipc_slimbus_log = ipc_log_context_create(IPC_SLIMBUS_LOG_PAGES,
 						dev_name(dev->dev), 0);
@@ -1924,6 +1929,7 @@ static int ngd_slim_probe(struct platform_device *pdev)
 		dev->sysfs_created = false;
 	} else
 		dev->sysfs_created = true;
+#endif
 
 	dev->base = devm_ioremap(&pdev->dev, slim_mem->start,
 					resource_size(slim_mem));
@@ -2106,9 +2112,11 @@ static int ngd_slim_probe(struct platform_device *pdev)
 err_notify_thread_create_failed:
 	kthread_stop(dev->rx_msgq_thread);
 err_ioremap_failed:
+#ifdef CONFIG_IPC_LOGGING
 	if (dev->sysfs_created)
 		sysfs_remove_file(&dev->dev->kobj,
 				&dev_attr_debug_mask.attr);
+#endif
 	kfree(dev->bulk.base);
 err_nobulk:
 	kfree(dev->wr_comp);
@@ -2121,9 +2129,11 @@ static int ngd_slim_remove(struct platform_device *pdev)
 	struct msm_slim_ctrl *dev = platform_get_drvdata(pdev);
 
 	ngd_slim_enable(dev, false);
+#ifdef CONFIG_IPC_LOGGING
 	if (dev->sysfs_created)
 		sysfs_remove_file(&dev->dev->kobj,
 				&dev_attr_debug_mask.attr);
+#endif
 	ngd_slim_qmi_svc_event_deinit(&dev->qmi);
 	pm_runtime_disable(&pdev->dev);
 	if (dev->dsp.dom_t == MSM_SLIM_DOM_SS)
