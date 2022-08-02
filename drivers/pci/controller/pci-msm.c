@@ -293,6 +293,7 @@
 #define BDF_OFFSET(bus, devfn) \
 	((bus << 24) | (devfn << 16))
 
+#ifdef CONFIG_IPC_LOGGING
 #define PCIE_DBG(dev, fmt, arg...) do {			 \
 	if ((dev) && (dev)->ipc_log_long)   \
 		ipc_log_string((dev)->ipc_log_long, \
@@ -343,6 +344,15 @@
 		ipc_log_string((dev)->ipc_log, "%s: " fmt, __func__, ##arg); \
 	pr_err("%s: " fmt, __func__, arg);  \
 	} while (0)
+#else
+#define PCIE_DBG(dev, fmt, arg...)
+#define PCIE_DBG2(dev, fmt, arg...)
+#define PCIE_DBG3(dev, fmt, arg...)
+#define PCIE_DUMP(dev, fmt, arg...)
+#define PCIE_DBG_FS(dev, fmt, arg...)
+#define PCIE_INFO(dev, fmt, arg...)
+#define PCIE_ERR(dev, fmt, arg...)
+#endif
 
 #define CHECK_NTN3_VERSION_MASK (0x000000FF)
 #define NTN3_CHIP_VERSION_1 (0x00000000)
@@ -7374,6 +7384,7 @@ static int __init pcie_init(void)
 	mutex_init(&pcie_drv.rpmsg_lock);
 
 	for (i = 0; i < MAX_RC_NUM; i++) {
+#ifdef CONFIG_IPC_LOGGING
 		scnprintf(rc_name, MAX_RC_NAME_LEN, "pcie%d-short", i);
 		msm_pcie_dev[i].ipc_log =
 			ipc_log_context_create(PCIE_LOG_PAGES, rc_name, 0);
@@ -7404,6 +7415,7 @@ static int __init pcie_init(void)
 			PCIE_DBG(&msm_pcie_dev[i],
 				"PCIe IPC logging %s is enable for RC%d\n",
 				rc_name, i);
+#endif
 		spin_lock_init(&msm_pcie_dev[i].cfg_lock);
 		spin_lock_init(&msm_pcie_dev[i].evt_reg_list_lock);
 		msm_pcie_dev[i].cfg_access = true;
