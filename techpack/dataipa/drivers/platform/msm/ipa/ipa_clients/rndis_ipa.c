@@ -55,22 +55,23 @@
 
 #define IPA_RNDIS_IPC_LOG_PAGES 50
 
-#define IPA_RNDIS_IPC_LOGGING(buf, fmt, args...) \
+#ifdef CONFIG_IPC_LOGGING
+static void *ipa_rndis_logbuf;
+
+#define IPA_RNDIS_IPC_LOGGING(fmt, args...) \
 	do { \
-		if (buf) \
-			ipc_log_string((buf), fmt, __func__, __LINE__, \
+		if (ipa_rndis_logbuf) \
+			ipc_log_string((ipa_rndis_logbuf), fmt, __func__, __LINE__, \
 				## args); \
 	} while (0)
-
-static void *ipa_rndis_logbuf;
+#else
+#define IPA_RNDIS_IPC_LOGGING(fmt, args...)
+#endif
 
 #define RNDIS_IPA_DEBUG(fmt, args...) \
 	do { \
 		pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
-		if (ipa_rndis_logbuf) { \
-			IPA_RNDIS_IPC_LOGGING(ipa_rndis_logbuf, \
-				DRV_NAME " %s:%d " fmt, ## args); \
-		} \
+		IPA_RNDIS_IPC_LOGGING(DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 #define RNDIS_IPA_DEBUG_XMIT(fmt, args...) \
@@ -80,20 +81,14 @@ static void *ipa_rndis_logbuf;
 	do { \
 		pr_err(DRV_NAME "@%s@%d@ctx:%s: "\
 			fmt, __func__, __LINE__, current->comm, ## args);\
-		if (ipa_rndis_logbuf) { \
-			IPA_RNDIS_IPC_LOGGING(ipa_rndis_logbuf, \
-				DRV_NAME " %s:%d " fmt, ## args); \
-		} \
+		IPA_RNDIS_IPC_LOGGING(DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 #define RNDIS_IPA_ERROR_RL(fmt, args...) \
 	do { \
 		pr_err_ratelimited_ipa(DRV_NAME "@%s@%d@ctx:%s: "\
 			fmt, __func__, __LINE__, current->comm, ## args);\
-		if (ipa_rndis_logbuf) { \
-			IPA_RNDIS_IPC_LOGGING(ipa_rndis_logbuf, \
-				DRV_NAME " %s:%d " fmt, ## args); \
-		} \
+		IPA_RNDIS_IPC_LOGGING(DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 #define NULL_CHECK_RETVAL(ptr) \
@@ -2442,10 +2437,12 @@ static ssize_t rndis_ipa_debugfs_atomic_read
 
 static int __init rndis_ipa_init_module(void)
 {
+#ifdef CONFIG_IPC_LOGGING
 	ipa_rndis_logbuf = ipc_log_context_create(IPA_RNDIS_IPC_LOG_PAGES,
 		"ipa_rndis", 0);
 	if (ipa_rndis_logbuf == NULL)
 		RNDIS_IPA_ERROR("failed to create IPC log, continue...\n");
+#endif
 
 	pr_info("RNDIS_IPA module is loaded.\n");
 	return 0;
@@ -2453,10 +2450,11 @@ static int __init rndis_ipa_init_module(void)
 
 static void __exit rndis_ipa_cleanup_module(void)
 {
+#ifdef CONFIG_IPC_LOGGING
 	if (ipa_rndis_logbuf)
 		ipc_log_context_destroy(ipa_rndis_logbuf);
 	ipa_rndis_logbuf = NULL;
-
+#endif
 	pr_info("RNDIS_IPA module is unloaded.\n");
 }
 
