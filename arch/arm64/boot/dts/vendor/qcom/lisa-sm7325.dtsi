@@ -44,7 +44,7 @@
 	xiaomi_k9_touch@0 {
 		reg = <0>;
 		compatible = "xiaomi,k9-spi";
-		spi-max-frequency = <6000000>;
+		spi-max-frequency = <8000000>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <81 0x2008>;
 		goodix,avdd-name = "avdd";
