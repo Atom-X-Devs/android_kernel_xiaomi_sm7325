@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020, The Linux Foundation. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"AMOLED_ECM: %s: " fmt, __func__
@@ -18,8 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/workqueue.h>
-
-#include <drm/drm_panel.h>
 
 /* AMOLED AB register definitions */
 #define AB_REVISION2				0x01
@@ -152,14 +150,11 @@ struct amoled_ecm_data {
  * @sdam:		Pointer for array of ECM sdams
  * @sdam_lock:		Locking for mutual exclusion
  * @average_work:	Delayed work to calculate ECM average
- * @drm_notifier:	The notifier block for receiving DRM notifications
- * @active_panel:	Active DRM panel which sends DRM notifications
  * @num_sdams:		Number of SDAMs used for AMOLED ECM
  * @base:		Base address of the AMOLED ECM module
  * @ab_revision:	Revision of the AMOLED AB module
  * @enable:		Flag to enable/disable AMOLED ECM
  * @abort:		Flag to indicated AMOLED ECM has aborted
- * @reenable:		Flag to reenable ECM when display goes unblank
  */
 struct amoled_ecm {
 	struct regmap		*regmap;
@@ -168,14 +163,11 @@ struct amoled_ecm {
 	struct amoled_ecm_sdam	*sdam;
 	struct mutex		sdam_lock;
 	struct delayed_work	average_work;
-	struct notifier_block	drm_notifier;
-	struct drm_panel	*active_panel;
 	u32			num_sdams;
 	u32			base;
 	u8			ab_revision;
 	bool			enable;
 	bool			abort;
-	bool			reenable;
 };
 
 static struct amoled_ecm_sdam_config ecm_reset_config[] = {
@@ -317,6 +309,8 @@ static int amoled_ecm_disable(struct amoled_ecm *ecm)
 
 	cancel_delayed_work(&ecm->average_work);
 
+	ecm->data.frames = 0;
+	ecm->data.time_period_ms = 0;
 	ecm->data.avg_current = 0;
 	ecm->data.m_cumulative = 0;
 	ecm->data.num_m_samples = 0;
@@ -333,17 +327,25 @@ static void ecm_average_work(struct work_struct *work)
 	struct amoled_ecm *ecm = container_of(work, struct amoled_ecm,
 			average_work.work);
 	struct amoled_ecm_data *data = &ecm->data;
+	int rc;
+
+	if (!data->num_m_samples || !data->m_cumulative) {
+		pr_err("num_m_samples=%u m_cumulative:%u disabling ECM\n",
+			data->num_m_samples, data->m_cumulative);
+		data->avg_current = -EINVAL;
+
+		rc = amoled_ecm_disable(ecm);
+		if (rc < 0)
+			pr_err("Failed to disable AMOLED ECM, rc=%d\n", rc);
+
+		return;
+	}
 
 	mutex_lock(&ecm->sdam_lock);
 
-	if (!data->num_m_samples || !data->m_cumulative) {
-		pr_warn_ratelimited("Invalid data, num_m_samples=%u m_cumulative:%u\n",
-			data->num_m_samples, data->m_cumulative);
-		data->avg_current = 0;
-	} else {
-		data->avg_current = data->m_cumulative / data->num_m_samples;
-		pr_debug("avg_current=%u mA\n", data->avg_current);
-	}
+	data->avg_current = data->m_cumulative / data->num_m_samples;
+
+	pr_debug("avg_current=%u mA\n", data->avg_current);
 
 	data->m_cumulative = 0;
 	data->num_m_samples = 0;
@@ -397,9 +399,6 @@ static ssize_t enable_store(struct device *dev,
 			pr_err("Failed to disable AMOLED ECM, rc=%d\n", rc);
 			return rc;
 		}
-
-		ecm->data.frames = 0;
-		ecm->data.time_period_ms = 0;
 	}
 
 	return count;
@@ -510,14 +509,11 @@ static int handle_ecm_abort(struct amoled_ecm *ecm)
 
 	switch (mode) {
 	case ECM_MODE_MULTI_FRAMES:
-		pr_warn_ratelimited("Multiple frames mode is not supported\n");
-		data->avg_current = 0;
+		data->avg_current = -EIO;
 		break;
 	case ECM_MODE_CONTINUOUS:
 		if (data->num_m_samples < ECM_MIN_M_SAMPLES) {
-			pr_warn_ratelimited("Too few samples %u for continuous mode\n",
-					data->num_m_samples);
-			data->avg_current = 0;
+			data->avg_current = -EIO;
 			break;
 		}
 
@@ -525,8 +521,7 @@ static int handle_ecm_abort(struct amoled_ecm *ecm)
 		schedule_delayed_work(&ecm->average_work, 0);
 		break;
 	default:
-		pr_err_ratelimited("Invalid ECM operation mode: %u\n", mode);
-		data->avg_current = 0;
+		data->avg_current = -EINVAL;
 		return -EINVAL;
 	}
 
@@ -677,37 +672,6 @@ irq_exit:
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_DRM
-static int amoled_ecm_parse_panel_dt(struct amoled_ecm *ecm)
-{
-	struct device_node *np = ecm->dev->of_node;
-	struct device_node *pnode;
-	struct drm_panel *panel;
-	int i, count;
-
-	count = of_count_phandle_with_args(np, "display-panels", NULL);
-	if (count <= 0)
-		return 0;
-
-	for (i = 0; i < count; i++) {
-		pnode = of_parse_phandle(np, "display-panels", i);
-		panel = of_drm_find_panel(pnode);
-		of_node_put(pnode);
-		if (!IS_ERR(panel)) {
-			ecm->active_panel = panel;
-			return 0;
-		}
-	}
-
-	return PTR_ERR(panel);
-}
-#else
-static inline int amoled_ecm_parse_panel_dt(struct amoled_ecm *ecm)
-{
-	return 0;
-}
-#endif
-
 static int amoled_ecm_parse_dt(struct amoled_ecm *ecm)
 {
 	int rc = 0, i;
@@ -762,92 +726,8 @@ static int amoled_ecm_parse_dt(struct amoled_ecm *ecm)
 		}
 	}
 
-	rc = amoled_ecm_parse_panel_dt(ecm);
-	if (rc && rc != -EPROBE_DEFER)
-		pr_err("failed to get active panel, rc=%d\n", rc);
-
 	return rc;
 }
-
-#ifdef CONFIG_DRM
-static int drm_notifier_callback(struct notifier_block *nb,
-		unsigned long event, void *data)
-{
-	struct amoled_ecm *ecm = container_of(nb,
-			struct amoled_ecm, drm_notifier);
-	struct drm_panel_notifier *evdata = data;
-	int blank, rc;
-
-	pr_debug("DRM event received: %d\n", event);
-	if (event != DRM_PANEL_EVENT_BLANK)
-		return NOTIFY_DONE;
-
-	blank = *(int *)evdata->data;
-	if (blank == DRM_PANEL_BLANK_POWERDOWN && ecm->enable) {
-		rc = amoled_ecm_disable(ecm);
-		if (rc < 0) {
-			pr_err("Failed to disable ECM for display BLANK, rc=%d\n",
-					rc);
-			return rc;
-		}
-
-		ecm->reenable = true;
-		pr_debug("Disabled ECM for display BLANK\n");
-	} else if (blank == DRM_PANEL_BLANK_UNBLANK && ecm->reenable) {
-		rc = amoled_ecm_enable(ecm);
-		if (rc < 0) {
-			pr_err("Failed to reenable ECM for display UNBLANK, rc=%d\n",
-					rc);
-			return rc;
-		}
-
-		ecm->reenable = false;
-		pr_debug("Enabled ECM for display UNBLANK\n");
-	}
-
-	return NOTIFY_DONE;
-}
-
-static int qti_amoled_register_drm_notifier(struct amoled_ecm *ecm)
-{
-	int rc = 0;
-
-	if (ecm->active_panel) {
-		ecm->drm_notifier.notifier_call = drm_notifier_callback;
-		rc = drm_panel_notifier_register(ecm->active_panel,
-				&ecm->drm_notifier);
-		if (rc < 0)
-			pr_err("failed to register DRM notifier, rc=%d\n", rc);
-	}
-
-	return rc;
-}
-
-static int qti_amoled_unregister_drm_notifier(struct amoled_ecm *ecm)
-{
-	if (ecm->active_panel)
-		return drm_panel_notifier_unregister(ecm->active_panel,
-				&ecm->drm_notifier);
-
-	return 0;
-}
-#else
-static inline int drm_notifier_callback(struct notifier_block *nb,
-		unsigned long event, void *data)
-{
-	return NOTIFY_DONE;
-}
-
-static inline int qti_amoled_register_drm_notifier(struct amoled_ecm *ecm)
-{
-	return 0;
-}
-
-static inline int qti_amoled_unregister_drm_notifier(struct amoled_ecm *ecm)
-{
-	return 0;
-}
-#endif
 
 static int qti_amoled_ecm_probe(struct platform_device *pdev)
 {
@@ -870,9 +750,7 @@ static int qti_amoled_ecm_probe(struct platform_device *pdev)
 
 	rc = amoled_ecm_parse_dt(ecm);
 	if (rc < 0) {
-		if (rc != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to parse AMOLED ECM rc=%d\n",
-				rc);
+		dev_err(&pdev->dev, "Failed to parse AMOLED ECM rc=%d\n", rc);
 		return rc;
 	}
 
@@ -915,21 +793,13 @@ static int qti_amoled_ecm_probe(struct platform_device *pdev)
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(&pdev->dev,
 				"amoled_ecm", ecm, amoled_ecm_groups);
-	if (IS_ERR_OR_NULL(hwmon_dev)) {
-		rc = PTR_ERR(hwmon_dev);
-		pr_err("failed to register hwmon device for amoled-ecm, rc=%d\n",
-				rc);
-		return rc;
-	}
 
-	return qti_amoled_register_drm_notifier(ecm);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 static int qti_amoled_ecm_remove(struct platform_device *pdev)
 {
-	struct amoled_ecm *ecm = dev_get_drvdata(&pdev->dev);
-
-	return qti_amoled_unregister_drm_notifier(ecm);
+	return 0;
 }
 
 static const struct of_device_id amoled_ecm_match_table[] = {
