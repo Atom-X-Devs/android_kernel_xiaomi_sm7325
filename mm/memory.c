@@ -2639,7 +2639,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 	 */
 	if (!pte_map_lock(vmf)) {
 		ret = VM_FAULT_RETRY;
-		goto out_uncharge;
+		goto out_free_new;
 	}
 	if (likely(pte_same(*vmf->pte, vmf->orig_pte))) {
 		if (old_page) {
@@ -2724,8 +2724,6 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 		put_page(old_page);
 	}
 	return page_copied ? VM_FAULT_WRITE : 0;
-out_uncharge:
-	mem_cgroup_cancel_charge(new_page, memcg);
 out_free_new:
 	put_page(new_page);
 out:
@@ -3189,7 +3187,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 	 */
 	if (!pte_map_lock(vmf)) {
 		ret = VM_FAULT_RETRY;
-		goto out_cancel_cgroup;
+		goto out_page;
 	}
 	if (unlikely(!pte_same(*vmf->pte, vmf->orig_pte)))
 		goto out_nomap;
@@ -3267,8 +3265,6 @@ out:
 	return ret;
 out_nomap:
 	pte_unmap_unlock(vmf->pte, vmf->ptl);
-out_cancel_cgroup:
-	mem_cgroup_cancel_charge(page, memcg);
 out_page:
 	unlock_page(page);
 out_release:
