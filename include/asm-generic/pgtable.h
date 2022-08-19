@@ -26,6 +26,38 @@
 #define USER_PGTABLES_CEILING	0UL
 #endif
 
+/*
+ * A page table page can be thought of an array like this: pXd_t[PTRS_PER_PxD]
+ *
+ * The pXx_index() functions return the index of the entry in the page
+ * table page which would control the given virtual address
+ *
+ * As these functions may be used by the same code for different levels of
+ * the page table folding, they are always available, regardless of
+ * CONFIG_PGTABLE_LEVELS value. For the folded levels they simply return 0
+ * because in such cases PTRS_PER_PxD equals 1.
+ */
+#ifndef pmd_index
+static inline unsigned long pmd_index(unsigned long address)
+{
+	return (address >> PMD_SHIFT) & (PTRS_PER_PMD - 1);
+}
+#define pmd_index pmd_index
+#endif
+
+#ifndef pud_index
+static inline unsigned long pud_index(unsigned long address)
+{
+	return (address >> PUD_SHIFT) & (PTRS_PER_PUD - 1);
+}
+#define pud_index pud_index
+#endif
+
+#ifndef pgd_index
+/* Must be a compile-time constant, so implement it as a macro */
+#define pgd_index(a)  (((a) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
+#endif
+
 #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 extern int ptep_set_access_flags(struct vm_area_struct *vma,
 				 unsigned long address, pte_t *ptep,
