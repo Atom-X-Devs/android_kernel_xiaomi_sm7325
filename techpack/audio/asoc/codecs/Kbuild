@@ -40,7 +40,7 @@ ifeq ($(CONFIG_SND_SOC_AUTO), y)
 		INCS    +=  -include $(AUDIO_ROOT)/config/sa8295gvmautoconf.h
 	endif
 else
-	ifeq ($(KERNEL_BUILD), 0)
+	ifeq (0, 0)
 		ifeq ($(CONFIG_ARCH_SM8150), y)
 			ifdef CONFIG_SND_SOC_SA8155
 				include $(AUDIO_ROOT)/config/sa8155auto.conf
@@ -265,7 +265,7 @@ ifeq ($(call cc-option-yn, -Wheader-guard),y)
 EXTRA_CFLAGS += -Wheader-guard
 endif
 
-ifeq ($(KERNEL_BUILD), 0)
+ifeq (0, 0)
 KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/ipc/Module.symvers
 KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/dsp/Module.symvers
 KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/soc/Module.symvers

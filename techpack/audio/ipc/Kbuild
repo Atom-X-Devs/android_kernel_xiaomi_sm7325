@@ -37,7 +37,7 @@ ifeq ($(CONFIG_SND_SOC_AUTO), y)
 		INCS    +=  -include $(AUDIO_ROOT)/config/sa8295gvmautoconf.h
 	endif
 else
-	ifeq ($(KERNEL_BUILD), 0)
+	ifeq (0, 0)
 			ifeq ($(CONFIG_ARCH_SM6150), y)
 			ifdef CONFIG_SND_SOC_SA6155
 				include $(AUDIO_ROOT)/config/sa6155auto.conf
@@ -174,7 +174,7 @@ CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 
 KBUILD_CPPFLAGS += $(CDEFINES)
 
-ifeq ($(KERNEL_BUILD), 0)
+ifeq (0, 0)
 KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/dsp/Module.symvers
 endif
 
