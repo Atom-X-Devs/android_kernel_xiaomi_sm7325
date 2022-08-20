@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-KDIR := $(TOP)/kernel_platform/common
+ifeq ($(DISPLAY_ROOT),)
+DISPLAY_ROOT=$(srctree)/techpack/display
+endif
 
 ifeq ($(CONFIG_QGKI), y)
 
@@ -104,7 +106,7 @@ CDEFINES += -DMULTI_IF_NAME=\"$(CHIP_NAME)\"
 endif
 
 ######### CONFIG_DRM_MSM ########
-obj-m += msm_drm.o
+obj-$(CONFIG_DRM_MSM) += msm_drm.o
 
 msm_drm-$(CONFIG_HDCP_QSEECOM) := ../hdcp/msm_hdcp.o
 
