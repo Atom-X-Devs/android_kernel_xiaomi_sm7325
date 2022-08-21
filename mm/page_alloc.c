@@ -312,7 +312,7 @@ compound_page_dtor * const compound_page_dtors[] = {
 #ifdef CONFIG_HUGETLB_PAGE
 	free_huge_page,
 #endif
-#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_GKI_OPT_FEATURES)
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	free_transhuge_page,
 #endif
 };
