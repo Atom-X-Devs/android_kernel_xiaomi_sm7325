@@ -329,7 +329,6 @@ static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
 }
 
 static inline void prep_transhuge_page(struct page *page) {}
-static inline void free_transhuge_page(struct page *page) {}
 
 #define transparent_hugepage_flags 0UL
 
