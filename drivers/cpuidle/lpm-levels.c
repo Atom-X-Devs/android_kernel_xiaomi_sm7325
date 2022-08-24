@@ -29,7 +29,6 @@
 #include <linux/cpuhotplug.h>
 #include <linux/regulator/machine.h>
 #include <linux/sched/clock.h>
-#include <linux/sched/idle.h>
 #include <linux/sched/stat.h>
 #include <linux/rcupdate.h>
 #include <linux/psci.h>
@@ -48,7 +47,6 @@
 #define SCLK_HZ (32768)
 #define PSCI_POWER_STATE(reset) (reset << 30)
 #define PSCI_AFFINITY_LEVEL(lvl) ((lvl & 0x3) << 24)
-#define MAX_LPM_CPUS (8)
 
 static struct system_pm_ops *sys_pm_ops;
 
@@ -96,15 +94,6 @@ static void cluster_prepare(struct lpm_cluster *cluster,
 static bool sleep_disabled;
 module_param_named(sleep_disabled, sleep_disabled, bool, 0664);
 
-#ifdef CONFIG_SMP
-static int lpm_cpu_qos_notify(struct notifier_block *nb,
-		unsigned long val, void *ptr);
-
-static struct notifier_block dev_pm_qos_nb[MAX_LPM_CPUS] = {
-	[0 ... (MAX_LPM_CPUS - 1)] = { .notifier_call = lpm_cpu_qos_notify },
-};
-#endif
-
 #ifdef CONFIG_SCHED_WALT
 static bool check_cpu_isolated(int cpu)
 {
@@ -114,46 +103,6 @@ static bool check_cpu_isolated(int cpu)
 static bool check_cpu_isolated(int cpu)
 {
 	return false;
-}
-#endif
-
-#ifdef CONFIG_SMP
-static int lpm_cpu_qos_notify(struct notifier_block *nb,
-		unsigned long val, void *ptr)
-{
-	int cpu = nb - dev_pm_qos_nb;
-
-	preempt_disable();
-	if (cpu != smp_processor_id() && cpu_online(cpu) &&
-	    !check_cpu_isolated(cpu))
-		wake_up_if_idle(cpu);
-	preempt_enable();
-
-	return NOTIFY_OK;
-}
-
-static int lpm_offline_cpu(unsigned int cpu)
-{
-	struct device *dev = get_cpu_device(cpu);
-
-	if (!dev)
-		return 0;
-
-	dev_pm_qos_remove_notifier(dev, &dev_pm_qos_nb[cpu],
-				   DEV_PM_QOS_RESUME_LATENCY);
-	return 0;
-}
-
-static int lpm_online_cpu(unsigned int cpu)
-{
-	struct device *dev = get_cpu_device(cpu);
-
-	if (!dev)
-		return 0;
-
-	dev_pm_qos_add_notifier(dev, &dev_pm_qos_nb[cpu],
-				DEV_PM_QOS_RESUME_LATENCY);
-	return 0;
 }
 #endif
 
@@ -1744,12 +1693,6 @@ static int lpm_probe(struct platform_device *pdev)
 	ret = cpuhp_setup_state(CPUHP_AP_QCOM_TIMER_STARTING,
 			"AP_QCOM_SLEEP_STARTING",
 			lpm_starting_cpu, lpm_dying_cpu);
-	if (ret)
-		goto failed;
-
-	ret = cpuhp_setup_state(CPUHP_AP_QCOM_CPU_QOS_ONLINE,
-			"AP_QCOM_CPU_QOS_ONLINE",
-			lpm_online_cpu, lpm_offline_cpu);
 	if (ret)
 		goto failed;
 #endif
