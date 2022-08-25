@@ -277,11 +277,6 @@ static int aw_pid_1852_dev_init(struct aw882xx *aw882xx)
 	aw_pa->spin_desc.rx_desc.left_val = AW_PID_1852_CHSEL_LEFT_VALUE;
 	aw_pa->spin_desc.rx_desc.right_val = AW_PID_1852_CHSEL_RIGHT_VALUE;
 
-	aw_pa->spin_desc.tx_desc.reg = AW_PID_1852_I2SCFG1_REG;
-	aw_pa->spin_desc.tx_desc.mask = AW_PID_1852_I2SCHS_MASK;
-	aw_pa->spin_desc.tx_desc.left_val = AW_PID_1852_I2SCHS_LEFT_CHANNEL_VALUE;
-	aw_pa->spin_desc.tx_desc.right_val = AW_PID_1852_I2SCHS_RIGHT_CHANNEL_VALUE;
-
 	aw_pa->cco_mux_desc.reg = AW_PID_1852_PLLCTRL1_REG;
 	aw_pa->cco_mux_desc.mask = AW_PID_1852_I2S_CCO_MUX_MASK;
 	aw_pa->cco_mux_desc.divided_val = AW_PID_1852_I2S_CCO_MUX_8_16_32KHZ_VALUE;
@@ -564,11 +559,6 @@ static int aw_pid_2013_dev_init(struct aw882xx *aw882xx)
 	aw_pa->spin_desc.rx_desc.left_val = AW_PID_2013_CHSEL_LEFT_VALUE;
 	aw_pa->spin_desc.rx_desc.right_val = AW_PID_2013_CHSEL_RIGHT_VALUE;
 
-	aw_pa->spin_desc.tx_desc.reg = AW_PID_2013_SYSCTRL2_REG;
-	aw_pa->spin_desc.tx_desc.mask = AW_PID_2013_I2SCHS_MASK;
-	aw_pa->spin_desc.tx_desc.left_val = AW_PID_2013_I2SCHS_LEFT_VALUE;
-	aw_pa->spin_desc.tx_desc.right_val = AW_PID_2013_I2SCHS_RIGHT_VALUE;
-
 	aw_pa->voltage_desc.reg = AW_PID_2013_VBAT_REG;
 	aw_pa->voltage_desc.int_bit = AW_PID_2013_MONITOR_INT_10BIT;
 	aw_pa->voltage_desc.vbat_range = AW_PID_2013_MONITOR_VBAT_RANGE;
@@ -810,11 +800,6 @@ static int aw_pid_2032_dev_init(struct aw882xx *aw882xx)
 	aw_pa->spin_desc.rx_desc.left_val = AW_PID_2032_CHSEL_LEFT_VALUE;
 	aw_pa->spin_desc.rx_desc.right_val = AW_PID_2032_CHSEL_RIGHT_VALUE;
 
-	aw_pa->spin_desc.tx_desc.reg = AW_PID_2032_I2SCFG1_REG;
-	aw_pa->spin_desc.tx_desc.mask = AW_PID_2032_I2SCHS_MASK;
-	aw_pa->spin_desc.tx_desc.left_val = AW_PID_2032_I2SCHS_LEFT_VALUE;
-	aw_pa->spin_desc.tx_desc.right_val = AW_PID_2032_I2SCHS_RIGHT_VALUE;
-
 	aw_pa->sysst_desc.reg = AW_PID_2032_SYSST_REG;
 	aw_pa->sysst_desc.mask = AW_PID_2032_SYSST_CHECK_MASK;
 	aw_pa->sysst_desc.st_check = AW_PID_2032_SYSST_CHECK;
@@ -1042,11 +1027,6 @@ static int aw_pid_2055a_dev_init(struct aw882xx *aw882xx)
 	aw_pa->spin_desc.rx_desc.mask = AW_PID_2055A_CHSEL_MASK;
 	aw_pa->spin_desc.rx_desc.left_val = AW_PID_2055A_CHSEL_LEFT_VALUE;
 	aw_pa->spin_desc.rx_desc.right_val = AW_PID_2055A_CHSEL_RIGHT_VALUE;
-
-	aw_pa->spin_desc.tx_desc.reg = AW_PID_2055A_SYSCTRL2_REG;
-	aw_pa->spin_desc.tx_desc.mask = AW_PID_2055A_I2SCHS_MASK;
-	aw_pa->spin_desc.tx_desc.left_val = AW_PID_2055A_I2SCHS_LEFT_VALUE;
-	aw_pa->spin_desc.tx_desc.right_val = AW_PID_2055A_I2SCHS_RIGHT_VALUE;
 
 	aw_pa->voltage_desc.reg = AW_REG_NONE;
 	aw_pa->temp_desc.reg = AW_REG_NONE;
@@ -1278,11 +1258,6 @@ static int aw_pid_2055_dev_init(struct aw882xx *aw882xx)
 	aw_pa->spin_desc.rx_desc.mask = AW_PID_2055_CHSEL_MASK;
 	aw_pa->spin_desc.rx_desc.left_val = AW_PID_2055_CHSEL_LEFT_VALUE;
 	aw_pa->spin_desc.rx_desc.right_val = AW_PID_2055_CHSEL_RIGHT_VALUE;
-
-	aw_pa->spin_desc.tx_desc.reg = AW_PID_2055_SYSCTRL2_REG;
-	aw_pa->spin_desc.tx_desc.mask = AW_PID_2055_I2SCHS_MASK;
-	aw_pa->spin_desc.tx_desc.left_val = AW_PID_2055_I2SCHS_LEFT_VALUE;
-	aw_pa->spin_desc.tx_desc.right_val = AW_PID_2055_I2SCHS_RIGHT_VALUE;
 
 	aw_pa->voltage_desc.reg = AW_PID_2055_VBAT_REG;
 	aw_pa->voltage_desc.int_bit = AW_PID_2055_MONITOR_INT_10BIT;
@@ -1547,11 +1522,6 @@ static int aw_pid_2071_dev_init(struct aw882xx *aw882xx)
 	aw_pa->spin_desc.rx_desc.mask = AW_PID_2071_CHSEL_MASK;
 	aw_pa->spin_desc.rx_desc.left_val = AW_PID_2071_CHSEL_LEFT_VALUE;
 	aw_pa->spin_desc.rx_desc.right_val = AW_PID_2071_CHSEL_RIGHT_VALUE;
-
-	aw_pa->spin_desc.tx_desc.reg = AW_PID_2071_I2SCFG1_REG;
-	aw_pa->spin_desc.tx_desc.mask = AW_PID_2071_I2SCHS_MASK;
-	aw_pa->spin_desc.tx_desc.left_val = AW_PID_2071_I2SCHS_LEFT_VALUE;
-	aw_pa->spin_desc.tx_desc.right_val = AW_PID_2071_I2SCHS_RIGHT_VALUE;
 
 	aw_pa->sysst_desc.reg = AW_PID_2071_SYSST_REG;
 	aw_pa->sysst_desc.mask = AW_PID_2071_SYSST_CHECK_MASK;
@@ -1870,11 +1840,6 @@ static int aw_pid_2113_dev_init(struct aw882xx *aw882xx)
 	aw_pa->spin_desc.rx_desc.mask = AW_PID_2113_CHSEL_MASK;
 	aw_pa->spin_desc.rx_desc.left_val = AW_PID_2113_CHSEL_LEFT_VALUE;
 	aw_pa->spin_desc.rx_desc.right_val = AW_PID_2113_CHSEL_RIGHT_VALUE;
-
-	aw_pa->spin_desc.tx_desc.reg = AW_PID_2113_I2SCTRL3_REG;
-	aw_pa->spin_desc.tx_desc.mask = AW_PID_2113_I2SCHS_MASK;
-	aw_pa->spin_desc.tx_desc.left_val = AW_PID_2113_I2SCHS_LEFT_VALUE;
-	aw_pa->spin_desc.tx_desc.right_val = AW_PID_2113_I2SCHS_RIGHT_VALUE;
 
 	aw_pa->sysst_desc.reg = AW_PID_2113_SYSST_REG;
 	aw_pa->sysst_desc.mask = AW_PID_2113_SYSST_CHECK_MASK;

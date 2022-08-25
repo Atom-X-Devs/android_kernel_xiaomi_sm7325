@@ -37,7 +37,7 @@
 #include "aw882xx_bin_parse.h"
 #include "aw882xx_spin.h"
 
-#define AW882XX_DRIVER_VERSION "v1.12.0"
+#define AW882XX_DRIVER_VERSION "v1.13.0"
 #define AW882XX_I2C_NAME "aw882xx_smartpa"
 
 #define AW_READ_CHIPID_RETRIES		5	/* 5 times */
@@ -515,8 +515,10 @@ static int aw882xx_profile_set(struct snd_kcontrol *kcontrol,
 	mutex_lock(&aw882xx->lock);
 	aw882xx_dev_set_profile_index(aw882xx->aw_pa, ucontrol->value.integer.value[0]);
 	/*pstream = 0 no pcm just set status*/
-	if (aw882xx->pstream && aw882xx->allow_pw)
-		aw882xx_dev_prof_update(aw882xx->aw_pa, aw882xx->phase_sync);
+	if (aw882xx->pstream && aw882xx->allow_pw) {
+		aw882xx_device_stop(aw882xx->aw_pa);
+		aw882xx_start_pa(aw882xx);
+	}
 	mutex_unlock(&aw882xx->lock);
 	aw_dev_info(codec->dev, "prof id %d", (int)ucontrol->value.integer.value[0]);
 	return 0;

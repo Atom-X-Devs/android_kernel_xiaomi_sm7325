@@ -1,7 +1,8 @@
 #ifndef __AW882XX_CALIBRATION_H__
 #define __AW882XX_CALIBRATION_H__
 
-#define AW_CALI_READ_TIMES (3)
+#define AW_CALI_READ_RE_TIMES (8)
+#define AW_CALI_READ_F0_Q_TIMES (5)
 #define AW_ERRO_CALI_VALUE (0)
 #define AW_CALI_RE_DEFAULT_TIMER	(3000)
 
@@ -23,6 +24,12 @@ struct aw_device;
 enum afe_module_type {
 	AW_RX_MODULE = 0,
 	AW_TX_MODULE = 1,
+};
+
+enum {
+	MSG_CALI_DISABLE_DATA = 0,
+	MSG_CALI_RE_ENABLE_DATA,
+	MSG_CALI_F0_ENABLE_DATA,
 };
 
 struct cali_cfg {

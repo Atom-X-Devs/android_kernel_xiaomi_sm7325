@@ -843,11 +843,10 @@ int aw882xx_dsp_read_f0(struct aw_device *aw_dev, int32_t *f0)
 	return 0;
 }
 
-int aw882xx_dsp_cali_en(struct aw_device *aw_dev, bool is_enable)
+int aw882xx_dsp_cali_en(struct aw_device *aw_dev, int32_t cali_msg_data)
 {
 	int ret;
 	int msg_num;
-	int32_t enable = is_enable;
 
 	ret = aw_get_msg_num(aw_dev->channel, &msg_num);
 	if (ret < 0) {
@@ -855,12 +854,12 @@ int aw882xx_dsp_cali_en(struct aw_device *aw_dev, bool is_enable)
 		return ret;
 	}
 
-	ret = aw_write_msg_to_dsp(msg_num, AW_MSG_ID_ENABLE_CALI, (char *)&enable, sizeof(int32_t));
+	ret = aw_write_msg_to_dsp(msg_num, AW_MSG_ID_ENABLE_CALI, (char *)&cali_msg_data, sizeof(int32_t));
 	if (ret) {
 		aw_dev_err(aw_dev->dev, "write cali en failed");
 		return ret;
 	}
-	aw_dev_dbg(aw_dev->dev, "write cali_en[%d]", is_enable);
+	aw_dev_dbg(aw_dev->dev, "write cali_en[%d]", cali_msg_data);
 	return 0;
 }
 

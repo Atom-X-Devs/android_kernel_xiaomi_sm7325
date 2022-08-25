@@ -38,19 +38,11 @@ int aw_dev_set_channal_mode(struct aw_device *aw_dev,
 {
 	int ret;
 	struct aw_reg_ch *rx_desc = &spin_desc.rx_desc;
-	struct aw_reg_ch *tx_desc = &spin_desc.tx_desc;
 
 	ret = aw_dev->ops.aw_i2c_write_bits(aw_dev, rx_desc->reg, rx_desc->mask,
 					spin_desc.spin_table[spin_val].rx_val);
 	if (ret < 0) {
 		aw_dev_err(aw_dev->dev, "set rx failed");
-		return ret;
-	}
-
-	ret = aw_dev->ops.aw_i2c_write_bits(aw_dev, tx_desc->reg, tx_desc->mask,
-					spin_desc.spin_table[spin_val].tx_val);
-	if (ret < 0) {
-		aw_dev_err(aw_dev->dev, "set tx failed");
 		return ret;
 	}
 
@@ -193,10 +185,8 @@ static int aw_parse_spin_table_dt(struct aw_device *aw_dev)
 	for (i = 0; i < AW_SPIN_MAX; i++) {
 		if (spin_table_str[i] == 'l' || spin_table_str[i] == 'L') {
 			spin_desc->spin_table[i].rx_val = spin_desc->rx_desc.left_val;
-			spin_desc->spin_table[i].tx_val = spin_desc->tx_desc.left_val;
 		} else if (spin_table_str[i] == 'r' || spin_table_str[i] == 'R') {
 			spin_desc->spin_table[i].rx_val = spin_desc->rx_desc.right_val;
-			spin_desc->spin_table[i].tx_val = spin_desc->tx_desc.right_val;
 		} else {
 			aw_dev_err(aw_dev->dev, "unsupported str:%s, close spin function", str_data);
 			return -EINVAL;

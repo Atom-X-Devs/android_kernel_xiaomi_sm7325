@@ -335,10 +335,10 @@ int aw882xx_cali_svc_get_cali_status(void)
 static int aw_cali_svc_dev_get_re(struct aw_device *aw_dev)
 {
 	int ret, i;
-	int32_t re[AW_CALI_READ_TIMES];
+	int32_t re[AW_CALI_READ_RE_TIMES] = {0};
 	int32_t sum = 0;
 
-	for (i = 0; i < AW_CALI_READ_TIMES; i++) {
+	for (i = 0; i < AW_CALI_READ_RE_TIMES; i++) {
 		ret = aw882xx_dsp_read_r0(aw_dev, &re[i]);
 		if (ret) {
 			aw_dev_err(aw_dev->dev, "get re failed!");
@@ -349,9 +349,9 @@ static int aw_cali_svc_dev_get_re(struct aw_device *aw_dev)
 			return ret;;
 		}
 		sum += re[i];
-		usleep_range(AW_10000_US, AW_10000_US + 10);
+		usleep_range(AW_32000_US, AW_32000_US + 10);
 	}
-	re[0] = sum / AW_CALI_READ_TIMES;
+	re[0] = sum / AW_CALI_READ_RE_TIMES;
 
 	aw_dev->cali_desc.cali_re = re[0];
 
@@ -362,19 +362,19 @@ static int aw_cali_svc_dev_get_re(struct aw_device *aw_dev)
 static int aw_cali_svc_dev_get_f0(struct aw_device *aw_dev)
 {
 	int ret, i;
-	int32_t f0[AW_CALI_READ_TIMES];
+	int32_t f0[AW_CALI_READ_F0_Q_TIMES] = {0};
 	int32_t sum = 0;
 
-	for (i = 0; i < AW_CALI_READ_TIMES; i++) {
+	for (i = 0; i < AW_CALI_READ_F0_Q_TIMES; i++) {
 		ret = aw882xx_dsp_read_f0(aw_dev, &f0[i]);
 		if (ret) {
 			aw_dev_err(aw_dev->dev, "get f0 failed!");
 			return ret;
 		}
 		sum += f0[i];
-		usleep_range(AW_10000_US, AW_10000_US + 10);
+		usleep_range(AW_70000_US, AW_70000_US + 10);
 	}
-	f0[0] = sum / AW_CALI_READ_TIMES;
+	f0[0] = sum / AW_CALI_READ_F0_Q_TIMES;
 
 	aw_dev->cali_desc.cali_f0 = f0[0];
 	return 0;
@@ -383,10 +383,11 @@ static int aw_cali_svc_dev_get_f0(struct aw_device *aw_dev)
 static int aw_cali_svc_dev_get_f0_q(struct aw_device *aw_dev)
 {
 	int ret, i;
-	int32_t f0[AW_CALI_READ_TIMES], q[AW_CALI_READ_TIMES];
+	int32_t f0[AW_CALI_READ_F0_Q_TIMES] = {0};
+	int32_t q[AW_CALI_READ_F0_Q_TIMES] = {0};
 	int32_t sum_f0 = 0, sum_q = 0;
 
-	for (i = 0; i < AW_CALI_READ_TIMES; i++) {
+	for (i = 0; i < AW_CALI_READ_F0_Q_TIMES; i++) {
 		ret = aw882xx_dsp_read_f0_q(aw_dev, &f0[i], &q[i]);
 		if (ret) {
 			aw_dev_err(aw_dev->dev, "get f0 failed!");
@@ -394,10 +395,10 @@ static int aw_cali_svc_dev_get_f0_q(struct aw_device *aw_dev)
 		}
 		sum_f0 += f0[i];
 		sum_q += q[i];
-		usleep_range(AW_10000_US, AW_10000_US + 10);
+		usleep_range(AW_70000_US, AW_70000_US + 10);
 	}
-	f0[0] = sum_f0 / AW_CALI_READ_TIMES;
-	q[0] = sum_q / AW_CALI_READ_TIMES;
+	f0[0] = sum_f0 / AW_CALI_READ_F0_Q_TIMES;
+	q[0] = sum_q / AW_CALI_READ_F0_Q_TIMES;
 	aw_dev->cali_desc.cali_f0 = f0[0];
 	aw_dev->cali_desc.cali_q = q[0];
 	aw_dev_dbg(aw_dev->dev, "cali f0 is %d, q is %d",
@@ -420,19 +421,21 @@ static int aw_cali_svc_dev_cali_mode_en(struct aw_device *aw_dev, int type, bool
 				if (ret < 0)
 					return ret;
 			}
+			ret = aw882xx_dsp_cali_en(aw_dev, MSG_CALI_RE_ENABLE_DATA);
+			if (ret < 0)
+				return ret;
 		} else {
 			if (flag & CALI_OPS_NOISE) {
 				ret = aw882xx_dsp_noise_en(aw_dev, true);
 				if (ret < 0)
 					return ret;
 			}
+			ret = aw882xx_dsp_cali_en(aw_dev, MSG_CALI_F0_ENABLE_DATA);
+			if (ret < 0)
+				return ret;
 		}
-
-		ret = aw882xx_dsp_cali_en(aw_dev, true);
-		if (ret < 0)
-			return ret;
 	} else {
-		aw882xx_dsp_cali_en(aw_dev, false);
+		aw882xx_dsp_cali_en(aw_dev, MSG_CALI_DISABLE_DATA);
 
 		if (type == CALI_TYPE_RE) {
 			/*close mute*/

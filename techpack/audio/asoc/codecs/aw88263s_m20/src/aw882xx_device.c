@@ -855,34 +855,6 @@ static void aw_dev_cali_re_update(struct aw_device *aw_dev)
 	}
 }
 
-int aw882xx_dev_prof_update(struct aw_device *aw_dev, bool force)
-{
-	int ret;
-
-	/*if power on need off -- load -- on*/
-	if (aw_dev->status == AW_DEV_PW_ON) {
-		aw882xx_device_stop(aw_dev);
-
-		ret = aw882xx_dev_reg_update(aw_dev, force);
-		if (ret) {
-			aw_dev_err(aw_dev->dev, "fw update failed ");
-			return ret;
-		}
-
-		ret = aw882xx_device_start(aw_dev);
-		if (ret) {
-			aw_dev_err(aw_dev->dev, "start failed ");
-			return ret;
-		}
-	} else {
-		/*if pa off , only update set_prof value*/
-		aw_dev_info(aw_dev->dev, "set prof[%d] done !", aw_dev->set_prof);
-	}
-
-	aw_dev_info(aw_dev->dev, "update done !");
-	return 0;
-}
-
 static void aw_dev_boost_type_set(struct aw_device *aw_dev)
 {
 	struct aw_profctrl_desc *profctrl_desc = &aw_dev->profctrl_desc;
@@ -1092,30 +1064,59 @@ int aw882xx_dev_set_copp_module_en(bool enable)
 	return aw882xx_dsp_set_copp_module_en(enable);
 }
 
-static void aw_device_parse_sound_channel_dt(struct aw_device *aw_dev)
+static int aw_device_parse_sound_channel_dt(struct aw_device *aw_dev)
 {
-	int ret;
-	uint32_t channel_value;
+	int ret = 0;
+	uint32_t channel_value = 0;
+	struct list_head *dev_list = NULL;
+	struct list_head *pos = NULL;
+	struct aw_device *local_dev = NULL;
 
-	aw_dev->channel = AW_DEV_CH_PRI_L;
 	ret = of_property_read_u32(aw_dev->dev->of_node, "sound-channel", &channel_value);
 	if (ret < 0) {
+		channel_value = AW_DEV_CH_PRI_L;
 		aw_dev_info(aw_dev->dev, "read sound-channel failed,use default");
-		return;
 	}
 
-	aw_dev_dbg(aw_dev->dev, "read sound-channel value is : %d", channel_value);
-	if (channel_value >= AW_DEV_CH_MAX) {
+	aw_dev_info(aw_dev->dev, "read sound-channel value is : %d", channel_value);
+	if (channel_value >= AW_DEV_CH_MAX)
 		channel_value = AW_DEV_CH_PRI_L;
+
+	/* when dev_num > 0, get dev list to compare*/
+	if (aw_dev->ops.aw_get_dev_num() > 0) {
+		ret = aw882xx_dev_get_list_head(&dev_list);
+		if (ret) {
+			aw_dev_err(aw_dev->dev, "get dev list failed");
+			return ret;
+		}
+
+		list_for_each(pos, dev_list) {
+			local_dev = container_of(pos, struct aw_device, list_node);
+			if (local_dev->channel == channel_value) {
+				aw_dev_err(local_dev->dev, "sound-channel:%d already exists", channel_value);
+				return -EINVAL;
+			}
+		}
 	}
+
 	aw_dev->channel = channel_value;
+
+	return 0;
 }
 
-static void aw_device_parse_dt(struct aw_device *aw_dev)
+static int aw_device_parse_dt(struct aw_device *aw_dev)
 {
-	aw_device_parse_sound_channel_dt(aw_dev);
+	int ret = 0;
+
+	ret = aw_device_parse_sound_channel_dt(aw_dev);
+	if (ret) {
+		aw_dev_err(aw_dev->dev, "parse sound-channel failed!");
+		return ret;
+	}
 	aw882xx_device_parse_topo_id_dt(aw_dev);
 	aw882xx_device_parse_port_id_dt(aw_dev);
+
+	return ret;
 }
 
 int aw882xx_dev_get_list_head(struct list_head **head)
@@ -1130,10 +1131,14 @@ int aw882xx_dev_get_list_head(struct list_head **head)
 
 int aw882xx_device_probe(struct aw_device *aw_dev)
 {
-	int ret;
+	int ret = 0;
+
 	INIT_LIST_HEAD(&aw_dev->list_node);
 
-	aw_device_parse_dt(aw_dev);
+	ret = aw_device_parse_dt(aw_dev);
+	if (ret)
+		return ret;
+
 	ret = aw882xx_cali_init(&aw_dev->cali_desc);
 	if (ret)
 		return ret;

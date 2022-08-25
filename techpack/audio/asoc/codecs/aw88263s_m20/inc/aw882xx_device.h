@@ -23,6 +23,8 @@ enum {
 	AW_4000_US = 4000,
 	AW_5000_US = 5000,
 	AW_10000_US = 10000,
+	AW_32000_US = 32000,
+	AW_70000_US = 70000,
 	AW_100000_US = 100000,
 };
 
@@ -241,7 +243,6 @@ struct aw_ipeak_desc {
 
 struct aw_spin_ch {
 	uint16_t rx_val;
-	uint16_t tx_val;
 };
 
 struct aw_reg_ch {
@@ -255,7 +256,6 @@ struct aw_spin_desc {
 	int aw_spin_kcontrol_st;
 	struct aw_spin_ch spin_table[AW_SPIN_MAX];
 	struct aw_reg_ch rx_desc;
-	struct aw_reg_ch tx_desc;
 };
 
 struct aw_efcheck_desc {
@@ -325,10 +325,6 @@ int aw882xx_device_irq_reinit(struct aw_device *aw_dev);
 
 struct mutex *aw882xx_dev_get_ext_dsp_prof_wr_lock(void);
 char *aw882xx_dev_get_ext_dsp_prof_write(void);
-
-
-/*profile*/
-int aw882xx_dev_prof_update(struct aw_device *aw_dev, bool force);
 
 /*re*/
 int aw882xx_dev_get_cali_re(struct aw_device *aw_dev, int32_t *cali_re);
