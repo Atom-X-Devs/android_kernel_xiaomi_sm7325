@@ -2172,6 +2172,7 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 		wakeup-parent = <&pdc>;
+		qcom,gpios-reserved = <52 53 54 55 56 57 58 59>;
 	};
 
 	ipcc_mproc: qcom,ipcc@408000 {
