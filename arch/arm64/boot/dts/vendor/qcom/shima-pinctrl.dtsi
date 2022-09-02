@@ -8,6 +8,7 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 		wakeup-parent = <&pdc>;
+		qcom,gpios-reserved = <4 5 6 7 40 41 52 53 54 55 56 57 58 59>;
 
 		pcie0 {
 			pcie0_perst_default: pcie0_perst_default {
