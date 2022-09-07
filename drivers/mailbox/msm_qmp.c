@@ -134,6 +134,7 @@ struct qmp_core_version {
  * @mcore_mbox_offset:	Offset of mcore mbox from the msgram start
  * @mcore_mbox_size:	Size of the mcore mbox
  * @rx_pkt:		buffer to pass to client, holds copied data from mailbox
+ * @tx_pkt:		Each mbox channel gets a pending tx entry
  * @version:		Version and features received during link negotiation
  * @local_state:	Current state of the mailbox protocol
  * @state_lock:		Serialize mailbox state changes
@@ -157,7 +158,7 @@ struct qmp_mbox {
 	u32 mcore_mbox_offset;
 	u32 mcore_mbox_size;
 	struct qmp_pkt rx_pkt;
-	struct qmp_pkt tx_pkt;
+	struct qmp_pkt *tx_pkt;
 	struct work_struct tx_work;
 
 	struct qmp_core_version version;
@@ -775,25 +776,37 @@ static void qmp_shim_shutdown(struct mbox_chan *chan) { }
 static void qmp_shim_worker(struct work_struct *work)
 {
 	struct qmp_mbox *mbox = container_of(work, struct qmp_mbox, tx_work);
-	struct qmp_pkt *pkt = &mbox->tx_pkt;
 	unsigned long flags;
-	int idx;
+	bool send;
 	int rc;
+	int i;
 
-	rc = qmp_send(mbox->mdev->qmp, pkt->data, pkt->size);
-	spin_lock_irqsave(&mbox->tx_lock, flags);
-	mbox->tx_pkt.size = 0;
-	idx = mbox->idx_in_flight;
-	spin_unlock_irqrestore(&mbox->tx_lock, flags);
+	for (i = 0; i < mbox->ctrl.num_chans; i++) {
+		struct qmp_pkt *pkt = &mbox->tx_pkt[i];
 
-	mbox_chan_txdone(&mbox->ctrl.chans[idx], rc);
+		spin_lock_irqsave(&mbox->tx_lock, flags);
+		send = pkt->size;
+		spin_unlock_irqrestore(&mbox->tx_lock, flags);
+
+		if (!send)
+			continue;
+
+		rc = qmp_send(mbox->mdev->qmp, pkt->data, pkt->size);
+		spin_lock_irqsave(&mbox->tx_lock, flags);
+		pkt->size = 0;
+		spin_unlock_irqrestore(&mbox->tx_lock, flags);
+
+		mbox_chan_txdone(&mbox->ctrl.chans[i], rc);
+	}
 }
 
 static int qmp_shim_send_data(struct mbox_chan *chan, void *data)
 {
 	struct qmp_mbox *mbox = chan->con_priv;
 	struct qmp_pkt *pkt = (struct qmp_pkt *)data;
+	struct qmp_pkt *defer_pkt;
 	unsigned long flags;
+	int idx = -1;
 	int i;
 
 	if (!mbox || !mbox->mdev || !data)
@@ -803,20 +816,26 @@ static int qmp_shim_send_data(struct mbox_chan *chan, void *data)
 		return -EINVAL;
 
 	spin_lock_irqsave(&mbox->tx_lock, flags);
-	if (mbox->tx_pkt.size) {
-		spin_unlock_irqrestore(&mbox->tx_lock, flags);
-		return -EAGAIN;
-	}
-
 	for (i = 0; i < mbox->ctrl.num_chans; i++) {
 		if (chan == &mbox->ctrl.chans[i]) {
-			mbox->idx_in_flight = i;
+			idx = i;
 			break;
 		}
 	}
+	if (idx < 0 || idx >= mbox->ctrl.num_chans) {
+		spin_unlock_irqrestore(&mbox->tx_lock, flags);
+		return -EINVAL;
+	}
+	defer_pkt = &mbox->tx_pkt[idx];
 
-	mbox->tx_pkt.size = pkt->size;
-	memcpy(mbox->tx_pkt.data, pkt->data, pkt->size);
+	/* Mailbox framework should only have one packet in flight per client */
+	if (defer_pkt->size) {
+		spin_unlock_irqrestore(&mbox->tx_lock, flags);
+		return -EINVAL;
+	}
+
+	defer_pkt->size = pkt->size;
+	memcpy(defer_pkt->data, pkt->data, pkt->size);
 	schedule_work(&mbox->tx_work);
 	spin_unlock_irqrestore(&mbox->tx_lock, flags);
 	return 0;
@@ -960,18 +979,26 @@ static int qmp_shim_init(struct platform_device *pdev, struct qmp_device *mdev)
 	if (!mbox)
 		return -ENOMEM;
 
-	mbox->tx_pkt.data = devm_kzalloc(mdev->dev, SZ_4K, GFP_KERNEL);
-	if (!mbox->tx_pkt.data)
-		return -ENOMEM;
-
 	num_chans = get_mbox_num_chans(pdev->dev.of_node);
 	mbox->rx_disabled = (num_chans > 1) ? true : false;
 	chans = devm_kzalloc(mdev->dev, sizeof(*chans) * num_chans, GFP_KERNEL);
 	if (!chans)
 		return -ENOMEM;
 
-	for (i = 0; i < num_chans; i++)
+	mbox->tx_pkt = devm_kzalloc(mdev->dev,
+				    sizeof(struct qmp_pkt) * num_chans,
+				    GFP_KERNEL);
+	if (!mbox->tx_pkt)
+		return -ENOMEM;
+
+	for (i = 0; i < num_chans; i++) {
+		struct qmp_pkt *pkt = &mbox->tx_pkt[i];
+
 		chans[i].con_priv = mbox;
+		pkt->data = devm_kzalloc(mdev->dev, SZ_4K, GFP_KERNEL);
+		if (!pkt->data)
+			return -ENOMEM;
+	}
 
 	mbox->ctrl.dev = mdev->dev;
 	mbox->ctrl.ops = &qmp_mbox_shim_ops;
