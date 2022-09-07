@@ -28,10 +28,24 @@
 static struct drm_panel *active_panel;
 #endif
 
-struct mi_thermal_device  {
+struct mi_thermal_device {
 	struct device *dev;
 	struct class *class;
 	struct attribute_group attrs;
+};
+
+struct freq_table {
+	u32 frequency;
+};
+
+struct cpufreq_device {
+	int id;
+	unsigned int cpufreq_state;
+	unsigned int max_level;
+	struct freq_table *freq_table;	/* In descending order */
+	struct cpufreq_policy *policy;
+	struct list_head node;
+	struct freq_qos_request *qos_req;
 };
 
 static atomic_t switch_mode = ATOMIC_INIT(-1);
@@ -45,6 +59,136 @@ static void *cookie = NULL;
 static struct mi_thermal_device mi_thermal_dev;
 static struct workqueue_struct *screen_state_wq;
 static struct delayed_work screen_state_dw;
+
+static LIST_HEAD(cpufreq_dev_list);
+static DEFINE_MUTEX(cpufreq_list_lock);
+static DEFINE_PER_CPU(struct freq_qos_request, qos_req);
+
+static int cpufreq_set_level(struct cpufreq_device *cdev, unsigned long state)
+{
+	/* Request state should be less than max_level */
+	if (WARN_ON(state > cdev->max_level))
+		return -EINVAL;
+
+	/* Check if the old cooling action is same as new cooling action */
+	if (cdev->cpufreq_state == state)
+		return 0;
+
+	cdev->cpufreq_state = state;
+	return freq_qos_update_request(cdev->qos_req,
+				       cdev->freq_table[state].frequency);
+}
+
+void cpu_limits_set_level(unsigned int cpu, unsigned int max_freq)
+{
+	struct cpufreq_device *cpufreq_dev;
+	unsigned int level = 0;
+
+	list_for_each_entry (cpufreq_dev, &cpufreq_dev_list, node) {
+		if (cpufreq_dev->id == cpu) {
+			for (level = 0; level <= cpufreq_dev->max_level; level++) {
+				int target_freq = cpufreq_dev->freq_table[level].frequency;
+				if (max_freq >= target_freq) {
+					cpufreq_set_level(cpufreq_dev, level);
+					break;
+				}
+			}
+			break;
+		}
+	}
+}
+
+static unsigned int find_next_max(struct cpufreq_frequency_table *table,
+				  unsigned int prev_max)
+{
+	struct cpufreq_frequency_table *pos;
+	unsigned int max = 0;
+
+	cpufreq_for_each_valid_entry (pos, table) {
+		if (pos->frequency > max && pos->frequency < prev_max)
+			max = pos->frequency;
+	}
+
+	return max;
+}
+
+static int cpu_thermal_init(void)
+{
+	int cpu, ret;
+	struct cpufreq_policy *policy;
+	struct freq_qos_request *req;
+
+	for_each_possible_cpu (cpu) {
+		unsigned int i;
+		unsigned int freq;
+		struct cpufreq_device *cpufreq_dev;
+
+		req = &per_cpu(qos_req, cpu);
+		policy = cpufreq_cpu_get(cpu);
+		if (!policy) {
+			pr_err("%s: cpufreq policy not found for cpu%d\n",  __func__, cpu);
+			return -ESRCH;
+		}
+		pr_debug("%s cpu=%d\n", __func__, cpu);
+
+		i = cpufreq_table_count_valid_entries(policy);
+		if (!i) {
+			pr_err("%s: CPUFreq table not found or has no valid entries\n", __func__);
+			return -ENODEV;
+		}
+
+		cpufreq_dev = kzalloc(sizeof(*cpufreq_dev), GFP_KERNEL);
+		if (!cpufreq_dev)
+			return -ENOMEM;
+
+		cpufreq_dev->policy = policy;
+		cpufreq_dev->qos_req = req;
+
+		/* max_level is an index, not a counter */
+		cpufreq_dev->max_level = i - 1;
+		cpufreq_dev->id = policy->cpu;
+
+		cpufreq_dev->freq_table = kmalloc_array(i, sizeof(*cpufreq_dev->freq_table), GFP_KERNEL);
+		if (!cpufreq_dev->freq_table)
+			return -ENOMEM;
+
+		/* Fill freq-table in descending order of frequencies */
+		for (i = 0, freq = -1; i <= cpufreq_dev->max_level; i++) {
+			freq = find_next_max(policy->freq_table, freq);
+			cpufreq_dev->freq_table[i].frequency = freq;
+
+			/* Warn for duplicate entries */
+			if (!freq)
+				pr_warn("%s: table has duplicate entries\n", __func__);
+			else
+				pr_debug("%s: freq:%u KHz\n", __func__, freq);
+		}
+
+		ret = freq_qos_add_request(&policy->constraints, cpufreq_dev->qos_req,
+				FREQ_QOS_MAX, cpufreq_dev->freq_table[0].frequency);
+		if (ret < 0) {
+			pr_err("%s: Failed to add freq constraint (%d)\n",
+			       __func__, ret);
+			return ret;
+		}
+		mutex_lock(&cpufreq_list_lock);
+		list_add(&cpufreq_dev->node, &cpufreq_dev_list);
+		mutex_unlock(&cpufreq_list_lock);
+	}
+	return ret;
+}
+
+static void destory_thermal_cpu(void)
+{
+	struct cpufreq_device *priv, *tmp;
+
+	list_for_each_entry_safe (priv, tmp, &cpufreq_dev_list, node) {
+		freq_qos_remove_request(priv->qos_req);
+		list_del(&priv->node);
+		kfree(priv->freq_table);
+		kfree(priv);
+	}
+}
 
 static ssize_t thermal_board_sensor_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -239,7 +383,7 @@ static void screen_state_for_thermal_callback(enum panel_event_notifier_tag tag,
 		struct panel_event_notification *notification, void *client_data)
 {
 	if (!notification) {
-		printk(KERN_ERR "%s:Invalid notification\n", __func__);
+		pr_err("%s:Invalid notification\n", __func__);
 		return;
 	}
 
@@ -359,6 +503,8 @@ static int __init mi_thermal_interface_init(void)
 	}
 #endif
 
+	cpu_thermal_init();
+
 	result = of_parse_thermal_message();
 	if (result)
 		pr_err("%s: Can not parse thermal message node: %d\n", __func__, result);
@@ -384,6 +530,8 @@ static void __exit mi_thermal_interface_exit(void)
 #endif
 
 	destroy_thermal_message_node();
+
+	destory_thermal_cpu();
 }
 module_exit(mi_thermal_interface_exit);
 
