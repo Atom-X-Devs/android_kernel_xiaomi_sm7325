@@ -446,7 +446,7 @@ static void screen_state_check(struct work_struct *work)
 	int error = 0;
 	static int retry_count = 10;
 
-	node = of_find_node_by_name(NULL, "thermal-screen");
+	node = of_find_node_by_name(NULL, "mi-thermal-interface");
 	if (!node) {
 		pr_err("%s ERROR: Cannot find node with panel!", __func__);
 		return;
@@ -479,7 +479,7 @@ static int of_parse_thermal_message(void)
 {
 	struct device_node *np;
 
-	np = of_find_node_by_name(NULL, "thermal-message");
+	np = of_find_node_by_name(NULL, "mi-thermal-interface");
 	if (!np)
 		return -EINVAL;
 
