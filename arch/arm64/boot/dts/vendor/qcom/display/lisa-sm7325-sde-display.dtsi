@@ -157,15 +157,15 @@
 		qcom,dsi-default-panel = <&dsi_k9d_36_02_0a_dsc_cmd>;
 	};
 
-	thermal_screen: thermal-screen {
-		qcom,display-panels = <&dsi_k9d_36_02_0a_dsc_cmd
-							&dsi_k9d_42_0d_0b_dsc_cmd>;
-	};
-
 	devfreq_boost: devfreq-boost {
 		qcom,display-panels = <&dsi_k9d_36_02_0a_dsc_cmd
 							&dsi_k9d_42_0d_0b_dsc_cmd>;
 	};
+};
+
+&mi_thermal_interface {
+	qcom,display-panels = <&dsi_k9d_36_02_0a_dsc_cmd
+						&dsi_k9d_42_0d_0b_dsc_cmd>;
 };
 
 &qupv3_se13_spi {

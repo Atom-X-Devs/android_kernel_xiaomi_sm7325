@@ -25,7 +25,7 @@
 		};
 	};
 
-	thermal_message: thermal-message {
+	mi_thermal_interface: mi-thermal-interface {
 		board-sensor = "VIRTUAL-SENSOR";
 	};
 
