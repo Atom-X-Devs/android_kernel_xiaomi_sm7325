@@ -6,10 +6,12 @@
 #define pr_fmt(fmt) "devfreq_boost: " fmt
 
 #include <linux/devfreq_boost.h>
-#include <linux/msm_drm_notify.h>
 #include <linux/input.h>
 #include <linux/kthread.h>
+#include <linux/of.h>
 #include <linux/slab.h>
+#include <linux/soc/qcom/panel_event_notifier.h>
+
 #include <uapi/linux/sched/types.h>
 
 enum {
@@ -30,7 +32,7 @@ struct boost_dev {
 
 struct df_boost_drv {
 	struct boost_dev devices[DEVFREQ_MAX];
-	struct notifier_block msm_drm_notif;
+	void *notifier_cookie;
 	unsigned long last_input_jiffies;
 };
 
@@ -189,33 +191,95 @@ static int devfreq_boost_thread(void *data)
 	return 0;
 }
 
-static int msm_drm_notifier_cb(struct notifier_block *nb, unsigned long action,
-			  void *data)
+static void panel_event_notifier_callback(enum panel_event_notifier_tag tag,
+		struct panel_event_notification *notification, void *client_data)
 {
-	struct df_boost_drv *d = container_of(nb, typeof(*d), msm_drm_notif);
+	struct df_boost_drv *d = client_data;
 	int i;
-	struct msm_drm_notifier *evdata = data;
-	int *blank = evdata->data;
 
-	/* Parse framebuffer blank events as soon as they occur */
-	if (action != MSM_DRM_EARLY_EVENT_BLANK)
-		return NOTIFY_OK;
+	if (!notification) {
+		pr_err("%s:Invalid notification\n", __func__);
+		return;
+	}
+
+	if (notification->notif_data.early_trigger)
+		return;
 
 	/* Boost when the screen turns on and unboost when it turns off */
 	for (i = 0; i < DEVFREQ_MAX; i++) {
 		struct boost_dev *b = d->devices + i;
 
-		if (*blank == MSM_DRM_BLANK_UNBLANK) {
+		switch (notification->notif_type) {
+		case DRM_PANEL_EVENT_UNBLANK:
 			clear_bit(SCREEN_OFF, &b->state);
-			__devfreq_boost_kick_max(b,
-				CONFIG_DEVFREQ_WAKE_BOOST_DURATION_MS);
-		} else {
+			__devfreq_boost_kick_max(b, CONFIG_DEVFREQ_WAKE_BOOST_DURATION_MS);
+			break;
+		case DRM_PANEL_EVENT_BLANK:
+		case DRM_PANEL_EVENT_BLANK_LP:
 			set_bit(SCREEN_OFF, &b->state);
 			wake_up(&b->boost_waitq);
+			break;
+		default:
+			return;
 		}
 	}
 
-	return NOTIFY_OK;
+	return;
+}
+
+static int devfreq_register_panel_notifier(struct df_boost_drv *df)
+{
+	struct device_node *node;
+	struct device_node *pnode;
+	struct drm_panel *panel, *active_panel = NULL;
+	void *cookie = NULL;
+	int i, count, rc;
+
+	node = of_find_node_by_name(NULL, "devfreq-boost");
+	if (!node) {
+		pr_err("%s ERROR: Cannot find node with panel!", __func__);
+		return -ENODEV;
+	}
+
+	count = of_count_phandle_with_args(node, "qcom,display-panels", NULL);
+	if (count <= 0)
+		return 0;
+
+	for (i = 0; i < count; i++) {
+		pnode = of_parse_phandle(node, "qcom,display-panels", i);
+		if (!pnode)
+			return -ENODEV;
+
+		panel = of_drm_find_panel(pnode);
+		of_node_put(pnode);
+		if (!IS_ERR(panel)) {
+			active_panel = panel;
+			break;
+		}
+	}
+
+	if (!active_panel) {
+		rc = PTR_ERR(panel);
+		if (rc != -EPROBE_DEFER)
+			pr_err("%s: Failed to find active panel, rc=%d\n", __func__, rc);
+		return rc;
+	}
+
+	cookie = panel_event_notifier_register(
+				PANEL_EVENT_NOTIFICATION_PRIMARY,
+				PANEL_EVENT_NOTIFIER_CLIENT_DEVFREQ_BOOST,
+				active_panel,
+				panel_event_notifier_callback,
+				(void *)df);
+	if (IS_ERR(cookie)) {
+		rc = PTR_ERR(cookie);
+		pr_err("%s: Failed to register panel event notifier, rc=%d\n", __func__, rc);
+		return rc;
+	}
+
+	pr_info("%s: register panel notifier successful\n", __func__);
+	df->notifier_cookie = cookie;
+	return 0;
 }
 
 static void devfreq_boost_input_event(struct input_handle *handle,
@@ -331,10 +395,8 @@ static int __init devfreq_boost_init(void)
 		goto stop_kthreads;
 	}
 
-	d->msm_drm_notif.notifier_call = msm_drm_notifier_cb;
-	d->msm_drm_notif.priority = INT_MAX;
-	ret = msm_drm_register_client(&d->msm_drm_notif);
-	if (ret) {
+	ret = devfreq_register_panel_notifier(d);
+	if (ret < 0) {
 		pr_err("Failed to register fb notifier, err: %d\n", ret);
 		goto unregister_handler;
 	}
