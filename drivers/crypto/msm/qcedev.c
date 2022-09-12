@@ -2445,6 +2445,12 @@ long qcedev_ioctl(struct file *file,
 				err = -EFAULT;
 				goto exit_free_qcedev_areq;
 			}
+			if (unmap_buf.num_fds > ARRAY_SIZE(unmap_buf.fd)) {
+				pr_err("%s: err: num_fds = %d exceeds max value\n",
+							__func__, unmap_buf.num_fds);
+				err = -EINVAL;
+				goto exit_free_qcedev_areq;
+			}
 
 			for (i = 0; i < unmap_buf.num_fds; i++) {
 				err = qcedev_check_and_unmap_buffer(handle,
