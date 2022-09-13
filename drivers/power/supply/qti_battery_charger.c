@@ -454,7 +454,6 @@ struct battery_chg_dev {
 	bool				restrict_chg_en;
 #ifdef CONFIG_MACH_XIAOMI
 	struct delayed_work		xm_prop_change_work;
-	struct delayed_work		charger_debug_info_print_work;
 	u8				*digest;
 	u32				*ss_auth_data;
 	u32				reverse_chg_flag;
@@ -4224,52 +4223,6 @@ static void generate_xm_charge_uvent(struct work_struct *work)
 	free_page((unsigned long)prop_buf);
 	return;
 }
-
-#define CHARGING_PERIOD_S		30
-#define DISCHARGE_PERIOD_S		300
-static void xm_charger_debug_info_print_work(struct work_struct *work)
-{
-	struct battery_chg_dev *bcdev = container_of(work, struct battery_chg_dev, charger_debug_info_print_work.work);
-	struct power_supply *usb_psy = NULL;
-	int rc, usb_present = 0;
-	int vbus_vol_uv, ibus_ua;
-	int interval = DISCHARGE_PERIOD_S;
-	union power_supply_propval val = {0, };
-
-	usb_psy = bcdev->psy_list[PSY_TYPE_USB].psy;
-	if (usb_psy != NULL) {
-		rc = usb_psy_get_prop(usb_psy, POWER_SUPPLY_PROP_ONLINE, &val);
-		if (!rc)
-			usb_present = val.intval;
-		else
-			usb_present = 0;
-
-		pr_debug("usb_present: %d\n", usb_present);
-	} else {
-		return;
-	}
-
-	if (usb_present == 1) {
-		rc = usb_psy_get_prop(usb_psy, POWER_SUPPLY_PROP_VOLTAGE_NOW, &val);
-		if (!rc)
-			vbus_vol_uv = val.intval;
-		else
-			vbus_vol_uv = 0;
-
-		rc = usb_psy_get_prop(usb_psy, POWER_SUPPLY_PROP_CURRENT_NOW, &val);
-		if (!rc)
-			ibus_ua = val.intval;
-		else
-			ibus_ua = 0;
-
-		pr_debug("vbus_vol_uv: %d, ibus_ua: %d\n", vbus_vol_uv, ibus_ua);
-		interval = CHARGING_PERIOD_S;
-	} else {
-		interval = DISCHARGE_PERIOD_S;
-	}
-
-	schedule_delayed_work(&bcdev->charger_debug_info_print_work, interval * HZ);
-}
 #endif
 
 static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
@@ -4591,7 +4544,6 @@ static int battery_chg_probe(struct platform_device *pdev)
 	INIT_WORK(&bcdev->usb_type_work, battery_chg_update_usb_type_work);
 #ifdef CONFIG_MACH_XIAOMI
 	INIT_DELAYED_WORK(&bcdev->xm_prop_change_work, generate_xm_charge_uvent);
-	INIT_DELAYED_WORK(&bcdev->charger_debug_info_print_work, xm_charger_debug_info_print_work);
 #endif
 	atomic_set(&bcdev->state, PMIC_GLINK_STATE_UP);
 	bcdev->dev = dev;
@@ -4655,8 +4607,6 @@ static int battery_chg_probe(struct platform_device *pdev)
 	schedule_work(&bcdev->usb_type_work);
 
 #ifdef CONFIG_MACH_XIAOMI
-	schedule_delayed_work(&bcdev->charger_debug_info_print_work, 5 * HZ);
-
 	bcdev->slave_fg_verify_flag = false;
 	bcdev->shutdown_delay_en = true;
 	bcdev->reverse_chg_flag = 0;
