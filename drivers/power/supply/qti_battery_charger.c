@@ -1642,12 +1642,8 @@ static int battery_psy_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		pval->intval = DIV_ROUND_CLOSEST(pst->prop[prop_id], 100);
-#ifndef CONFIG_MACH_XIAOMI
 		if (IS_ENABLED(CONFIG_QTI_PMIC_GLINK_CLIENT_DEBUG) &&
 		   (bcdev->fake_soc >= 0 && bcdev->fake_soc <= 100))
-#else
-		if (bcdev->fake_soc >= 0 && bcdev->fake_soc <= 100)
-#endif
 			pval->intval = bcdev->fake_soc;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
@@ -1759,9 +1755,6 @@ static const struct power_supply_desc batt_psy_desc = {
 
 static int battery_chg_init_psy(struct battery_chg_dev *bcdev)
 {
-#ifdef CONFIG_MACH_XIAOMI
-	struct power_supply *psy;
-#endif
 	struct power_supply_config psy_cfg = {};
 	int rc;
 
@@ -1776,9 +1769,6 @@ static int battery_chg_init_psy(struct battery_chg_dev *bcdev)
 		pr_err("Failed to register battery power supply, rc=%d\n", rc);
 		return rc;
 	}
-#ifdef CONFIG_MACH_XIAOMI
-	psy = bcdev->psy_list[PSY_TYPE_BATTERY].psy;
-#endif
 
 	bcdev->psy_list[PSY_TYPE_USB].psy =
 		devm_power_supply_register(bcdev->dev, &usb_psy_desc, &psy_cfg);
@@ -2233,11 +2223,7 @@ static ssize_t fake_soc_store(struct class *c, struct class_attribute *attr,
 	bcdev->fake_soc = val;
 	pr_debug("Set fake soc to %d\n", val);
 
-#ifndef CONFIG_MACH_XIAOMI
 	if (IS_ENABLED(CONFIG_QTI_PMIC_GLINK_CLIENT_DEBUG) && pst->psy)
-#else
-	if (pst->psy)
-#endif
 		power_supply_changed(pst->psy);
 
 	return count;
@@ -4379,7 +4365,7 @@ static void notify_blankstate_changed_work(struct work_struct *work)
 	if (rc < 0)
 		pr_err("%s:write BLANK_STATE failed\n", __func__);
 
-	pr_info("%s:write BLANK_STATE succeed\n", __func__);
+	pr_debug("%s:write BLANK_STATE succeed\n", __func__);
 }
 #endif
 
