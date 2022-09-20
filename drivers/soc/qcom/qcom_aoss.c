@@ -258,9 +258,11 @@ int qmp_send(struct qmp *qmp, const void *data, size_t len)
 
 		/* Clear message from buffer */
 		writel(0, qmp->msgram + qmp->offset);
-	} else {
+	} else if (time_left < 0) {
+		dev_err(qmp->dev, "wait error %d\n", time_left);
+		ret = time_left;
+	} else
 		ret = 0;
-	}
 
 	mutex_unlock(&qmp->tx_lock);
 
