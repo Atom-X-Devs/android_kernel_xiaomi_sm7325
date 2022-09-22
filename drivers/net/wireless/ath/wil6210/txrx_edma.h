@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: ISC */
 /*
- * Copyright (c) 2012-2016,2018-2019, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * Copyright (c) 2012-2016,2018-2021, The Linux Foundation. All rights reserved.
  */
 
 #ifndef WIL6210_TXRX_EDMA_H
@@ -27,7 +16,6 @@
 #define WIL_TX_SRING_SIZE_ORDER_DEFAULT	(14)
 #define WIL_RX_BUFF_ARR_SIZE_DEFAULT (2600)
 
-#define WIL_DEFAULT_RX_STATUS_RING_ID 0
 #define WIL_RX_DESC_RING_ID 0
 #define WIL_RX_STATUS_IRQ_IDX 0
 #define WIL_TX_STATUS_IRQ_IDX 1
@@ -58,6 +46,9 @@
 #define WIL_RX_EDMA_DLPF_LU_MISS_TID_POS	5
 
 #define WIL_RX_EDMA_MID_VALID_BIT		BIT(22)
+
+#define WIL_RX_EDMA_AMSDU_BASIC_MASK		0x1
+#define WIL_RX_EDMA_DS_TYPE_WDS			0x3
 
 #define WIL_EDMA_DESC_TX_MAC_CFG_0_QID_POS 16
 #define WIL_EDMA_DESC_TX_MAC_CFG_0_QID_LEN 6
@@ -381,7 +372,7 @@ static inline u16 wil_rx_status_get_flow_id(void *msg)
 static inline u8 wil_rx_status_get_mcast(void *msg)
 {
 	return WIL_GET_BITS(((struct wil_rx_status_compressed *)msg)->d0,
-			    26, 26);
+			    25, 26);
 }
 
 /**
@@ -467,6 +458,21 @@ static inline int wil_rx_status_get_fc1(struct wil6210_priv *wil, void *msg)
 
 	return WIL_GET_BITS(((struct wil_rx_status_extended *)msg)->ext.d1,
 			    0, 5) << 2;
+}
+
+static inline int wil_rx_status_get_ds_type(struct wil6210_priv *wil, void *msg)
+{
+	if (wil->use_compressed_rx_status)
+		return 0;
+
+	return WIL_GET_BITS(((struct wil_rx_status_extended *)msg)->ext.d0,
+			    19, 20);
+}
+
+static inline int wil_rx_status_is_basic_amsdu(void *msg)
+{
+	return (WIL_GET_BITS(((struct wil_rx_status_compressed *)msg)->d1,
+			     28, 29) == WIL_RX_EDMA_AMSDU_BASIC_MASK);
 }
 
 static inline __le16 wil_rx_status_get_seq(struct wil6210_priv *wil, void *msg)
@@ -608,6 +614,15 @@ int wil_tx_sring_handler(struct wil6210_priv *wil,
 			 struct wil_status_ring *sring);
 void wil_rx_handle_edma(struct wil6210_priv *wil, int *quota);
 void wil_init_txrx_ops_edma(struct wil6210_priv *wil);
+int wil_find_free_sring(struct wil6210_priv *wil);
+int wil_init_rx_desc_ring(struct wil6210_priv *wil, u16 desc_ring_size,
+			  int status_ring_id);
+int wil_init_rx_sring(struct wil6210_priv *wil, u16 status_ring_size,
+		      size_t elem_size, u16 ring_id);
+void wil_sring_free(struct wil6210_priv *wil, struct wil_status_ring *sring);
+void wil_ring_free_edma(struct wil6210_priv *wil, struct wil_ring *ring);
+int wil_tx_desc_map_edma(union wil_tx_desc *desc, dma_addr_t pa, u32 len,
+			 int ring_index);
 
 #endif /* WIL6210_TXRX_EDMA_H */
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  *
  */
 
@@ -16,6 +16,7 @@
 #define LLCC_AUDIO       6
 #define LLCC_MDMHPGRW    7
 #define LLCC_MDM         8
+#define LLCC_MDMHW       9
 #define LLCC_CMPT        10
 #define LLCC_GPUHTW      11
 #define LLCC_GPU         12
@@ -26,6 +27,19 @@
 #define LLCC_MDMHPFX     20
 #define LLCC_MDMPNG      21
 #define LLCC_AUDHW       22
+#define LLCC_NPU         23
+#define LLCC_WLNHW       24
+#define LLCC_PIMEM       25
+#define LLCC_DRE         26
+#define LLCC_CVP         28
+#define LLCC_MDMVPE      29
+#define LLCC_APTCM       30
+#define LLCC_WRTCH       31
+#define LLCC_CVPFW       32
+#define LLCC_CPUSS1      33
+#define LLCC_CMPT1       34
+#define LLCC_CPUHWT      36
+#define LLCC_MDMCLD2     37
 
 /**
  * llcc_slice_desc - Cache slice descriptor
@@ -48,7 +62,8 @@ struct llcc_slice_desc {
  * @res_ways: reserved ways associated with llcc slice
  * @cache_mode: mode of the llcc slice
  * @probe_target_ways: Probe only reserved and bonus ways on a cache miss
- * @dis_cap_alloc: Disable capacity based allocation
+ * @dis_icap_alloc: Disable capacity based allocation
+ * @write_scid_en: Enables write cache support for a given scid.
  * @retain_on_pc: Retain through power collapse
  * @activate_on_init: activate the slice on init
  */
@@ -63,6 +78,7 @@ struct llcc_slice_config {
 	u32 cache_mode;
 	u32 probe_target_ways;
 	bool dis_cap_alloc;
+	bool write_scid_en;
 	bool retain_on_pc;
 	bool activate_on_init;
 };
@@ -91,6 +107,7 @@ struct llcc_drv_data {
 	unsigned long *bitmap;
 	u32 *offsets;
 	int ecc_irq;
+	bool cap_based_alloc_and_pwr_collapse;
 };
 
 /**

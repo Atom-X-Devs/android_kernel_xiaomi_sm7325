@@ -53,3 +53,31 @@ config REGMAP_SCCB
 config REGMAP_I3C
 	tristate
 	depends on I3C
+
+config REGMAP_WCD_IRQ
+	depends on SND_SOC
+	bool "Enable REGMAP IRQ for WCD"
+	select REGMAP_IRQ
+	default n
+	help
+	  Say 'y' here to enable REGMAP_IRQ for generic WCD IRQ.
+	  This config is intended for enabling REGMAP_IRQ for
+	  WCD IRQ. Generic WCD IRQ will be used for
+	  wcd937x and later targets.
+
+config REGMAP_QTI_DEBUG
+	bool "Regmap QTI debug feature support"
+	depends on REGMAP && DEBUG_FS && QGKI
+	help
+	  Say yes to enable QTI debug features.  This provides a runtime debugfs
+	  interface to read and write a subset of regmap registers.  This
+	  interface is more performant and easier to use than the traditional
+	  method which dumps all registers defined in a given regmap.
+
+config REGMAP_ALLOW_WRITE_DEBUGFS
+	depends on REGMAP && DEBUG_FS
+	bool "Allow REGMAP debugfs write"
+	help
+	  Say 'y' here to allow the regmap debugfs write. Regmap debugfs write
+	  could be risky when accessing some essential hardwares, so it is not
+	  recommended to enable this option on any production device.

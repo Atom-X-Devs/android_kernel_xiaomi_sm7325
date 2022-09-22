@@ -288,5 +288,31 @@ config PCI_HYPERV_INTERFACE
 	  The Hyper-V PCI Interface is a helper driver allows other drivers to
 	  have a common interface with the Hyper-V PCI frontend driver.
 
+config PCI_MSM
+	tristate "MSM PCIe Controller driver"
+	depends on ARCH_QCOM && PCI
+	select PCI_DOMAINS
+	select PCI_DOMAINS_GENERIC
+	select PCI_MSI
+	select CRC8
+	help
+	  Enables the PCIe functionality by configuring PCIe core on
+	  MSM chipset and by enabling the ARM PCI framework extension.
+	  The PCIe core is essential for communication between the host
+	  and an endpoint.
+
+	  If unsure, say N.
+
+config PCI_QTI
+	tristate "Enable QTI specific code in PCI upstream driver"
+	depends on QGKI
+	default n
+	help
+	  This configuration flag allows adding QTI specific code
+	  in PCI upstream driver. This macro guards the code against
+	  ABI breakage in PCI upstream driver. When this flag is
+	  enabled, it is safe to assume that the build is a Non GKI
+	  build.
+
 source "drivers/pci/controller/dwc/Kconfig"
 endmenu

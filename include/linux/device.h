@@ -1239,7 +1239,9 @@ struct dev_links_info {
  *		  sync_state() callback.
  * @dma_coherent: this particular device is dma coherent, even if the
  *		architecture supports non-coherent devices.
- *
+ * @dma_coherent_hint_cached: Tell the framework to try and treat the device
+ *			      as DMA coherent when working with CPU cached
+ *			      buffers.
  * At the lowest level, every device in a Linux system is represented by an
  * instance of struct device. The device structure contains the information
  * that the device model core needs to model the system. Most subsystems,
@@ -1339,6 +1341,10 @@ struct device {
     defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
 	bool			dma_coherent:1;
 #endif
+#if defined(CONFIG_DMA_COHERENT_HINT_CACHED)
+	bool			dma_coherent_hint_cached:1;
+#endif
+
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
@@ -1599,6 +1605,10 @@ static inline bool device_supports_offline(struct device *dev)
 extern void lock_device_hotplug(void);
 extern void unlock_device_hotplug(void);
 extern int lock_device_hotplug_sysfs(void);
+extern int trylock_device_hotplug(void);
+#ifdef CONFIG_SCHED_WALT
+extern void lock_device_hotplug_assert(void);
+#endif
 extern int device_offline(struct device *dev);
 extern int device_online(struct device *dev);
 extern void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode);

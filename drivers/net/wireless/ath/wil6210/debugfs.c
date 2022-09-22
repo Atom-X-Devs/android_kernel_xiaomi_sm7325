@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/module.h>
@@ -110,6 +99,22 @@ static void wil_print_ring(struct seq_file *s, struct wil6210_priv *wil,
 
 		v = (ring_id % 2 ? (v >> 16) : (v & 0xffff));
 		seq_printf(s, "  hwhead = %u\n", v);
+		if (!ring->is_rx) {
+			struct wil_ring_tx_data *txdata =
+				&wil->ring_tx_data[ring_id];
+
+			seq_printf(s, "  available = %d\n",
+				   wil_ring_avail_tx(ring) -
+				   txdata->tx_reserved_count);
+			seq_printf(s, "  used = %d\n",
+				   wil_ring_used_tx(ring));
+			seq_printf(s, "\n  tx_res_count = %d\n",
+				   txdata->tx_reserved_count);
+			seq_printf(s, "  tx_res_count_used = %d\n",
+				   txdata->tx_reserved_count_used);
+			seq_printf(s, "  tx_res_count_unavail = %d\n",
+				   txdata->tx_reserved_count_not_avail);
+		}
 	}
 	seq_printf(s, "  hwtail = [0x%08x] -> ", ring->hwtail);
 	x = wmi_addr(wil, ring->hwtail);
@@ -413,7 +418,7 @@ static int wil_debugfs_iomem_x32_get(void *data, u64 *val)
 	if (ret < 0)
 		return ret;
 
-	*val = readl((void __iomem *)d->offset);
+	*val = readl_relaxed((void __iomem *)d->offset);
 
 	wil_pm_runtime_put(wil);
 
@@ -2107,6 +2112,29 @@ static const struct file_operations fops_led_cfg = {
 	.open  = simple_open,
 };
 
+int wil_led_blink_set(struct wil6210_priv *wil, const char *buf)
+{
+	int rc;
+
+	/* "<blink_on_slow> <blink_off_slow> <blink_on_med> <blink_off_med>
+	 * <blink_on_fast> <blink_off_fast>"
+	 */
+	rc = sscanf(buf, "%u %u %u %u %u %u",
+		    &led_blink_time[WIL_LED_TIME_SLOW].on_ms,
+		    &led_blink_time[WIL_LED_TIME_SLOW].off_ms,
+		    &led_blink_time[WIL_LED_TIME_MED].on_ms,
+		    &led_blink_time[WIL_LED_TIME_MED].off_ms,
+		    &led_blink_time[WIL_LED_TIME_FAST].on_ms,
+		    &led_blink_time[WIL_LED_TIME_FAST].off_ms);
+
+	if (rc < 0)
+		return rc;
+	if (rc < 6)
+		return -EINVAL;
+
+	return 0;
+}
+
 /* led_blink_time, write:
  * "<blink_on_slow> <blink_off_slow> <blink_on_med> <blink_off_med> <blink_on_fast> <blink_off_fast>
  */
@@ -2114,6 +2142,7 @@ static ssize_t wil_write_led_blink_time(struct file *file,
 					const char __user *buf,
 					size_t len, loff_t *ppos)
 {
+	struct wil6210_priv *wil = file->private_data;
 	int rc;
 	char *kbuf = kmalloc(len + 1, GFP_KERNEL);
 
@@ -2127,19 +2156,11 @@ static ssize_t wil_write_led_blink_time(struct file *file,
 	}
 
 	kbuf[len] = '\0';
-	rc = sscanf(kbuf, "%d %d %d %d %d %d",
-		    &led_blink_time[WIL_LED_TIME_SLOW].on_ms,
-		    &led_blink_time[WIL_LED_TIME_SLOW].off_ms,
-		    &led_blink_time[WIL_LED_TIME_MED].on_ms,
-		    &led_blink_time[WIL_LED_TIME_MED].off_ms,
-		    &led_blink_time[WIL_LED_TIME_FAST].on_ms,
-		    &led_blink_time[WIL_LED_TIME_FAST].off_ms);
+	rc = wil_led_blink_set(wil, kbuf);
 	kfree(kbuf);
 
 	if (rc < 0)
 		return rc;
-	if (rc < 6)
-		return -EINVAL;
 
 	return len;
 }
@@ -2448,6 +2469,9 @@ static const struct dbg_off dbg_wil_off[] = {
 	WIL_FIELD(tx_status_ring_order, 0644,	doff_u32),
 	WIL_FIELD(rx_buff_id_count, 0644,	doff_u32),
 	WIL_FIELD(amsdu_en, 0644,	doff_u8),
+	WIL_FIELD(force_edmg_channel, 0644,	doff_u8),
+	WIL_FIELD(ap_ps, 0644, doff_u8),
+	WIL_FIELD(tx_reserved_entries, 0644, doff_u32),
 	{},
 };
 

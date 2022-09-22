@@ -12,6 +12,7 @@
 #include <linux/device.h>
 #include <linux/dma-contiguous.h>
 #include <linux/dma-iommu.h>
+#include <linux/dma-mapping-fast.h>
 #include <linux/dma-noncoherent.h>
 #include <linux/gfp.h>
 #include <linux/huge_mm.h>
@@ -19,6 +20,7 @@
 #include <linux/iova.h>
 #include <linux/irq.h>
 #include <linux/mm.h>
+#include <linux/of_address.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/scatterlist.h>
@@ -400,6 +402,27 @@ int iommu_dma_enable_best_fit_algo(struct device *dev)
 }
 EXPORT_SYMBOL(iommu_dma_enable_best_fit_algo);
 
+#ifdef CONFIG_DMA_CONFIGURE_ALIGNMENT
+/*
+ * Should be called prior to using dma-apis.
+ */
+int iommu_dma_configure_alignment(struct device *dev, bool force_no_align)
+{
+	struct iommu_domain *domain;
+	struct iova_domain *iovad;
+
+	domain = iommu_get_domain_for_dev(dev);
+	if (!domain || !domain->iova_cookie)
+		return -EINVAL;
+
+	iovad = &((struct iommu_dma_cookie *)domain->iova_cookie)->iovad;
+
+	iovad->force_no_align = force_no_align;
+	return 0;
+}
+EXPORT_SYMBOL(iommu_dma_configure_alignment);
+#endif
+
 /**
  * dma_info_to_prot - Translate DMA API directions and attributes to IOMMU API
  *                    page flags.
@@ -409,13 +432,22 @@ EXPORT_SYMBOL(iommu_dma_enable_best_fit_algo);
  *
  * Return: corresponding IOMMU API page protection flags
  */
-static int dma_info_to_prot(enum dma_data_direction dir, bool coherent,
+int dma_info_to_prot(enum dma_data_direction dir, bool coherent,
 		     unsigned long attrs)
 {
 	int prot = coherent ? IOMMU_CACHE : 0;
 
 	if (attrs & DMA_ATTR_PRIVILEGED)
 		prot |= IOMMU_PRIV;
+
+	if (!(attrs & DMA_ATTR_EXEC_MAPPING))
+		prot |= IOMMU_NOEXEC;
+
+	if (attrs & DMA_ATTR_IOMMU_USE_UPSTREAM_HINT)
+		prot |= IOMMU_USE_UPSTREAM_HINT;
+
+	if (attrs & DMA_ATTR_IOMMU_USE_LLC_NWA)
+		prot |= IOMMU_USE_LLC_NWA;
 
 	switch (dir) {
 	case DMA_BIDIRECTIONAL:
@@ -489,7 +521,7 @@ static void iommu_dma_free_iova(struct iommu_dma_cookie *cookie,
 static void __iommu_dma_unmap(struct device *dev, dma_addr_t dma_addr,
 		size_t size)
 {
-	struct iommu_domain *domain = iommu_get_dma_domain(dev);
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iova_domain *iovad = &cookie->iovad;
 	size_t iova_off = iova_offset(iovad, dma_addr);
@@ -511,7 +543,7 @@ static void __iommu_dma_unmap(struct device *dev, dma_addr_t dma_addr,
 static dma_addr_t __iommu_dma_map(struct device *dev, phys_addr_t phys,
 		size_t size, int prot)
 {
-	struct iommu_domain *domain = iommu_get_dma_domain(dev);
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iova_domain *iovad = &cookie->iovad;
 	size_t iova_off = iova_offset(iovad, phys);
@@ -541,7 +573,7 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 		unsigned int count, unsigned long order_mask, gfp_t gfp)
 {
 	struct page **pages;
-	unsigned int i = 0, nid = dev_to_node(dev);
+	unsigned int i = 0;
 
 	order_mask &= (2U << MAX_ORDER) - 1;
 	if (!order_mask)
@@ -566,12 +598,11 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 		for (order_mask &= (2U << __fls(count)) - 1;
 		     order_mask; order_mask &= ~order_size) {
 			unsigned int order = __fls(order_mask);
-			gfp_t alloc_flags = gfp;
 
 			order_size = 1U << order;
-			if (order_mask > order_size)
-				alloc_flags |= __GFP_NORETRY;
-			page = alloc_pages_node(nid, alloc_flags, order);
+			page = alloc_pages(order ?
+					   (gfp | __GFP_NORETRY) &
+						~__GFP_RECLAIM : gfp, order);
 			if (!page)
 				continue;
 			if (!order)
@@ -595,6 +626,18 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 	return pages;
 }
 
+static bool is_dma_coherent(struct device *dev, unsigned long attrs)
+{
+	if (attrs & DMA_ATTR_FORCE_COHERENT)
+		return true;
+	else if (attrs & DMA_ATTR_FORCE_NON_COHERENT)
+		return false;
+	else if (dev_is_dma_coherent(dev))
+		return true;
+	else
+		return false;
+}
+
 /**
  * iommu_dma_alloc_remap - Allocate and map a buffer contiguous in IOVA space
  * @dev: Device to allocate memory for. Must be a real device
@@ -612,10 +655,10 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 static void *iommu_dma_alloc_remap(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
 {
-	struct iommu_domain *domain = iommu_get_dma_domain(dev);
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iova_domain *iovad = &cookie->iovad;
-	bool coherent = dev_is_dma_coherent(dev);
+	bool coherent = is_dma_coherent(dev, attrs);
 	int ioprot = dma_info_to_prot(DMA_BIDIRECTIONAL, coherent, attrs);
 	pgprot_t prot = dma_pgprot(dev, PAGE_KERNEL, attrs);
 	unsigned int count, min_size, alloc_sizes = domain->pgsize_bitmap;
@@ -701,11 +744,12 @@ static void iommu_dma_sync_single_for_cpu(struct device *dev,
 		dma_addr_t dma_handle, size_t size, enum dma_data_direction dir)
 {
 	phys_addr_t phys;
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 
-	if (dev_is_dma_coherent(dev))
+	if (!domain || iommu_is_iova_coherent(domain, dma_handle))
 		return;
 
-	phys = iommu_iova_to_phys(iommu_get_dma_domain(dev), dma_handle);
+	phys = iommu_iova_to_phys(domain, dma_handle);
 	arch_sync_dma_for_cpu(dev, phys, size, dir);
 }
 
@@ -713,11 +757,12 @@ static void iommu_dma_sync_single_for_device(struct device *dev,
 		dma_addr_t dma_handle, size_t size, enum dma_data_direction dir)
 {
 	phys_addr_t phys;
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 
-	if (dev_is_dma_coherent(dev))
+	if (!domain || iommu_is_iova_coherent(domain, dma_handle))
 		return;
 
-	phys = iommu_iova_to_phys(iommu_get_dma_domain(dev), dma_handle);
+	phys = iommu_iova_to_phys(domain, dma_handle);
 	arch_sync_dma_for_device(dev, phys, size, dir);
 }
 
@@ -726,9 +771,11 @@ static void iommu_dma_sync_sg_for_cpu(struct device *dev,
 		enum dma_data_direction dir)
 {
 	struct scatterlist *sg;
+	dma_addr_t iova = sg_dma_address(sgl);
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	int i;
 
-	if (dev_is_dma_coherent(dev))
+	if (!domain || iommu_is_iova_coherent(domain, iova))
 		return;
 
 	for_each_sg(sgl, sg, nelems, i)
@@ -740,9 +787,11 @@ static void iommu_dma_sync_sg_for_device(struct device *dev,
 		enum dma_data_direction dir)
 {
 	struct scatterlist *sg;
+	dma_addr_t iova = sg_dma_address(sgl);
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	int i;
 
-	if (dev_is_dma_coherent(dev))
+	if (!domain || iommu_is_iova_coherent(domain, iova))
 		return;
 
 	for_each_sg(sgl, sg, nelems, i)
@@ -754,7 +803,7 @@ static dma_addr_t iommu_dma_map_page(struct device *dev, struct page *page,
 		unsigned long attrs)
 {
 	phys_addr_t phys = page_to_phys(page) + offset;
-	bool coherent = dev_is_dma_coherent(dev);
+	bool coherent = is_dma_coherent(dev, attrs);
 	int prot = dma_info_to_prot(dir, coherent, attrs);
 	dma_addr_t dma_handle;
 
@@ -780,7 +829,7 @@ static void iommu_dma_unmap_page(struct device *dev, dma_addr_t dma_handle,
  * avoid individually crossing any boundaries, so we merely need to check a
  * segment's start address to avoid concatenating across one.
  */
-static int __finalise_sg(struct device *dev, struct scatterlist *sg, int nents,
+int iommu_dma_finalise_sg(struct device *dev, struct scatterlist *sg, int nents,
 		dma_addr_t dma_addr)
 {
 	struct scatterlist *s, *cur = sg;
@@ -833,7 +882,7 @@ static int __finalise_sg(struct device *dev, struct scatterlist *sg, int nents,
  * If mapping failed, then just restore the original list,
  * but making sure the DMA fields are invalidated.
  */
-static void __invalidate_sg(struct scatterlist *sg, int nents)
+void iommu_dma_invalidate_sg(struct scatterlist *sg, int nents)
 {
 	struct scatterlist *s;
 	int i;
@@ -855,21 +904,13 @@ static void __invalidate_sg(struct scatterlist *sg, int nents)
  * impedance-matching, to be able to hand off a suitably-aligned list,
  * but still preserve the original offsets and sizes for the caller.
  */
-static int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
-		int nents, enum dma_data_direction dir, unsigned long attrs)
+size_t iommu_dma_prepare_map_sg(struct device *dev, struct iova_domain *iovad,
+				struct scatterlist *sg, int nents)
 {
-	struct iommu_domain *domain = iommu_get_dma_domain(dev);
-	struct iommu_dma_cookie *cookie = domain->iova_cookie;
-	struct iova_domain *iovad = &cookie->iovad;
 	struct scatterlist *s, *prev = NULL;
-	int prot = dma_info_to_prot(dir, dev_is_dma_coherent(dev), attrs);
-	dma_addr_t iova;
 	size_t iova_len = 0;
 	unsigned long mask = dma_get_seg_boundary(dev);
 	int i;
-
-	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		iommu_dma_sync_sg_for_device(dev, sg, nents, dir);
 
 	/*
 	 * Work out how much IOVA space we need, and align the segments to
@@ -910,6 +951,28 @@ static int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		prev = s;
 	}
 
+	return iova_len;
+}
+
+static int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
+		int nents, enum dma_data_direction dir, unsigned long attrs)
+{
+	struct iommu_domain *domain;
+	struct iommu_dma_cookie *cookie;
+	struct iova_domain *iovad;
+	int prot = dma_info_to_prot(dir, is_dma_coherent(dev, attrs), attrs);
+	int ret;
+	dma_addr_t iova;
+	size_t iova_len;
+
+	domain = iommu_get_domain_for_dev(dev);
+	if (!domain)
+		return 0;
+	cookie = domain->iova_cookie;
+	iovad = &cookie->iovad;
+
+	iova_len = iommu_dma_prepare_map_sg(dev, iovad, sg, nents);
+
 	iova = iommu_dma_alloc_iova(domain, iova_len, dma_get_mask(dev), dev);
 	if (!iova)
 		goto out_restore_sg;
@@ -921,12 +984,17 @@ static int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 	if (iommu_map_sg(domain, iova, sg, nents, prot) < iova_len)
 		goto out_free_iova;
 
-	return __finalise_sg(dev, sg, nents, iova);
+	ret = iommu_dma_finalise_sg(dev, sg, nents, iova);
+
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+		iommu_dma_sync_sg_for_device(dev, sg, nents, dir);
+
+	return ret;
 
 out_free_iova:
 	iommu_dma_free_iova(cookie, iova, iova_len);
 out_restore_sg:
-	__invalidate_sg(sg, nents);
+	iommu_dma_invalidate_sg(sg, nents);
 	return 0;
 }
 
@@ -1008,7 +1076,7 @@ static void iommu_dma_free(struct device *dev, size_t size, void *cpu_addr,
 static void *iommu_dma_alloc_pages(struct device *dev, size_t size,
 		struct page **pagep, gfp_t gfp, unsigned long attrs)
 {
-	bool coherent = dev_is_dma_coherent(dev);
+	bool coherent = is_dma_coherent(dev, attrs);
 	size_t alloc_size = PAGE_ALIGN(size);
 	int node = dev_to_node(dev);
 	struct page *page = NULL;
@@ -1045,12 +1113,13 @@ out_free_pages:
 static void *iommu_dma_alloc(struct device *dev, size_t size,
 		dma_addr_t *handle, gfp_t gfp, unsigned long attrs)
 {
-	bool coherent = dev_is_dma_coherent(dev);
+	bool coherent = is_dma_coherent(dev, attrs);
 	int ioprot = dma_info_to_prot(DMA_BIDIRECTIONAL, coherent, attrs);
 	struct page *page = NULL;
 	void *cpu_addr;
 
-	gfp |= __GFP_ZERO;
+	if (!(attrs & DMA_ATTR_SKIP_ZEROING))
+		gfp |= __GFP_ZERO;
 
 	if (IS_ENABLED(CONFIG_DMA_REMAP) && gfpflags_allow_blocking(gfp) &&
 	    !(attrs & DMA_ATTR_FORCE_CONTIGUOUS))
@@ -1073,7 +1142,7 @@ static void *iommu_dma_alloc(struct device *dev, size_t size,
 	return cpu_addr;
 }
 
-static int iommu_dma_mmap(struct device *dev, struct vm_area_struct *vma,
+int iommu_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 		void *cpu_addr, dma_addr_t dma_addr, size_t size,
 		unsigned long attrs)
 {
@@ -1104,7 +1173,7 @@ static int iommu_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 			       vma->vm_page_prot);
 }
 
-static int iommu_dma_get_sgtable(struct device *dev, struct sg_table *sgt,
+int iommu_dma_get_sgtable(struct device *dev, struct sg_table *sgt,
 		void *cpu_addr, dma_addr_t dma_addr, size_t size,
 		unsigned long attrs)
 {
@@ -1156,6 +1225,25 @@ static const struct dma_map_ops iommu_dma_ops = {
 	.get_merge_boundary	= iommu_dma_get_merge_boundary,
 };
 
+static int iommu_init_dma_resources(struct device *dev,
+				      struct iommu_domain *domain, u64 dma_base,
+				      u64 size)
+{
+	int is_fast, ret = 0;
+
+	iommu_domain_get_attr(domain, DOMAIN_ATTR_FAST, &is_fast);
+
+	if (is_fast) {
+		dev->dma_ops = fast_smmu_get_dma_ops();
+	} else {
+		ret = iommu_dma_init_domain(domain, dma_base, size, dev);
+		if (!ret)
+			dev->dma_ops = &iommu_dma_ops;
+	}
+
+	return ret;
+}
+
 /*
  * The IOMMU core code allocates the default DMA domain, which the underlying
  * IOMMU driver needs to support via the dma-iommu layer.
@@ -1163,19 +1251,24 @@ static const struct dma_map_ops iommu_dma_ops = {
 void iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size)
 {
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
+	int s1_bypass;
 
 	if (!domain)
 		goto out_err;
 
-	/*
-	 * The IOMMU core code allocates the default DMA domain, which the
-	 * underlying IOMMU driver needs to support via the dma-iommu layer.
-	 */
-	if (domain->type == IOMMU_DOMAIN_DMA) {
-		if (iommu_dma_init_domain(domain, dma_base, size, dev))
-			goto out_err;
-		dev->dma_ops = &iommu_dma_ops;
+	iommu_domain_get_attr(domain, DOMAIN_ATTR_S1_BYPASS, &s1_bypass);
+	if (s1_bypass)
+		return;
+
+	/* Allow iommu-debug to call arch_setup_dma_ops to reconfigure itself */
+	if (domain->type != IOMMU_DOMAIN_DMA &&
+	    !of_device_is_compatible(dev->of_node, "iommu-debug-test")) {
+		dev_err(dev, "Invalid iommu domain type!\n");
+		return;
 	}
+
+	if (iommu_init_dma_resources(dev, domain, dma_base, size))
+		goto out_err;
 
 	return;
 out_err:

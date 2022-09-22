@@ -8,6 +8,15 @@ config PAGE_EXTENSION
 	  by not allocating this extra memory according to boottime
 	  configuration.
 
+config PAGE_EXTENSION_PAGE_FREE
+	bool "Add a flag in page_ext_flags to indicate if a page is free"
+	depends on PAGE_EXTENSION && QGKI
+	help
+	  Add the PAGE_FREE flag in page_ext_flags, in order to indicate
+	  whether a page from the buddy allocator is free or is in
+	  use.  This information can aid in debugging buddy allocator
+	  related issues.
+
 config DEBUG_PAGEALLOC
 	bool "Debug page memory allocations"
 	depends on DEBUG_KERNEL
@@ -38,6 +47,24 @@ config DEBUG_PAGEALLOC
 	  enabled by DEBUG_PAGEALLOC_ENABLE_DEFAULT or the debug_pagealloc
 	  command line parameter.
 
+config SLUB_DEBUG_PANIC_ON
+	bool "Enable to Panic on SLUB corruption detection"
+	depends on SLUB_DEBUG
+	help
+	  SLUB has a resiliency feature enabled which restores bytes in
+	  order for production environments to continue to operate. IN
+	  debug options this may not be desirable as it prevents from
+	  investigating the root cause which may be rooted within cache
+	  or memory.
+
+config DEBUG_PANIC_ON_OOM
+	bool "Enable to Panic on OOM detection"
+	help
+	  Android primarily uses an alternative mechanism to detect low
+	  memory situations and kill processes as required. The kernel
+	  oom-killer can mask problems with this feature, which may be
+	  undesireable in a debug environment.
+
 config DEBUG_PAGEALLOC_ENABLE_DEFAULT
 	bool "Enable debug page memory allocations by default?"
 	depends on DEBUG_PAGEALLOC
@@ -62,6 +89,17 @@ config PAGE_OWNER
 
 	  If unsure, say N.
 
+config PAGE_OWNER_ENABLE_DEFAULT
+	bool "Enable Track page owner by default"
+	depends on PAGE_OWNER
+	help
+	  This keeps track of what call chain is the owner of a page, may
+	  help to find bare alloc_page(s) leaks. If you include this
+	  feature on your build, it is enabled by default. You should pass
+	  "page_owner=off" to boot parameter in order to disable it. Eats
+	  a fair amount of memory if enabled. See tools/vm/page_owner_sort.c
+	  for user-space helper.
+
 config PAGE_POISONING
 	bool "Poison pages after freeing"
 	select PAGE_POISONING_NO_SANITY if HIBERNATION
@@ -76,6 +114,16 @@ config PAGE_POISONING
 	  for CONFIG_MEMORY_FAILURE. This is software poisoning only.
 
 	  If unsure, say N
+
+config PAGE_POISONING_ENABLE_DEFAULT
+	bool "Enable page poisoning by default?"
+	default n
+	depends on PAGE_POISONING
+	help
+	  Enable page poisoning of free pages by default? This value
+	  can be overridden by page_poison=off|on. This can be used
+	  to avoid passing the kernel parameter and let page poisoning
+	  feature enabled by default.
 
 config PAGE_POISONING_NO_SANITY
 	depends on PAGE_POISONING

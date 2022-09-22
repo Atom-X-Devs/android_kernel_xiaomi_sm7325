@@ -20,6 +20,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/fs.h>
 #include <linux/dma-fence.h>
+#include <linux/dma-buf-ref.h>
 #include <linux/wait.h>
 
 struct device;
@@ -350,6 +351,18 @@ struct dma_buf_ops {
 };
 
 /**
+ * dma_buf_destructor - dma-buf destructor function
+ * @dmabuf:	[in]	pointer to dma-buf
+ * @dtor_data:	[in]	destructor data associated with this buffer
+ *
+ * The dma-buf destructor which is called when the dma-buf is freed.
+ *
+ * If the destructor returns an error the dma-buf's exporter release function
+ * won't be called.
+ */
+typedef int (*dma_buf_destructor)(struct dma_buf *dmabuf, void *dtor_data);
+
+/**
  * struct dma_buf - shared buffer object
  * @size: size of the buffer
  * @file: file pointer used for sharing buffers across, and for refcounting.
@@ -394,6 +407,10 @@ struct dma_buf {
 	struct list_head list_node;
 	void *priv;
 	struct dma_resv *resv;
+#ifdef CONFIG_DMABUF_DESTRUCTOR_SUPPORT
+	dma_buf_destructor dtor;
+	void *dtor_data;
+#endif
 
 	/* poll support */
 	wait_queue_head_t poll;
@@ -404,6 +421,19 @@ struct dma_buf {
 
 		__poll_t active;
 	} cb_excl, cb_shared;
+};
+
+/**
+ * struct msm_dma_buf - Holds the meta data associated with a shared buffer
+ * object, as well as the buffer object.
+ * @refs: list entry for dma-buf reference tracking
+ * @i_ino: inode number
+ * @dma_buf: the shared buffer object
+ */
+struct msm_dma_buf {
+	struct list_head refs;
+	unsigned long i_ino;
+	struct dma_buf dma_buf;
 };
 
 /**
@@ -471,6 +501,12 @@ struct dma_buf_export_info {
 					 .owner = THIS_MODULE }
 
 /**
+ * to_msm_dma_buf - helper macro for deriving an msm_dma_buf from a dma_buf.
+ */
+#define to_msm_dma_buf(_dma_buf) \
+	container_of(_dma_buf, struct msm_dma_buf, dma_buf)
+
+/**
  * get_dma_buf - convenience wrapper for get_file.
  * @dmabuf:	[in]	pointer to dma_buf
  *
@@ -482,6 +518,7 @@ struct dma_buf_export_info {
 static inline void get_dma_buf(struct dma_buf *dmabuf)
 {
 	get_file(dmabuf->file);
+	dma_buf_ref_mod(to_msm_dma_buf(dmabuf), 1);
 }
 
 struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
@@ -494,6 +531,7 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info);
 int dma_buf_fd(struct dma_buf *dmabuf, int flags);
 struct dma_buf *dma_buf_get(int fd);
 void dma_buf_put(struct dma_buf *dmabuf);
+void dma_buf_put_sync(struct dma_buf *dmabuf);
 
 struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *,
 					enum dma_data_direction);
@@ -519,4 +557,27 @@ void dma_buf_vunmap(struct dma_buf *, void *vaddr);
 int dma_buf_get_flags(struct dma_buf *dmabuf, unsigned long *flags);
 int dma_buf_get_uuid(struct dma_buf *dmabuf, uuid_t *uuid);
 
+#ifdef CONFIG_DMABUF_DESTRUCTOR_SUPPORT
+/**
+ * dma_buf_set_destructor - set the dma-buf's destructor
+ * @dmabuf:		[in]	pointer to dma-buf
+ * @dma_buf_destructor	[in]	the destructor function
+ * @dtor_data:		[in]	destructor data associated with this buffer
+ */
+static inline int dma_buf_set_destructor(struct dma_buf *dmabuf,
+					 dma_buf_destructor dtor,
+					 void *dtor_data)
+{
+	dmabuf->dtor = dtor;
+	dmabuf->dtor_data = dtor_data;
+	return 0;
+}
+#else
+static inline int dma_buf_set_destructor(struct dma_buf *dmabuf,
+					 dma_buf_destructor dtor,
+					 void *dtor_data)
+{
+	return -ENOTSUPP;
+}
+#endif
 #endif /* __DMA_BUF_H__ */

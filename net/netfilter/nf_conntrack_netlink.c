@@ -248,8 +248,8 @@ dump_counters(struct sk_buff *skb, struct nf_conn_acct *acct,
 		pkts = atomic64_xchg(&counter[dir].packets, 0);
 		bytes = atomic64_xchg(&counter[dir].bytes, 0);
 	} else {
-		pkts = atomic64_read(&counter[dir].packets);
-		bytes = atomic64_read(&counter[dir].bytes);
+		pkts = (u64)atomic64_read(&counter[dir].packets);
+		bytes = (u64)atomic64_read(&counter[dir].bytes);
 	}
 
 	nest_count = nla_nest_start(skb, attr);
@@ -791,6 +791,11 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 
 		if (events & (1 << IPCT_SYNPROXY) &&
 		    ctnetlink_dump_ct_synproxy(skb, ct) < 0)
+
+#ifdef CONFIG_ENABLE_SFE
+		if (events & (1 << IPCT_COUNTER) &&
+		    ctnetlink_dump_acct(skb, ct, 0) < 0)
+#endif
 			goto nla_put_failure;
 	}
 
@@ -1691,6 +1696,11 @@ static int ctnetlink_change_timeout(struct nf_conn *ct,
 				    const struct nlattr * const cda[])
 {
 	u64 timeout = (u64)ntohl(nla_get_be32(cda[CTA_TIMEOUT])) * HZ;
+#if defined(CONFIG_IP_NF_TARGET_NATTYPE_MODULE)
+	bool (*nattype_ref_timer)
+		(unsigned long nattype,
+		unsigned long timeout_value);
+#endif
 
 	if (timeout > INT_MAX)
 		timeout = INT_MAX;
@@ -1699,6 +1709,12 @@ static int ctnetlink_change_timeout(struct nf_conn *ct,
 	if (test_bit(IPS_DYING_BIT, &ct->status))
 		return -ETIME;
 
+/* Refresh the NAT type entry. */
+#if defined(CONFIG_IP_NF_TARGET_NATTYPE_MODULE)
+	nattype_ref_timer = rcu_dereference(nattype_refresh_timer);
+	if (nattype_ref_timer)
+		nattype_ref_timer(ct->nattype_entry, ct->timeout);
+#endif
 	return 0;
 }
 

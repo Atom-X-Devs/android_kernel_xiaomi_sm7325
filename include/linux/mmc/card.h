@@ -85,6 +85,10 @@ struct mmc_ext_csd {
 	unsigned int            data_tag_unit_size;     /* DATA TAG UNIT size */
 	unsigned int		boot_ro_lock;		/* ro lock support */
 	bool			boot_ro_lockable;
+#if defined(CONFIG_SDC_QTI)
+	u8			raw_ext_csd_cmdq;	/* 15 */
+	u8			raw_ext_csd_cache_ctrl;	/* 33 */
+#endif
 	bool			ffu_capable;	/* Firmware upgrade support */
 	bool			cmdq_en;	/* Command Queue enabled */
 	bool			cmdq_support;	/* Command Queue supported */
@@ -95,7 +99,13 @@ struct mmc_ext_csd {
 	u8			raw_partition_support;	/* 160 */
 	u8			raw_rpmb_size_mult;	/* 168 */
 	u8			raw_erased_mem_count;	/* 181 */
+#if defined(CONFIG_SDC_QTI)
+	u8			raw_ext_csd_bus_width;	/* 183 */
+#endif
 	u8			strobe_support;		/* 184 */
+#if defined(CONFIG_SDC_QTI)
+	u8			raw_ext_csd_hs_timing;	/* 185 */
+#endif
 	u8			raw_ext_csd_structure;	/* 194 */
 	u8			raw_card_type;		/* 196 */
 	u8			raw_driver_strength;	/* 197 */
@@ -244,6 +254,14 @@ struct mmc_card {
 	struct mmc_host		*host;		/* the host this device belongs to */
 	struct device		dev;		/* the device */
 	u32			ocr;		/* the current OCR setting */
+#if defined(CONFIG_SDC_QTI)
+	unsigned long		clk_scaling_lowest;	/* lowest scaleable
+							 * frequency
+							 */
+	unsigned long		clk_scaling_highest;	/* highest scaleable
+							 * frequency
+							 */
+#endif
 	unsigned int		rca;		/* relative card address of device */
 	unsigned int		type;		/* card type */
 #define MMC_TYPE_MMC		0		/* MMC card */
@@ -307,7 +325,9 @@ struct mmc_card {
 	struct dentry		*debugfs_root;
 	struct mmc_part	part[MMC_NUM_PHY_PARTITION]; /* physical partitions */
 	unsigned int    nr_parts;
-
+#if defined(CONFIG_SDC_QTI)
+	unsigned int            part_curr;
+#endif
 	unsigned int		bouncesz;	/* Bounce buffer size */
 	struct workqueue_struct *complete_wq;	/* Private workqueue */
 };

@@ -134,9 +134,16 @@ struct ion_buffer *ion_buffer_alloc(struct ion_device *dev, size_t len,
 {
 	struct ion_buffer *buffer = NULL;
 	struct ion_heap *heap;
+	char task_comm[TASK_COMM_LEN];
 
 	if (!dev || !len) {
 		return ERR_PTR(-EINVAL);
+	}
+
+	if (heap_id_mask & ION_HEAP_SYSTEM) {
+		get_task_comm(task_comm, current->group_leader);
+		pr_warn_ratelimited("%s: Detected allocation from generic sys heap for task %s-%d\n",
+				    __func__, task_comm, current->tgid);
 	}
 
 	/*

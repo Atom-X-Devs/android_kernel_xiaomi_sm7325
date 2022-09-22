@@ -30,6 +30,32 @@ config SW_SYNC
 	  WARNING: improper use of this can result in deadlocking kernel
 	  drivers from userspace. Intended for test and debug only.
 
+config DEBUG_DMA_BUF_REF
+	bool "DEBUG Reference Count"
+	depends on STACKDEPOT
+	depends on DMA_SHARED_BUFFER
+	default n
+	help
+	  Save stack traces for every call to dma_buf_get and dma_buf_put, to
+	  help debug memory leaks. Potential leaks may be found by manually
+	  matching the get/put call stacks.  This feature consumes extra memory
+	  in order to save the stack traces using STACKDEPOT.
+
+config DMABUF_DESTRUCTOR_SUPPORT
+	bool "dmabuf destructor support"
+	default n
+	depends on DMA_SHARED_BUFFER
+	depends on QGKI
+	help
+	  dma-buf destructor support is useful as it allows clients an
+	  opportunity to undo any attributes, such as security attributes,
+	  they have applied to the dma-buf's memory.
+
+	  The destructor is called when the dma-buf is freed, if the destructor
+	  returns an error the dma-buf's exporter release function is not
+	  called in order to ensure that memory which has not been properly
+	  cleaned up isn't returned to the system
+
 config UDMABUF
 	bool "userspace dmabuf misc driver"
 	default n

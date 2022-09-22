@@ -105,8 +105,11 @@ static int of_iommu_xlate(struct device *dev,
 	 * IOMMU device we're waiting for, which will be useful if we ever get
 	 * a proper probe-ordering dependency mechanism in future.
 	 */
-	if (!ops)
+	if (!ops) {
+		if (IS_ENABLED(CONFIG_MODULES))
+			return -EPROBE_DEFER;
 		return driver_deferred_probe_check_state(dev);
+	}
 
 	if (!try_module_get(ops->owner))
 		return -ENODEV;

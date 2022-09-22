@@ -22,6 +22,8 @@
    standalone connection tracking module, and the compatibility layer's use
    of connection tracking. */
 
+extern unsigned int nf_conntrack_hash_rnd;
+
 unsigned int nf_conntrack_in(struct sk_buff *skb,
 			     const struct nf_hook_state *state);
 
@@ -43,6 +45,16 @@ void nf_conntrack_cleanup_end(void);
 
 bool nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 			const struct nf_conntrack_tuple *orig);
+
+extern bool (*nattype_refresh_timer)
+			(unsigned long nattype,
+			unsigned long timeout_value)
+			__rcu __read_mostly;
+
+
+#ifdef CONFIG_ENABLE_SFE
+extern void (*delete_sfe_entry)(struct nf_conn *ct);
+#endif
 
 /* Find a connection corresponding to a tuple. */
 struct nf_conntrack_tuple_hash *
@@ -84,5 +96,12 @@ extern spinlock_t nf_conntrack_locks[CONNTRACK_LOCKS];
 void nf_conntrack_lock(spinlock_t *lock);
 
 extern spinlock_t nf_conntrack_expect_lock;
+
+#ifdef CONFIG_NF_CONNTRACK_SIP_SEGMENTATION
+struct sip_list {
+	struct nf_queue_entry *entry;
+	struct list_head list;
+};
+#endif
 
 #endif /* _NF_CONNTRACK_CORE_H */

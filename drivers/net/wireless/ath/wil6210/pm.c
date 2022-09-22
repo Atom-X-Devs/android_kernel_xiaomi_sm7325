@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2014,2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "wil6210.h"
@@ -62,6 +51,13 @@ wil_can_suspend_vif(struct wil6210_priv *wil, struct wil6210_vif *vif,
 
 	/* for STA-like interface, don't runtime suspend */
 	case NL80211_IFTYPE_STATION:
+		if (test_bit(wil_vif_fwconnected, vif->status) &&
+		    wil->vr_profile != WMI_VR_PROFILE_DISABLED) {
+			wil_dbg_pm(wil,
+				   "Reject suspend in VR mode when connected\n");
+			return false;
+		}
+		/* fallthrough */
 	case NL80211_IFTYPE_P2P_CLIENT:
 		if (test_bit(wil_vif_fwconnecting, vif->status)) {
 			wil_dbg_pm(wil, "Delay suspend when connecting\n");
@@ -97,6 +93,12 @@ int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 		goto out;
 	}
 	if (is_runtime && !wil->platform_ops.suspend) {
+		rc = -EBUSY;
+		goto out;
+	}
+
+	if (test_bit(wil_status_pci_linkdown, wil->status)) {
+		wil_dbg_pm(wil, "Delay suspend during pci linkdown\n");
 		rc = -EBUSY;
 		goto out;
 	}

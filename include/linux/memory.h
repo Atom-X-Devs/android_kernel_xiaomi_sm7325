@@ -39,6 +39,10 @@ int arch_get_memory_phys_device(unsigned long start_pfn);
 unsigned long memory_block_size_bytes(void);
 int set_memory_block_size_order(unsigned int order);
 
+#ifdef CONFIG_QCOM_MEM_OFFLINE
+unsigned long get_totalram_pages_count_inc_offlined(void);
+#endif
+
 /* These states are exposed to userspace as text strings in sysfs */
 #define	MEM_ONLINE		(1<<0) /* exposed to userspace */
 #define	MEM_GOING_OFFLINE	(1<<1) /* exposed to userspace */
@@ -131,11 +135,13 @@ extern int for_each_memory_block(void *arg, walk_memory_blocks_func_t func);
 })
 #define register_hotmemory_notifier(nb)		register_memory_notifier(nb)
 #define unregister_hotmemory_notifier(nb) 	unregister_memory_notifier(nb)
+extern unsigned long get_offlined_pages_count(void);
 #else
 #define hotplug_memory_notifier(fn, pri)	({ 0; })
 /* These aren't inline functions due to a GCC bug. */
 #define register_hotmemory_notifier(nb)    ({ (void)(nb); 0; })
 #define unregister_hotmemory_notifier(nb)  ({ (void)(nb); })
+static inline unsigned long get_offlined_pages_count(void) { return 0; }
 #endif
 
 /*

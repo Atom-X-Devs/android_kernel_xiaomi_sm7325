@@ -43,7 +43,11 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/asoc.h>
 
+#ifdef CONFIG_AUDIO_QGKI
+#define NAME_SIZE	64
+#else
 #define NAME_SIZE	32
+#endif
 
 #ifdef CONFIG_DEBUG_FS
 struct dentry *snd_soc_debugfs_root;
@@ -898,8 +902,17 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	/* FIXME: we need multi CPU support in the future */
 	rtd->cpu_dai = snd_soc_find_dai(dai_link->cpus);
 	if (!rtd->cpu_dai) {
+#ifdef CONFIG_AUDIO_QGKI
+		if (dai_link->cpus->dai_name)
+			dev_info(card->dev, "ASoC: CPU DAI %s not registered\n",
+				dai_link->cpus->dai_name);
+		else if (dai_link->cpus->of_node)
+			dev_info(card->dev,  "ASoC: CPU DAI %s not registered\n",
+				dai_link->cpus->of_node->full_name);
+#else
 		dev_info(card->dev, "ASoC: CPU DAI %s not registered\n",
-			 dai_link->cpus->dai_name);
+			dai_link->cpus->dai_name);
+#endif
 		goto _err_defer;
 	}
 	snd_soc_rtdcom_add(rtd, rtd->cpu_dai->component);
@@ -2958,6 +2971,20 @@ struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_lookup_component);
+
+#ifdef CONFIG_AUDIO_QGKI
+/**
+ * snd_soc_card_change_online_state - Mark if soc card is online/offline
+ *
+ * @soc_card: soc_card to mark
+ */
+void snd_soc_card_change_online_state(struct snd_soc_card *soc_card, int online)
+{
+	if (soc_card && soc_card->snd_card)
+		snd_card_change_online_state(soc_card->snd_card, online);
+}
+EXPORT_SYMBOL(snd_soc_card_change_online_state);
+#endif
 
 /* Retrieve a card's name from device tree */
 int snd_soc_of_parse_card_name(struct snd_soc_card *card,
