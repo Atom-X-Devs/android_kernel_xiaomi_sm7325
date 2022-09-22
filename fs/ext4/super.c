@@ -1065,7 +1065,7 @@ static void ext4_put_super(struct super_block *sb)
 		crypto_free_shash(sbi->s_chksum_driver);
 	kfree(sbi->s_blockgroup_lock);
 	fs_put_dax(sbi->s_daxdev);
-	fscrypt_free_dummy_context(&sbi->s_dummy_enc_ctx);
+	fscrypt_free_dummy_policy(&sbi->s_dummy_enc_policy);
 #ifdef CONFIG_UNICODE
 	utf8_unload(sb->s_encoding);
 #endif
@@ -1357,10 +1357,9 @@ retry:
 	return res;
 }
 
-static const union fscrypt_context *
-ext4_get_dummy_context(struct super_block *sb)
+static const union fscrypt_policy *ext4_get_dummy_policy(struct super_block *sb)
 {
-	return EXT4_SB(sb)->s_dummy_enc_ctx.ctx;
+	return EXT4_SB(sb)->s_dummy_enc_policy.policy;
 }
 
 static bool ext4_has_stable_inodes(struct super_block *sb)
@@ -1375,21 +1374,14 @@ static void ext4_get_ino_and_lblk_bits(struct super_block *sb,
 	*lblk_bits_ret = 8 * sizeof(ext4_lblk_t);
 }
 
-static bool ext4_inline_crypt_enabled(struct super_block *sb)
-{
-	return test_opt(sb, INLINECRYPT);
-}
-
 static const struct fscrypt_operations ext4_cryptops = {
 	.key_prefix		= "ext4:",
 	.get_context		= ext4_get_context,
 	.set_context		= ext4_set_context,
-	.get_dummy_context	= ext4_get_dummy_context,
+	.get_dummy_policy	= ext4_get_dummy_policy,
 	.empty_dir		= ext4_empty_dir,
-	.max_namelen		= EXT4_NAME_LEN,
 	.has_stable_inodes	= ext4_has_stable_inodes,
 	.get_ino_and_lblk_bits	= ext4_get_ino_and_lblk_bits,
-	.inline_crypt_enabled	= ext4_inline_crypt_enabled,
 };
 #endif
 
@@ -1796,11 +1788,6 @@ static const struct mount_opts {
 	{Opt_jqfmt_vfsv1, QFMT_VFS_V1, MOPT_QFMT},
 	{Opt_max_dir_size_kb, 0, MOPT_GTE0},
 	{Opt_test_dummy_encryption, 0, MOPT_STRING},
-#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
-	{Opt_inlinecrypt, EXT4_MOUNT_INLINECRYPT, MOPT_SET},
-#else
-	{Opt_inlinecrypt, EXT4_MOUNT_INLINECRYPT, MOPT_NOSUPPORT},
-#endif
 	{Opt_nombcache, EXT4_MOUNT_NO_MBCACHE, MOPT_SET},
 	{Opt_err, 0, 0}
 };
@@ -1850,12 +1837,13 @@ static int ext4_set_test_dummy_encryption(struct super_block *sb,
 	 * needed to allow it to be set or changed during remount.  We do allow
 	 * it to be specified during remount, but only if there is no change.
 	 */
-	if (is_remount && !sbi->s_dummy_enc_ctx.ctx) {
+	if (is_remount && !sbi->s_dummy_enc_policy.policy) {
 		ext4_msg(sb, KERN_WARNING,
 			 "Can't set test_dummy_encryption on remount");
 		return -1;
 	}
-	err = fscrypt_set_test_dummy_encryption(sb, arg, &sbi->s_dummy_enc_ctx);
+	err = fscrypt_set_test_dummy_encryption(sb, arg->from,
+						&sbi->s_dummy_enc_policy);
 	if (err) {
 		if (err == -EEXIST)
 			ext4_msg(sb, KERN_WARNING,
@@ -1918,6 +1906,13 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 		return 1;
 	case Opt_nolazytime:
 		sb->s_flags &= ~SB_LAZYTIME;
+		return 1;
+	case Opt_inlinecrypt:
+#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
+		sb->s_flags |= SB_INLINECRYPT;
+#else
+		ext4_msg(sb, KERN_ERR, "inline encryption not supported");
+#endif
 		return 1;
 	}
 
@@ -2345,6 +2340,9 @@ static int _ext4_show_options(struct seq_file *seq, struct super_block *sb,
 		SEQ_OPTS_PUTS("data_err=abort");
 
 	fscrypt_show_test_dummy_encryption(seq, sep, sb);
+
+	if (sb->s_flags & SB_INLINECRYPT)
+		SEQ_OPTS_PUTS("inlinecrypt");
 
 	ext4_show_quota_options(seq, sb);
 	return 0;
@@ -4828,7 +4826,7 @@ failed_mount:
 	for (i = 0; i < EXT4_MAXQUOTAS; i++)
 		kfree(get_qf_name(sb, sbi, i));
 #endif
-	fscrypt_free_dummy_context(&sbi->s_dummy_enc_ctx);
+	fscrypt_free_dummy_policy(&sbi->s_dummy_enc_policy);
 	ext4_blkdev_remove(sbi);
 	brelse(bh);
 out_fail:
