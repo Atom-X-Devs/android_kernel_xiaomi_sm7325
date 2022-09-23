@@ -29,10 +29,8 @@
 		board-sensor = "VIRTUAL-SENSOR";
 	};
 
-	xiaomi_touch {
+	xiaomi-touch {
 		compatible = "xiaomi-touch";
-		touch,name = "xiaomi-touch";
-		status = "ok";
 	};
 
 	mtdoops_pmsg@0xb0000000 {

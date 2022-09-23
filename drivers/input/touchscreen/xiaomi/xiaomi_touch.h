@@ -140,7 +140,6 @@ struct xiaomi_touch_pdata{
 	bool palm_changed;
 	int prox_value;
 	bool prox_changed;
-	const char *name;
 };
 
 struct xiaomi_touch *xiaomi_touch_dev_get(int minor);
