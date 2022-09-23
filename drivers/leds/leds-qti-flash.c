@@ -1622,10 +1622,11 @@ static int register_flash_device(struct qti_flash_led *led,
 	fnode->fdev.led_cdev.max_brightness = val;
 
 #ifdef CONFIG_MACH_XIAOMI
+	/*
+	 * This property is optional 
+	 */
 	rc = of_property_read_u32(node, "qcom,flashlight-current-ma", &val);
-	if (rc < 0)
-		pr_err("%s dont set current-ma, rc=%d\n", led->fnode->fdev.led_cdev.name,rc);
-	else {
+	if (!rc) {
 		fnode->current_ma = val;
 		fnode->fdev.led_cdev.brightness = val;
 		flashlight_current = fnode->current_ma;
