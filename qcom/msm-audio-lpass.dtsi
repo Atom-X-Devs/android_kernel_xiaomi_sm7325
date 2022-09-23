@@ -787,7 +787,7 @@
 
 	tdm_hsif0_tx: qcom,msm-dai-tdm-hsif0-tx {
 		compatible = "qcom,msm-dai-tdm";
-		qcom,msm-cpudai-tdm-group-id = <37231>;
+		qcom,msm-cpudai-tdm-group-id = <37233>;
 		qcom,msm-cpudai-tdm-group-num-ports = <1>;
 		qcom,msm-cpudai-tdm-group-port-id = <36977>;
 		qcom,msm-cpudai-tdm-clk-rate = <1536000>;
