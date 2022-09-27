@@ -10,9 +10,6 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#ifdef CONFIG_MACH_XIAOMI
-#include <linux/sched/task.h>
-#endif
 
 #include "ion_private.h"
 
@@ -157,9 +154,6 @@ static void ion_dma_buf_release(struct dma_buf *dmabuf)
 	struct ion_buffer *buffer = to_iommu_data(dmabuf->priv);
 	struct ion_heap *heap = buffer->heap;
 
-#ifdef CONFIG_MACH_XIAOMI
-	kfree(dmabuf->exp_name);
-#endif
 	if (heap->buf_ops.release)
 		return heap->buf_ops.release(dmabuf);
 
@@ -370,9 +364,6 @@ struct dma_buf *ion_dmabuf_alloc(struct ion_device *dev, size_t len,
 	struct ion_buffer *buffer;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	struct dma_buf *dmabuf;
-#ifdef CONFIG_MACH_XIAOMI
-	char task_comm[TASK_COMM_LEN];
-#endif
 
 	pr_debug("%s: len %zu heap_id_mask %u flags %x\n", __func__,
 		 len, heap_id_mask, flags);
@@ -381,71 +372,14 @@ struct dma_buf *ion_dmabuf_alloc(struct ion_device *dev, size_t len,
 	if (IS_ERR(buffer))
 		return ERR_CAST(buffer);
 
-#ifdef CONFIG_MACH_XIAOMI
-	get_task_comm(task_comm, current->group_leader);
-#endif
 	exp_info.ops = &dma_buf_ops;
 	exp_info.size = buffer->size;
 	exp_info.flags = O_RDWR;
 	exp_info.priv = &buffer->iommu_data;
-#ifdef CONFIG_MACH_XIAOMI
-	exp_info.exp_name = kasprintf(GFP_KERNEL, "%s-%s-%d-%s", KBUILD_MODNAME,
-		buffer->heap->name, current->tgid, task_comm);
-#endif
 
 	dmabuf = dma_buf_export(&exp_info);
-	if (IS_ERR(dmabuf)) {
+	if (IS_ERR(dmabuf))
 		ion_buffer_destroy(dev, buffer);
-#ifdef CONFIG_MACH_XIAOMI
-		kfree(exp_info.exp_name);
-#endif
-	}
 
 	return dmabuf;
 }
-
-#ifdef CONFIG_MACH_XIAOMI
-struct dma_buf *ion_dmabuf_alloc_with_caller_pid(struct ion_device *dev, size_t len,
-				 unsigned int heap_id_mask,
-				 unsigned int flags,
-				 int pid_info)
-{
-	struct ion_buffer *buffer;
-	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
-	struct dma_buf *dmabuf;
-	char task_comm[TASK_COMM_LEN];
-	char caller_task_comm[TASK_COMM_LEN];
-	struct task_struct *p = NULL;
-
-	pr_debug("%s: len %zu heap_id_mask %u flags %x\n", __func__,
-		len, heap_id_mask, flags);
-
-	get_task_comm(task_comm, current->group_leader);
-	if (pid_info)
-		p = find_get_task_by_vpid(pid_info);
-	if (p) {
-		get_task_comm(caller_task_comm, p);
-		put_task_struct(p);
-	}
-
-	buffer = ion_buffer_alloc(dev, len, heap_id_mask, flags);
-	if (IS_ERR(buffer))
-		return ERR_CAST(buffer);
-
-	exp_info.ops = &dma_buf_ops;
-	exp_info.size = buffer->size;
-	exp_info.flags = O_RDWR;
-	exp_info.priv = buffer;
-	exp_info.exp_name = kasprintf(GFP_KERNEL, "%s-%s-%d-%s-caller|%d-%s|",
-		KBUILD_MODNAME, buffer->heap->name, current->tgid, task_comm, pid_info,
-		p ? caller_task_comm : task_comm);
-
-	dmabuf = dma_buf_export(&exp_info);
-	if (IS_ERR(dmabuf)) {
-		ion_buffer_destroy(dev, buffer);
-		kfree(exp_info.exp_name);
-	}
-
-	return dmabuf;
-}
-#endif
