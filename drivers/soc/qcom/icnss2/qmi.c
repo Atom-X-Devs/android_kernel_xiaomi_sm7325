@@ -861,7 +861,7 @@ int icnss_wlfw_wlan_mac_req_send_sync(struct icnss_priv *priv,
 	}
 
 	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
-		icnss_pr_err("WLAN mac req failed, result: %d, err: %d\n",
+		icnss_pr_err("WLAN mac req failed, result: %d\n",
 			     resp.resp.result);
 		ret = -resp.resp.result;
 	}

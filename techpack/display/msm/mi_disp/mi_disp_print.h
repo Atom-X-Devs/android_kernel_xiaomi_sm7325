@@ -57,22 +57,18 @@ void mi_disp_dbg_utc(const char *format, ...);
 	} while (0)
 #else /* !MI_DISP_PRINT_ENABLE */
 #define DISP_WARN(fmt, ...)     \
-			printk(KERN_WARNING, fmt, ##__VA_ARGS__)
+			no_printk(KERN_WARNING fmt, ##__VA_ARGS__)
 #define DISP_INFO(fmt, ...)     \
-			printk(KERN_INFO, fmt, ##__VA_ARGS__)
+			no_printk(KERN_INFO fmt, ##__VA_ARGS__)
 #define DISP_ERROR(fmt, ...)    \
-			printk(KERN_ERR, fmt, ##__VA_ARGS__)
+			no_printk(KERN_ERR fmt, ##__VA_ARGS__)
 #define DISP_DEBUG(fmt, ...)    \
-			pr_debug(fmt, ##__VA_ARGS__)
+			no_printk(KERN_DEBUG fmt, ##__VA_ARGS__)
 
-#define DISP_UTC_WARN(fmt, ...)   \
-			printk(KERN_WARNING, fmt, ##__VA_ARGS__)
-#define DISP_UTC_INFO(fmt, ...)   \
-			printk(KERN_INFO, fmt, ##__VA_ARGS__)
-#define DISP_UTC_ERROR(fmt, ...)  \
-			printk(KERN_ERR, fmt, ##__VA_ARGS__)
-#define DISP_UTC_DEBUG(fmt, ...)  \
-			pr_debug(fmt, ##__VA_ARGS__)
+#define DISP_UTC_WARN(fmt, ...)   DISP_WARN(fmt, ##__VA_ARGS__)
+#define DISP_UTC_INFO(fmt, ...)   DISP_INFO(fmt, ##__VA_ARGS__)
+#define DISP_UTC_ERROR(fmt, ... ) DISP_ERROR(fmt, ##__VA_ARGS__)
+#define DISP_UTC_DEBUG(fmt, ...)  DISP_DEBUG(fmt, ##__VA_ARGS__)
 #endif
 
 #endif /* _MI_DISP_PRINT_H_ */

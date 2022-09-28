@@ -2744,7 +2744,7 @@ static int dp_display_validate_topology(struct dp_display_private *dp,
 
 	if (num_lm > avail_res->num_lm) {
 		DP_DEBUG("mode %sx%d is invalid, not enough lm %d %d\n",
-				mode->name, fps, num_lm, num_lm, avail_res->num_lm);
+				mode->name, fps, num_lm, avail_res->num_lm);
 		return -EPERM;
 	} else if (num_dsc > avail_res->num_dsc) {
 		DP_DEBUG("mode %sx%d is invalid, not enough dsc %d %d\n",

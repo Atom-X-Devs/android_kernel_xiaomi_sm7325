@@ -227,7 +227,7 @@ static inline bool skhpb_check_region_subregion_validity(struct skhpb_lu *hpb,
 	cb = hpb->region_tbl + region;
 	if (subregion >= cb->subregion_count) {
 		SKHPB_DRIVER_E(
-			"[HCM] Out of SUBREGION range - subregion[i]:MAX[%d]\n",
+			"[HCM] Out of SUBREGION range - subregion[%i]:MAX[%d]\n",
 			subregion, cb->subregion_count);
 		return false;
 	}

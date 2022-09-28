@@ -893,7 +893,7 @@ static bool validate_download_gpio(struct nfc_dev *nfc_dev, enum chip_types chip
 	struct platform_gpio *nfc_gpio;
 
 	if (nfc_dev == NULL) {
-		pr_err("%s nfc devices structure is null\n");
+		pr_err("%s nfc devices structure is null\n", __func__);
 		return status;
 	}
 	nfc_gpio = &nfc_dev->configs.gpio;

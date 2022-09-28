@@ -735,7 +735,7 @@ static int aw8624_haptic_set_gain(struct aw8624 *aw8624, unsigned char gain)
 		comp_gain = gain * AW8624_VBAT_REFER / aw8624->vbat;
 		if (comp_gain > (128 * AW8624_VBAT_REFER / AW8624_VBAT_MIN)) {
 			comp_gain = 128 * AW8624_VBAT_REFER / AW8624_VBAT_MIN;
-			pr_debug("%s: comp gain limit is %d ", comp_gain);
+			pr_debug("%s: comp gain limit is %d ", __func__, comp_gain);
 		}
 		pr_debug("%s: enable vbat comp, level = %x comp level = %x", __func__,
 			   gain, comp_gain);
@@ -2922,7 +2922,7 @@ static void aw8624_haptics_set_gain_work_routine(struct work_struct *work)
 		comp_level = aw8624->level * AW8624_VBAT_REFER / aw8624->vbat;
 		if (comp_level > (128 * AW8624_VBAT_REFER / AW8624_VBAT_MIN)) {
 			comp_level = 128 * AW8624_VBAT_REFER / AW8624_VBAT_MIN;
-			pr_debug("%s: comp level limit is %d ", comp_level);
+			pr_debug("%s: comp level limit is %d ", __func__, comp_level);
 		}
 		pr_debug("%s: enable vbat comp, level = %x comp level = %x", __func__,
 			   aw8624->level, comp_level);

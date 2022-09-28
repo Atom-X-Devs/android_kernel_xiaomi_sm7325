@@ -1332,7 +1332,7 @@ static int icnss_driver_event_pd_service_down(struct icnss_priv *priv,
 				priv->smp2p_info.smem_state,
 				ICNSS_SMEM_VALUE_MASK,
 				0))
-			icnss_pr_dbg("Error in SMP2P sent ret: %d\n");
+			icnss_pr_dbg("Error in SMP2P sent\n");
 	}
 
 	icnss_send_hang_event_data(priv);

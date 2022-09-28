@@ -1171,7 +1171,7 @@ int reg_dmav1_setup_rc_datav1(struct sde_hw_dspp *ctx, void *cfg)
 
 	rc = reg_dma_dspp_check(ctx, cfg, RC_DATA);
 	if (rc) {
-		DRM_ERROR("invalid dma dspp check rc = %d\n");
+		DRM_ERROR("invalid dma dspp check rc = %d\n", rc);
 		return -EINVAL;
 	}
 
@@ -4005,7 +4005,7 @@ static void _perform_sbdma_kickoff(struct sde_hw_dspp *ctx,
 				hw_cfg->dspp[i]->sb_dma_in_use = true;
 		}
 	} else if (rc == -EOPNOTSUPP) {
-		DRM_DEBUG("Falling back to dbdma\n", rc);
+		DRM_DEBUG("Falling back to dbdma\n");
 
 		REG_DMA_SETUP_KICKOFF(kick_off, hw_cfg->ctl,
 				dspp_buf[feature][ctx->idx], REG_DMA_WRITE,

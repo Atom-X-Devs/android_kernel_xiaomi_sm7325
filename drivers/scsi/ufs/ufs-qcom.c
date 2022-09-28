@@ -1279,7 +1279,7 @@ static int __ufs_qcom_set_bus_vote(struct ufs_qcom_host *host, int vote)
 		path0.ab, path0.ib);
 	err = icc_set_bw(d->ufs_ddr, path0.ab, path0.ib);
 	if (err) {
-		dev_err(dev, "Error: failed setting (%s) bus vote\n", err,
+		dev_err(dev, "Error: failed setting (%s) bus vote for %s\n", err,
 			UFS_DDR);
 		return err;
 	}
@@ -1288,7 +1288,7 @@ static int __ufs_qcom_set_bus_vote(struct ufs_qcom_host *host, int vote)
 		path1.ib);
 	err = icc_set_bw(d->cpu_ufs, path1.ab, path1.ib);
 	if (err) {
-		dev_err(dev, "Error: failed setting (%s) bus vote\n", err,
+		dev_err(dev, "Error: failed setting (%s) bus vote for %s\n", err,
 			CPU_UFS);
 		return err;
 	}

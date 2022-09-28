@@ -243,7 +243,7 @@ void sde_plane_set_sid(struct drm_plane *plane, u32 vm)
 	struct msm_drm_private *priv;
 
 	if (!plane || !plane->dev) {
-		SDE_ERROR("invalid plane %d\n");
+		SDE_ERROR("invalid plane\n");
 		return;
 	}
 
