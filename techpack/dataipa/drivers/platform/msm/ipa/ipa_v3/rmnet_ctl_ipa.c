@@ -146,7 +146,7 @@ int ipa3_register_rmnet_ctl_cb(
 	mutex_lock(&rmnet_ctl_ipa3_ctx->lock);
 	if (rmnet_ctl_ipa3_ctx->state != IPA_RMNET_CTL_NOT_REG &&
 		rmnet_ctl_ipa3_ctx->state != IPA_RMNET_CTL_PIPE_READY) {
-		IPADBG("rmnet_ctl registered already\n", __func__);
+		IPADBG("rmnet_ctl registered already\n");
 		mutex_unlock(&rmnet_ctl_ipa3_ctx->lock);
 		return -EEXIST;
 	}
@@ -189,7 +189,7 @@ int ipa3_unregister_rmnet_ctl_cb(void)
 	mutex_lock(&rmnet_ctl_ipa3_ctx->lock);
 	if (rmnet_ctl_ipa3_ctx->state != IPA_RMNET_CTL_REGD &&
 		rmnet_ctl_ipa3_ctx->state != IPA_RMNET_CTL_START) {
-		IPADBG("rmnet_ctl unregistered already\n", __func__);
+		IPADBG("rmnet_ctl unregistered already\n");
 		mutex_unlock(&rmnet_ctl_ipa3_ctx->lock);
 		return 0;
 	}

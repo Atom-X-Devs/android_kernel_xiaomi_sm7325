@@ -343,7 +343,7 @@ int rmnet_core_genl_pid_boost_req_hdlr(struct sk_buff *skb_2,
 	u16 boost_pid_cnt = RMNET_CORE_GENL_MAX_PIDS;
 	u16 i = 0;
 
-	rm_err("%s", "CORE_GNL: %s", __func__);
+	rm_err("%s", "CORE_GNL: %s");
 
 	if (!info) {
 		rm_err("%s", "CORE_GNL: error - info is null");

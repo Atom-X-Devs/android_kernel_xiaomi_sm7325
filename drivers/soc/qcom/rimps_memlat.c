@@ -327,7 +327,7 @@ static ssize_t store_max_freq(struct kobject *kobj,
 		ret = ops->max_freq(cpu_grp->handle, mon->cpus_mpidr,
 				mon->mon_type, mon->max_freq);
 	if (ret < 0) {
-		pr_err("failed to set max_freq tunable %s, ret = %d\n", ret);
+		pr_err("failed to set max_freq tunable, ret = %d\n", ret);
 		count = 0;
 	}
 

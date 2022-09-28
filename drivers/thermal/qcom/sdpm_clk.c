@@ -248,7 +248,7 @@ static int sdpm_clk_device_probe(struct platform_device *pdev)
 					sdpm_clk->clk_data[idx].clock_name);
 		if (IS_ERR(sdpm_clk->clk_data[idx].reg)) {
 			dev_err(dev, "regulator:%s get err:%d\n",
-					dev, sdpm_clk->clk_data[idx].clock_name,
+					sdpm_clk->clk_data[idx].clock_name,
 					PTR_ERR(sdpm_clk->clk_data[idx].reg));
 			if (PTR_ERR(sdpm_clk->clk_data[idx].reg)
 					== -EPROBE_DEFER)

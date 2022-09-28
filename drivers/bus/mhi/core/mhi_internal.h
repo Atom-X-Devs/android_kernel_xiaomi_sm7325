@@ -984,7 +984,7 @@ irqreturn_t mhi_intvec_threaded_handlr(int irq_number, void *dev);
 irqreturn_t mhi_intvec_handlr(int irq_number, void *dev);
 void mhi_ev_task(unsigned long data);
 
-#define MHI_ASSERT(cond, fmt, ...) do { \
+#define MHI_ASSERT(cond, fmt...) do { \
 	if (cond) \
 		panic(fmt); \
 } while (0)

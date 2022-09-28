@@ -3287,7 +3287,7 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		if (err) {
 			err = -EINVAL;
 			ADSPRPC_ERR(
-				"user application %s trying to send a kernel RPC message to channel %d, handle 0x%x\n",
+				"user application trying to send a kernel RPC message to channel %d, handle 0x%x\n",
 				cid, invoke->handle);
 			goto bail;
 		}

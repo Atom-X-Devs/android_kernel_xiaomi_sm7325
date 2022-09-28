@@ -1201,7 +1201,7 @@ static int qti_hwkm_set_tpkey(void)
 	qti_hwkm_enable_slave_receive_mode(km_device);
 	ret = qti_hwkm_handle_cmd(&cmd, &rsp);
 	if (ret) {
-		pr_err("%s: Error running commands\n", __func__, ret);
+		pr_err("%s: Error running commands\n", __func__);
 		return ret;
 	}
 
