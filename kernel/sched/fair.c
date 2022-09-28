@@ -94,11 +94,6 @@ static unsigned int normalized_sysctl_sched_wakeup_granularity	= 1000000UL;
 const_debug unsigned int sysctl_sched_migration_cost	= 500000UL;
 DEFINE_PER_CPU_READ_MOSTLY(int, sched_load_boost);
 
-/*
- * check pinned tasks before balance
- */
-static DEFINE_PER_CPU(unsigned int, nr_pinned_tasks);
-
 int sched_thermal_decay_shift;
 static int __init setup_sched_thermal_decay_shift(char *str)
 {
@@ -5613,10 +5608,6 @@ enqueue_throttle:
 #ifdef CONFIG_SCHED_WALT
 		p->wts.misfit = !task_fits_max(p, rq->cpu);
 #endif
-
-		if (unlikely(p->nr_cpus_allowed == 1))
-			per_cpu(nr_pinned_tasks, rq->cpu)++;
-
 		inc_rq_walt_stats(rq, p);
 		/*
 		 * Since new tasks are assigned an initial util_avg equal to
@@ -5715,10 +5706,6 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 dequeue_throttle:
 	if (!se) {
 		sub_nr_running(rq, 1);
-
-		if (unlikely(p->nr_cpus_allowed == 1))
-			per_cpu(nr_pinned_tasks, rq->cpu)--;
-
 		dec_rq_walt_stats(rq, p);
 	}
 
@@ -8365,10 +8352,14 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 		if ((rcu_dereference(rd->pd) && !sd_overutilized(env->sd)) &&
 		    env->idle == CPU_NEWLY_IDLE && !env->prefer_spread &&
 		    !task_in_related_thread_group(p)) {
-			long new_util_cum = cpu_util_cum(env->dst_cpu, task_util(p));
+			long util_cum_dst, util_cum_src;
+			unsigned long demand;
 
-			if (add_capacity_margin(new_util_cum, env->dst_cpu) >
-				capacity_curr_of(env->dst_cpu))
+			demand = task_util(p);
+			util_cum_dst = cpu_util_cum(env->dst_cpu, 0) + demand;
+			util_cum_src = cpu_util_cum(env->src_cpu, 0) - demand;
+
+			if (util_cum_dst > util_cum_src)
 				return 0;
 		}
 	}
@@ -8446,10 +8437,13 @@ static void detach_task(struct task_struct *p, struct lb_env *env)
 	lockdep_assert_held(&env->src_rq->lock);
 
 	deactivate_task(env->src_rq, p, DEQUEUE_NOCLOCK);
+	lockdep_off();
+	double_lock_balance(env->src_rq, env->dst_rq);
 	if (!(env->src_rq->clock_update_flags & RQCF_UPDATED))
 		update_rq_clock(env->src_rq);
-	walt_prepare_migrate(p, env->src_cpu, env->dst_cpu, true);
 	set_task_cpu(p, env->dst_cpu);
+	double_unlock_balance(env->src_rq, env->dst_rq);
+	lockdep_on();
 }
 
 /*
@@ -8519,14 +8513,6 @@ redo:
 		if (env->idle != CPU_NOT_IDLE && env->src_rq->nr_running <= 1)
 			break;
 
-		/*
-		 * Another CPU can place tasks, since we do not hold dst_rq lock
-		 * while doing balancing. If newly idle CPU already got something,
-		 * give up to reduce a latency.
-		 */
-		if (env->idle == CPU_NEWLY_IDLE && env->dst_rq->nr_running > 0)
-			break;
-
 		p = list_last_entry(tasks, struct task_struct, se.group_node);
 
 		env->loop++;
@@ -8562,8 +8548,6 @@ redo:
 		if (sched_feat(LB_MIN) && load < 16 && !env->sd->nr_balance_failed)
 			goto next;
 
-
-		if (env->idle != CPU_NEWLY_IDLE) {
 		/*
 		 * p is not running task when we goes until here, so if p is one
 		 * of the 2 task in src cpu rq and not the running one,
@@ -8580,7 +8564,6 @@ redo:
 			(env->flags & LBF_IGNORE_BIG_TASKS)) &&
 			((load / 2) > env->imbalance))
 			goto next;
-		}
 
 		detach_task(p, env);
 		list_add(&p->se.group_node, &env->tasks);
@@ -8637,13 +8620,11 @@ next:
 /*
  * attach_task() -- attach the task detached by detach_task() to its new rq.
  */
-static void attach_task(struct rq *rq,
-	struct task_struct *p, struct lb_env *env)
+static void attach_task(struct rq *rq, struct task_struct *p)
 {
 	lockdep_assert_held(&rq->lock);
 
 	BUG_ON(task_rq(p) != rq);
-	walt_finish_migrate(p, env->src_cpu, env->dst_cpu, true);
 	activate_task(rq, p, ENQUEUE_NOCLOCK);
 	check_preempt_curr(rq, p, 0);
 }
@@ -8652,14 +8633,13 @@ static void attach_task(struct rq *rq,
  * attach_one_task() -- attaches the task returned from detach_one_task() to
  * its new rq.
  */
-static void attach_one_task(struct rq *rq,
-	struct task_struct *p, struct lb_env *env)
+static void attach_one_task(struct rq *rq, struct task_struct *p)
 {
 	struct rq_flags rf;
 
 	rq_lock(rq, &rf);
 	update_rq_clock(rq);
-	attach_task(rq, p, env);
+	attach_task(rq, p);
 	update_overutilized_status(rq);
 	rq_unlock(rq, &rf);
 }
@@ -8668,22 +8648,20 @@ static void attach_one_task(struct rq *rq,
  * attach_tasks() -- attaches all tasks detached by detach_tasks() to their
  * new rq.
  */
-static void attach_tasks(struct lb_env *env, bool dst_locked)
+static void attach_tasks(struct lb_env *env)
 {
 	struct list_head *tasks = &env->tasks;
 	struct task_struct *p;
 	struct rq_flags rf;
 
-	if (!dst_locked)
-		rq_lock(env->dst_rq, &rf);
-
+	rq_lock(env->dst_rq, &rf);
 	update_rq_clock(env->dst_rq);
 
 	while (!list_empty(tasks)) {
 		p = list_first_entry(tasks, struct task_struct, se.group_node);
 		list_del_init(&p->se.group_node);
 
-		attach_task(env->dst_rq, p, env);
+		attach_task(env->dst_rq, p);
 	}
 
 	/*
@@ -8693,8 +8671,7 @@ static void attach_tasks(struct lb_env *env, bool dst_locked)
 	 * overutilized status here at the end.
 	 */
 	update_overutilized_status(env->dst_rq);
-	if (!dst_locked)
-		rq_unlock(env->dst_rq, &rf);
+	rq_unlock(env->dst_rq, &rf);
 }
 
 #ifdef CONFIG_NO_HZ_COMMON
@@ -10401,6 +10378,7 @@ redo:
 		 * correctly treated as an imbalance.
 		 */
 		env.flags |= LBF_ALL_PINNED;
+		env.loop_max  = min(sysctl_sched_nr_migrate, busiest->nr_running);
 
 more_balance:
 		rq_lock_irqsave(busiest, &rf);
@@ -10420,25 +10398,10 @@ more_balance:
 		update_rq_clock(busiest);
 
 		/*
-		 * Set loop_max when rq's lock is taken to prevent a race.
-		 */
-		env.loop_max = min(sysctl_sched_nr_migrate,
-							busiest->cfs.h_nr_running);
-
-		/*
 		 * cur_ld_moved - load moved in current iteration
 		 * ld_moved     - cumulative load moved across iterations
 		 */
 		cur_ld_moved = detach_tasks(&env);
-		if (cur_ld_moved) {
-			if (same_freq_domain(env.src_cpu, env.dst_cpu))
-				/*
-				 * If we move tasks within the same freq domain, it is
-				 * important to acquire dst_rq before releasing src_rq
-				 * to prevent potential load drop.
-				 */
-				double_lock_balance(env.src_rq, env.dst_rq);
-		}
 
 		/*
 		 * We've detached some tasks from busiest_rq. Every
@@ -10451,13 +10414,7 @@ more_balance:
 		rq_unlock(busiest, &rf);
 
 		if (cur_ld_moved) {
-			if (same_freq_domain(env.src_cpu, env.dst_cpu)) {
-				attach_tasks(&env, true);
-				raw_spin_unlock(&env.dst_rq->lock);
-			} else {
-				attach_tasks(&env, false);
-			}
-
+			attach_tasks(&env);
 			ld_moved += cur_ld_moved;
 		}
 
@@ -10756,7 +10713,6 @@ int active_load_balance_cpu_stop(void *data)
 #ifdef CONFIG_SCHED_WALT
 	struct task_struct *push_task;
 	int push_task_detached = 0;
-#endif
 	struct lb_env env = {
 		.sd                     = sd,
 		.dst_cpu                = target_cpu,
@@ -10767,6 +10723,7 @@ int active_load_balance_cpu_stop(void *data)
 		.flags                  = 0,
 		.loop                   = 0,
 	};
+#endif
 
 	rq_lock_irq(busiest_rq, &rf);
 	/*
@@ -10865,13 +10822,13 @@ out_unlock:
 #ifdef CONFIG_SCHED_WALT
 	if (push_task) {
 		if (push_task_detached)
-			attach_one_task(target_rq, push_task, &env);
+			attach_one_task(target_rq, push_task);
 		put_task_struct(push_task);
 	}
 #endif
 
 	if (p)
-		attach_one_task(target_rq, p, &env);
+		attach_one_task(target_rq, p);
 
 	local_irq_enable();
 
@@ -11039,20 +10996,6 @@ static inline int find_energy_aware_new_ilb(void)
 	cpumask_andnot(&idle_cpus, &idle_cpus, cpu_isolated_mask);
 #endif
 
-	/*
-	 * If a CPU is claimed it means that TIF_NEED_RESCHED
-	 * is on its way or is already in place. In first case
-	 * a nohz_idle_balance work will most likely be stopped
-	 * or even canceled earlier, because of pending task.
-	 * In second one a CPU is not kicked for doing a load
-	 * balancing.
-	 *
-	 * Therefore exclude CPUs (among nohz.idle_cpus_mask)
-	 * which have already been claimed for waking up a task
-	 * on, preferring other CPUs to do NO_HZ balancing.
-	 */
-	cpumask_andnot(&idle_cpus, &idle_cpus, &cpu_wclaimed_mask);
-
 	sg = sd->groups;
 	do {
 		int i;
@@ -11217,23 +11160,6 @@ static void nohz_balancer_kick(struct rq *rq)
 		goto out;
 	}
 
-
-	if (unlikely(per_cpu(nr_pinned_tasks, rq->cpu) > 0)) {
-		int delta = rq->nr_running - per_cpu(nr_pinned_tasks, rq->cpu);
-
-		/*
-		 * Check if it is possible to "unload" this CPU in case
-		 * of having pinned/affine tasks. Do not disturb idle
-		 * core if one of the below condition is true:
-		 *
-		 * - there is one pinned task and it is not "current"
-		 * - all tasks are pinned to this CPU
-		 */
-		if (delta < 2)
-			if (current->nr_cpus_allowed > 1 || !delta)
-				goto out;
-	}
-
 	if (rq->nr_running >= 2) {
 		flags = NOHZ_KICK_MASK;
 		goto out;
@@ -11373,8 +11299,6 @@ void nohz_balance_enter_idle(int cpu)
 	/* If this CPU is going down, then nothing needs to be done: */
 	if (!cpu_active(cpu))
 		return;
-
-	cpumask_clear_cpu(cpu, &cpu_wclaimed_mask);
 
 	/* Spare idle load balancing on CPUs that don't want to be disturbed: */
 	if (!housekeeping_cpu(cpu, HK_FLAG_SCHED))
@@ -12439,7 +12363,6 @@ __init void init_sched_fair_class(void)
 	nohz.next_balance = jiffies;
 	nohz.next_blocked = jiffies;
 	zalloc_cpumask_var(&nohz.idle_cpus_mask, GFP_NOWAIT);
-	cpumask_clear(&cpu_wclaimed_mask);
 #endif
 #endif /* SMP */
 
