@@ -84,11 +84,14 @@ void cpu_limits_set_level(unsigned int cpu, unsigned int max_freq)
 	struct cpufreq_device *cpufreq_dev;
 	unsigned int level = 0;
 
-	list_for_each_entry (cpufreq_dev, &cpufreq_dev_list, node) {
+	list_for_each_entry(cpufreq_dev, &cpufreq_dev_list, node) {
 		if (cpufreq_dev->id == cpu) {
 			for (level = 0; level <= cpufreq_dev->max_level; level++) {
 				int target_freq = cpufreq_dev->freq_table[level].frequency;
 				if (max_freq >= target_freq) {
+					if ((level > 0))
+						level = level - 1;
+
 					cpufreq_set_level(cpufreq_dev, level);
 					break;
 				}
