@@ -598,6 +598,8 @@ static int pil_init_image_trusted(struct pil_desc *pil,
 	struct pil_tz_data *d = desc_to_data(pil);
 	u32 scm_ret = 0;
 	int ret;
+	dma_addr_t mdata_phys;
+	void *mdata_buf;
 
 	if (d->subsys_desc.no_auth)
 		return 0;
@@ -606,7 +608,23 @@ static int pil_init_image_trusted(struct pil_desc *pil,
 	if (ret)
 		return ret;
 
-	scm_ret = qcom_scm_pas_init_image(d->pas_id, metadata, size);
+	/*
+	 * During the scm call memory protection will be enabled for the meta
+	 * data blob, so make sure it's physically contiguous, 4K aligned and
+	 * non-cachable to avoid XPU violations.
+	 */
+	mdata_buf = dma_alloc_coherent(pil->dev, size, &mdata_phys, GFP_KERNEL);
+	if (!mdata_buf) {
+		pr_err("%s: Allocation of metadata buffer failed!", __func__);
+		return -ENOMEM;
+	}
+	memcpy(mdata_buf, metadata, size);
+
+	scm_ret = qcom_scm_pas_init_image(d->pas_id, mdata_phys);
+	if (scm_ret)
+		pr_err("%s: scm init failed with rc: %u", __func__, scm_ret);
+
+	dma_free_coherent(pil->dev, size, mdata_buf, mdata_phys);
 
 	scm_pas_disable_bw();
 	return scm_ret;
