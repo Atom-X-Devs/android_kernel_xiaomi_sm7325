@@ -472,13 +472,13 @@ static void __qseecom_free_coherent_buf(uint32_t size,
 
 #define QSEE_RESULT_FAIL_APP_BUSY 315
 
-static int __qseecom_scm_call2_locked(uint32_t smc_id, struct scm_desc *desc)
+static int __qseecom_scm_call2_locked(uint32_t smc_id, struct qseecom_scm_desc *desc)
 {
 	int ret = 0;
 	int retry_count = 0;
 
 	do {
-		ret = qcom_scm_qseecom_call_noretry(smc_id, desc);
+		ret = qcom_scm_qseecom_call(smc_id, desc, false);
 		if ((ret == -EBUSY) || (desc && (desc->ret[0] == -QSEE_RESULT_FAIL_APP_BUSY))) {
 			mutex_unlock(&app_access_lock);
 			msleep(QSEECOM_SCM_EBUSY_WAIT_MS);
@@ -516,7 +516,7 @@ static int qseecom_scm_call2(uint32_t svc_id, uint32_t tz_cmd_id,
 	int      ret = 0;
 	uint32_t smc_id = 0;
 	uint32_t qseos_cmd_id = 0;
-	struct scm_desc desc = {0};
+	struct qseecom_scm_desc desc = {0};
 	struct qseecom_command_scm_resp *scm_resp = NULL;
 	struct qtee_shm shm = {0};
 	phys_addr_t pa;
@@ -606,7 +606,7 @@ static int qseecom_scm_call2(uint32_t svc_id, uint32_t tz_cmd_id,
 			smc_id = TZ_OS_APP_SHUTDOWN_ID;
 			desc.arginfo = TZ_OS_APP_SHUTDOWN_ID_PARAM_ID;
 			desc.args[0] = req->app_id;
-			ret = qcom_scm_qseecom_call(smc_id, &desc);
+			ret = qcom_scm_qseecom_call(smc_id, &desc, true);
 			break;
 		}
 		case QSEOS_APP_LOOKUP_COMMAND: {
@@ -6857,7 +6857,7 @@ static int qseecom_mdtp_cipher_dip(void __user *argp)
 	struct qseecom_mdtp_cipher_dip_req req;
 	u32 tzbuflenin, tzbuflenout;
 	char *tzbufin = NULL, *tzbufout = NULL;
-	struct scm_desc desc = {0};
+	struct qseecom_scm_desc desc = {0};
 	int ret;
 	phys_addr_t pain, paout;
 	struct qtee_shm shmin = {0}, shmout = {0};
@@ -9153,7 +9153,7 @@ out:
 #define GET_FEAT_VERSION_CMD	3
 static int qseecom_check_whitelist_feature(void)
 {
-	struct scm_desc desc = {0};
+	struct qseecom_scm_desc desc = {0};
 	int version = 0;
 	int ret = 0;
 
