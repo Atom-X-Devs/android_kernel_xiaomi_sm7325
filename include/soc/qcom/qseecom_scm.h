@@ -71,7 +71,7 @@ enum scm_arg_types {
 
 #define SCM_ARGS(...) SCM_ARGS_IMPL(__VA_ARGS__, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-struct scm_desc {
+struct qseecom_scm_desc {
 	u32 arginfo;
 	u64 args[MAX_SCM_ARGS];
 	u64 ret[MAX_SCM_RETS];
@@ -79,18 +79,14 @@ struct scm_desc {
 
 #if IS_ENABLED(CONFIG_QCOM_SCM)
 
-int qcom_scm_qseecom_call(u32 cmd_id, struct scm_desc *desc);
-int qcom_scm_qseecom_call_noretry(u32 cmd_id, struct scm_desc *desc);
+int qcom_scm_qseecom_call(u32 cmd_id, struct qseecom_scm_desc *desc,
+			  bool retry);
 
 #else
 
-static inline int qcom_scm_qseecom_call(u32 cmd_id, struct scm_desc *desc)
-{
-	return -ENODEV;
-}
-
-static inline int qcom_scm_qseecom_call_noretry(u32 cmd_id,
-		struct scm_desc *desc)
+static inline int qcom_scm_qseecom_call(u32 cmd_id,
+					struct qseecom_scm_desc *desc,
+					bool retry)
 {
 	return -ENODEV;
 }
