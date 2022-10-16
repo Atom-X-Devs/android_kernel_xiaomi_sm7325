@@ -7,10 +7,9 @@
 #include <linux/list_sort.h>
 #include <linux/jiffies.h>
 #include <linux/sched/stat.h>
+#include <linux/qcom-cpufreq-hw.h>
 #include <trace/events/sched.h>
 #include "qc_vas.h"
-
-#include <trace/events/sched.h>
 
 const char *task_event_names[] = {"PUT_PREV_TASK", "PICK_NEXT_TASK",
 				  "TASK_WAKE", "TASK_MIGRATE", "TASK_UPDATE",
@@ -43,14 +42,11 @@ const char *migrate_type_names[] = {"GROUP_TO_RQ", "RQ_TO_GROUP",
 
 static ktime_t ktime_last;
 static bool sched_ktime_suspended;
-static struct cpu_cycle_counter_cb cpu_cycle_counter_cb;
 static bool use_cycle_counter;
-static DEFINE_MUTEX(cluster_lock);
+
 static atomic64_t walt_irq_work_lastq_ws;
 static u64 walt_load_reported_window;
 static DEFINE_PER_CPU(atomic64_t, prev_group_runnable_sum) = ATOMIC64_INIT(0);
-static DEFINE_PER_CPU(atomic64_t, cycles) = ATOMIC64_INIT(0);
-static DEFINE_PER_CPU(atomic64_t, last_cc_update) = ATOMIC64_INIT(0);
 
 static struct irq_work walt_cpufreq_irq_work;
 static struct irq_work walt_migration_irq_work;
@@ -416,19 +412,16 @@ update_window_start(struct rq *rq, u64 wallclock, int event)
 	return old_window_start;
 }
 
-#define THRESH_CC_UPDATE (2 * NSEC_PER_USEC)
 static inline u64 read_cycle_counter(int cpu, u64 wallclock)
 {
-	u64 delta;
+	struct rq *rq = cpu_rq(cpu);
 
-	delta = wallclock - atomic64_read(&per_cpu(last_cc_update, cpu));
-	if (delta > THRESH_CC_UPDATE) {
-		atomic64_set(&per_cpu(cycles, cpu),
-			cpu_cycle_counter_cb.get_cpu_cycle_counter(cpu));
-		atomic64_set(&per_cpu(last_cc_update, cpu), wallclock);
+	if (rq->wrq.last_cc_update != wallclock) {
+		rq->wrq.cycles = qcom_cpufreq_get_cpu_cycle_counter(cpu);
+		rq->wrq.last_cc_update = wallclock;
 	}
 
-	return atomic64_read(&per_cpu(cycles, cpu));
+	return rq->wrq.cycles;
 }
 
 static void update_task_cpu_cycles(struct task_struct *p, int cpu,
@@ -2782,40 +2775,23 @@ static struct notifier_block notifier_trans_block = {
 	.notifier_call = cpufreq_notifier_trans
 };
 
-static int register_walt_callback(void)
-{
-	return cpufreq_register_notifier(&notifier_trans_block,
-					CPUFREQ_TRANSITION_NOTIFIER);
-}
 /*
  * cpufreq callbacks can be registered at core_initcall or later time.
  * Any registration done prior to that is "forgotten" by cpufreq. See
  * initialization of variable init_cpufreq_transition_notifier_list_called
  * for further information.
  */
-core_initcall(register_walt_callback);
-
-int register_cpu_cycle_counter_cb(struct cpu_cycle_counter_cb *cb)
+static int register_walt_callback(void)
 {
-	unsigned long flags;
-
-	mutex_lock(&cluster_lock);
-	if (!cb->get_cpu_cycle_counter) {
-		mutex_unlock(&cluster_lock);
-		return -EINVAL;
+	if (qcom_cpufreq_get_cpu_cycle_counter(smp_processor_id()) != U64_MAX) {
+		use_cycle_counter = true;
+		return 0;
 	}
 
-	acquire_rq_locks_irqsave(cpu_possible_mask, &flags);
-	cpu_cycle_counter_cb = *cb;
-	use_cycle_counter = true;
-	release_rq_locks_irqrestore(cpu_possible_mask, &flags);
-
-	mutex_unlock(&cluster_lock);
-
-	cpufreq_unregister_notifier(&notifier_trans_block,
-				    CPUFREQ_TRANSITION_NOTIFIER);
-	return 0;
+	return cpufreq_register_notifier(&notifier_trans_block,
+					CPUFREQ_TRANSITION_NOTIFIER);
 }
+core_initcall(register_walt_callback);
 
 static void transfer_busy_time(struct rq *rq,
 				struct walt_related_thread_group *grp,
@@ -3866,6 +3842,8 @@ void walt_sched_init_rq(struct rq *rq)
 	rq->wrq.curr_table = 0;
 	rq->wrq.prev_top = 0;
 	rq->wrq.curr_top = 0;
+	rq->wrq.last_cc_update = 0;
+	rq->wrq.cycles = 0;
 	for (j = 0; j < NUM_TRACKED_WINDOWS; j++) {
 		memset(&rq->wrq.load_subs[j], 0,
 				sizeof(struct load_subtractions));

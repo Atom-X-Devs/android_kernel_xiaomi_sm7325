@@ -551,8 +551,6 @@ static inline int  hh_vpm_grp_populate_info(u64 cap_id, int virq_num)
 
 #ifdef CONFIG_SCHED_WALT
 extern void walt_task_dead(struct task_struct *p);
-extern int
-register_cpu_cycle_counter_cb(struct cpu_cycle_counter_cb *cb);
 extern void
 sched_update_cpu_freq_min_max(const cpumask_t *cpus, u32 fmin, u32 fmax);
 extern void free_task_load_ptrs(struct task_struct *p);
@@ -631,12 +629,6 @@ struct walt_task_struct {
 
 #else
 static inline void walt_task_dead(struct task_struct *p) { }
-
-static inline int
-register_cpu_cycle_counter_cb(struct cpu_cycle_counter_cb *cb)
-{
-	return 0;
-}
 
 static inline void free_task_load_ptrs(struct task_struct *p) { }
 
