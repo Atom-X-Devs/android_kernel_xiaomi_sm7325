@@ -4373,8 +4373,12 @@ static int dsi_display_parse_dt(struct dsi_display *display)
 
 	/* Parse all external bridges from port 0 */
 	display_for_each_ctrl(i, display) {
-		display->ext_bridge[i].node_of =
-			of_graph_get_remote_node(of_node, 0, i);
+		if (of_graph_is_present(of_node)) {
+			display->ext_bridge[i].node_of =
+				of_graph_get_remote_node(of_node, 0, i);
+		} else
+			display->ext_bridge[i].node_of = NULL;
+
 		if (display->ext_bridge[i].node_of)
 			display->ext_bridge_cnt++;
 		else
