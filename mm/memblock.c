@@ -1384,6 +1384,10 @@ phys_addr_t __init memblock_phys_alloc_range(phys_addr_t size,
 					     phys_addr_t start,
 					     phys_addr_t end)
 {
+	memblock_dbg("%s: %llu bytes align=0x%llx from=%pa max_addr=%pa %pS\n",
+			__func__, (u64)size, (u64)align, &start, &end,
+			(void *)_RET_IP_);
+
 	return memblock_alloc_range_nid(size, align, start, end, NUMA_NO_NODE);
 }
 
@@ -1618,6 +1622,11 @@ static phys_addr_t __init_memblock __find_max_addr(phys_addr_t limit)
 	}
 
 	return max_addr;
+}
+
+phys_addr_t __init_memblock memblock_max_addr(phys_addr_t limit)
+{
+	return __find_max_addr(limit);
 }
 
 void __init memblock_enforce_memory_limit(phys_addr_t limit)

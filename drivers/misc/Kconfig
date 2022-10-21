@@ -481,6 +481,43 @@ config PVPANIC
 	  a paravirtualized device provided by QEMU; it lets a virtual machine
 	  (guest) communicate panic events to the host.
 
+config QSEECOM
+        tristate "QTI Secure Execution Communicator driver"
+        help
+          Provides a communication interface between userspace and
+          QTI Secure Execution Environment (QSEE) using Secure Channel
+          Manager (SCM) interface. It exposes APIs for both userspace and
+          kernel clients.
+
+config HDCP_QSEECOM
+        tristate "QTI High-Bandwidth Digital Content Protection Module"
+        depends on QSEECOM
+        help
+          This module implements HDCP 2.2 features over external interfaces
+          such as the DisplayPort interface. It exposes APIs for the interface
+          driver to communicate with QTI Secure Execution Environment (QSEE)
+          via the QSEECOM Driver and also communicates with the Receiver via
+          APIs exposed by the interface driver.
+
+config PROFILER
+	tristate "Qualcomm Technologies, Inc. trustzone Communicator driver"
+	help
+	  Provides a communication interface between userspace and
+	  trustzone using Secure Channel Manager (SCM) interface.
+	  It exposes APIs for userspace to get system profiling
+	  information.
+
+config WIGIG_SENSING_SPI
+	tristate "Sensing over 60GHz using wil6210 / SPI bus"
+	depends on SPI && WIL6210
+	default n
+	help
+	  This module adds support for various sensing use cases, like gesture
+	  detection, face recognition, proximity detection and more. The sensor
+	  operates over 60GHz frequency band, using low power SPI interface.
+	  The output of the driver is CIRs (Channel Impulse Response) which
+	  must be processed in user space in order to get meaningful results.
+
 config HISI_HIKEY_USB
 	tristate "USB functionality of HiSilicon Hikey Platform"
 	depends on OF && GPIOLIB

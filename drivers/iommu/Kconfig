@@ -35,6 +35,24 @@ config IOMMU_IOVA_ALIGNMENT
 	  The order is expressed a power of two multiplied by the PAGE_SIZE.
 
 	  If unsure, leave the default value "9".
+
+config DMA_CONFIGURE_ALIGNMENT
+        bool "Configure IOVA alignment"
+	depends on QGKI
+	default y
+        help
+	  Currently the IOVA framework automatically applies IOVA
+	  alignment to provided IOVAs based on the requested IOVA size and
+	  the alignment configs which are enabled.
+
+	  Some clients who don't require any IOVA alignment would
+	  benefit from the reduced fragmentation that would result from
+	  disabling IOVA alignment.
+
+	  Enable this option to allow clients to disable IOVA alignment on
+	  an IOMMU domain.
+
+	  If unsure, say N.
 endif
 
 menuconfig IOMMU_SUPPORT
@@ -93,6 +111,71 @@ config IOMMU_IO_PGTABLE_ARMV7S_SELFTEST
 
 	  If unsure, say N here.
 
+config IOMMU_IO_PGTABLE_FAST
+	bool "Fast ARMv7/v8 Long Descriptor Format"
+	depends on (ARM || ARM64) && IOMMU_DMA
+	help
+          Enable support for a subset of the ARM long descriptor pagetable
+	  format.  This allocator achieves fast performance by
+	  pre-allocating and pre-populating page table memory up front.
+	  only supports a 32 bit virtual address space.
+
+          This implementation is mainly optimized for use cases where the
+          buffers are small (<= 64K) since it only supports 4K page sizes.
+
+config IOMMU_IO_PGTABLE_FAST_SELFTEST
+	bool "Fast IO pgtable selftests"
+	depends on IOMMU_IO_PGTABLE_FAST
+	help
+	  Enable self-tests for "fast" page table allocator.
+	  This performs a series of page-table consistency checks
+	  during boot.
+
+	  If unsure, say N here.
+
+config IOMMU_IO_PGTABLE_FAST_PROVE_TLB
+	bool "Prove correctness of TLB maintenance in the Fast DMA mapper"
+	depends on IOMMU_IO_PGTABLE_FAST
+	help
+          Enables some debug features that help prove correctness of TLB
+          maintenance routines in the Fast DMA mapper.  This option will
+          slow things down considerably, so should only be used in a debug
+          configuration.  This relies on the ability to set bits in an
+          invalid page table entry, which is disallowed on some hardware
+          due to errata.  If you're running on such a platform then this
+          option can only be used with unit tests.  It will break real use
+          cases.
+
+	  If unsure, say N here.
+
+config IOMMU_DYNAMIC_DOMAINS
+	bool "Enable support for dynamic domains"
+	depends on ARM_SMMU && QGKI
+	help
+	  Enables support for clients to create dynamic domains. Some IOMMU
+	  clients require the ability to create and attach to N child domains.
+	  The purpose of these domains is to model process separation between
+	  different processes running in hardware that sits behind an IOMMU.
+	  Enable this feature if it is required for IOMMU clients to create
+	  dynamic domains. Note: creation of dynamic domains through the
+	  devicetree to configure the ARM SMMU's stream-matching registers
+	  for clients will still be supported, independent of this config's
+	  state.
+
+config QCOM_IOMMU_IO_PGTABLE_QUIRKS
+	bool "IO Pagetable quirks for performance"
+	depends on ARM || ARM64
+	depends on IOMMU_IO_PGTABLE_FAST || IOMMU_IO_PGTABLE_LPAE
+	depends on ARM_SMMU
+	help
+	  Enables some quirks that are used when creating the IOMMU's
+	  page tables for a particular domain for faster translations.
+	  The quirks that are supported deal with allowing for page tables
+	  to be saved in the system cache, and disabling the write-allocate
+	  hint when saving page tables in the system cache.
+
+	  If unsure, say N here.
+
 endmenu
 
 config IOMMU_DEBUGFS
@@ -104,6 +187,15 @@ config IOMMU_DEBUGFS
 	  at initialization time, cause the IOMMU code to create a top-level
 	  debug/iommu directory, and then populate a subdirectory with
 	  entries as required.
+
+config IO_PGTABLE_PAGE_ACCOUNTING
+	bool "Export the number of pages allocated for IOMMU pagetables"
+	depends on IOMMU_DEBUGFS && QGKI
+	help
+	  Allows exposure of the number of pages allocated for IOMMU
+	  pagetables through DebugFS. This is particularly useful for
+	  generating stats about the amount of memory consumed by IOMMU
+	  page tables in the system. If unsure, say N here.
 
 config IOMMU_DEFAULT_PASSTHROUGH
 	bool "IOMMU passthrough by default"
@@ -378,6 +470,14 @@ config SPAPR_TCE_IOMMU
 	  Enables bits of IOMMU API required by VFIO. The iommu_ops
 	  is not implemented as it is not necessary for VFIO.
 
+config QTI_IOMMU_SUPPORT
+	tristate "Support for QTI iommu drivers"
+	help
+	  The QTI GPU device may switch between multiple iommu domains,
+	  depending on usecase. This introduces a need to track all such
+	  domains in a non-driver specific manner.
+	  If in doubt say N.
+
 # ARM IOMMU support
 config ARM_SMMU
 	tristate "ARM Ltd. System MMU (SMMU) Support"
@@ -385,7 +485,6 @@ config ARM_SMMU
 	depends on QCOM_SCM || !QCOM_SCM #if QCOM_SCM=m this can't be =y
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
-	select ARM_DMA_USE_IOMMU if ARM
 	help
 	  Support for implementations of the ARM System MMU architecture
 	  versions 1 and 2.
@@ -430,6 +529,37 @@ config ARM_SMMU_DISABLE_BYPASS_BY_DEFAULT
 	  'arm-smmu.disable_bypass' will continue to override this
 	  config.
 
+config ARM_SMMU_TESTBUS_DEBUGFS
+	bool "Expose testbus control debugfs nodes"
+	depends on ARM_SMMU && IOMMU_DEBUGFS
+	help
+	  Support for exposing debugfs nodes to set testbus select values
+	  for selecting a testbus to inspect for a particular TCU/TBU
+	  on an SMMU. This also exposes debugfs nodes to read testbus output
+	  after the output has been selected.
+
+config ARM_SMMU_SKIP_MAP_POWER_ON
+	bool "Skip power on in map/map_sg path"
+	depends on ARM_SMMU && QGKI
+	help
+	  Support for skipping domain power on in arm_smmu_map/map_sg path.
+	  This is required to be enabled if no tlb flush needs to be performed
+	  in map/map_sg path.
+
+	  If unsure, say N here.
+
+config ARM_SMMU_POWER_ALWAYS_ON
+	bool "Never remove SMMU power resource votes"
+	depends on ARM_SMMU && !QGKI
+	help
+	  Support for never removing SMMU power resource votes (i.e.
+	  regulator, clocks, and interconnect votes). Never removing the
+	  power resource votes allows for less time to be spent by the SMMU
+	  driver in voting for power resources when it is actively working for
+	  an extended period of time.
+
+	  If unsure, say N here.
+
 config ARM_SMMU_V3
 	tristate "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
 	depends on ARM64
@@ -442,6 +572,49 @@ config ARM_SMMU_V3
 
 	  Say Y here if your system includes an IOMMU device implementing
 	  the ARM SMMUv3 architecture.
+
+config ARM_SMMU_SELFTEST
+	bool "ARM SMMU self test support"
+	depends on ARM_SMMU
+	help
+	  Enables self tests for arm smmu. Tests basic hardware
+	  configurations like interrupts. Note that enabling this
+	  option can marginally increase the boot time.
+
+	  If unsure, say N here.
+
+config IOMMU_TLBSYNC_DEBUG
+	bool "TLB sync timeout debug"
+	depends on ARM_SMMU
+	help
+	  Collects the SMMU system state information after the
+	  first TLB sync timeout failure by calling BUG() from
+	  a workqueue thread. Note to use this only on debug
+	  builds.
+
+	  If unsure, say N here.
+
+config ARM_SMMU_TESTBUS_DUMP
+	bool "ARM SMMU testbus dump"
+	depends on ARM_SMMU
+	help
+	  Enables testbus dump collection on arm smmu right after TLB
+	  sync timeout failure.
+	  Note to use this only on debug builds.
+
+	  If unsure, say N here.
+
+config QCOM_LAZY_MAPPING
+	tristate "Reference counted iommu-mapping support"
+	depends on ION
+	depends on IOMMU_API
+	help
+	  ION buffers may be shared between several software clients.
+	  Reference counting the mapping may simplify coordination between
+	  these clients, and decrease latency by preventing multiple
+	  map/unmaps of the same region.
+
+	  If unsure, say N here.
 
 config S390_IOMMU
 	def_bool y if S390 && PCI
@@ -497,6 +670,39 @@ config MTK_IOMMU_V1
 	  DMA memory accesses for the multimedia subsystem.
 
 	  if unsure, say N here.
+
+menuconfig IOMMU_DEBUG
+	bool "IOMMU Profiling and Debugging"
+	select IOMMU_DEBUGFS
+	help
+	  This option is used to enable profiling and debugging in
+	  the IOMMU framework code. IOMMU profiling and debugging
+	  can be done through the debugfs nodes which this option
+	  makes available.
+
+if IOMMU_DEBUG
+
+config IOMMU_TESTS
+	bool "Interactive IOMMU performance/functional tests"
+	select IOMMU_API
+	select ARM64_PTDUMP_CORE
+	help
+	  Enables a suite of IOMMU unit tests.  The tests are runnable
+	  through debugfs. The impact of enabling this option to overall
+	  system performance should be minimal.
+
+endif # IOMMU_DEBUG
+
+config QCOM_IOMMU_TLBI_QUIRKS
+	bool "QCOM IOMMU Quirks for TLB invalidation"
+	depends on ARM_SMMU
+	depends on QGKI
+	help
+	  Enables some quirks that are used when performing TLBI for faster
+	  invalidation.  The quirks that are supported deal with allowing
+	  defer tlbi and perform tlbiasid at the end of unmap.
+
+	  If unsure, say N here.
 
 config QCOM_IOMMU
 	# Note: iommu drivers cannot (yet?) be built as modules

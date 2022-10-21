@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2006-2012 Wilocity
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 /*
@@ -97,6 +86,7 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_SET_SILENT_RSSI_TABLE		= 13,
 	WMI_FW_CAPABILITY_LO_POWER_CALIB_FROM_OTP	= 14,
 	WMI_FW_CAPABILITY_PNO				= 15,
+	WMI_FW_CAPABILITY_CONNECT_SNR_THR		= 16,
 	WMI_FW_CAPABILITY_CHANNEL_BONDING		= 17,
 	WMI_FW_CAPABILITY_REF_CLOCK_CONTROL		= 18,
 	WMI_FW_CAPABILITY_AP_SME_OFFLOAD_NONE		= 19,
@@ -110,6 +100,7 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_IPA				= 27,
 	WMI_FW_CAPABILITY_TEMPERATURE_ALL_RF		= 30,
 	WMI_FW_CAPABILITY_SPLIT_REKEY			= 31,
+	WMI_FW_CAPABILITY_AP_POWER_MANAGEMENT		= 32,
 	WMI_FW_CAPABILITY_MAX,
 };
 
@@ -150,6 +141,7 @@ enum wmi_command_id {
 	WMI_RADAR_SET_MODE_CMDID			= 0x103,
 	WMI_RADAR_CONTROL_CMDID				= 0x104,
 	WMI_RADAR_PCI_CONTROL_CMDID			= 0x105,
+	WMI_RESET_SPI_SLAVE_CMDID			= 0x106,
 	WMI_MEM_READ_CMDID				= 0x800,
 	WMI_MEM_WR_CMDID				= 0x801,
 	WMI_ECHO_CMDID					= 0x803,
@@ -294,6 +286,7 @@ enum wmi_command_id {
 	WMI_GET_ASSOC_LIST_CMDID			= 0xA06,
 	WMI_GET_CCA_INDICATIONS_CMDID			= 0xA07,
 	WMI_SET_CCA_INDICATIONS_BI_AVG_NUM_CMDID	= 0xA08,
+	WMI_SET_VR_PROFILE_CMDID			= 0xA09,
 	WMI_INTERNAL_FW_IOCTL_CMDID			= 0xA0B,
 	WMI_LINK_STATS_CMDID				= 0xA0C,
 	WMI_SET_GRANT_MCS_CMDID				= 0xA0E,
@@ -700,6 +693,11 @@ struct wmi_radar_pci_control_cmd {
 	/* pcie host buffer size */
 	__le32 buffer_size;
 	__le32 reserved;
+} __packed;
+
+/* WMI_RESET_SPI_SLAVE_CMDID */
+struct wmi_reset_spi_slave_cmd {
+	u8 reserved[4];
 } __packed;
 
 /* WMI_RF_MGMT_CMDID */
@@ -1744,6 +1742,13 @@ struct wmi_radar_pci_control_event {
 	u8 reserved[3];
 } __packed;
 
+/* WMI_RESET_SPI_SLAVE_EVENTID */
+struct wmi_reset_spi_slave_event {
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[3];
+} __packed;
+
 /* WMI_SET_LONG_RANGE_CONFIG_CMDID */
 struct wmi_set_long_range_config_cmd {
 	__le32 reserved;
@@ -1990,6 +1995,7 @@ enum wmi_event_id {
 	WMI_RADAR_SET_MODE_EVENTID			= 0x1103,
 	WMI_RADAR_CONTROL_EVENTID			= 0x1104,
 	WMI_RADAR_PCI_CONTROL_EVENTID			= 0x1105,
+	WMI_RESET_SPI_SLAVE_EVENTID			= 0x1106,
 	WMI_RD_MEM_RSP_EVENTID				= 0x1800,
 	WMI_FW_READY_EVENTID				= 0x1801,
 	WMI_EXIT_FAST_MEM_ACC_MODE_EVENTID		= 0x200,
@@ -2120,6 +2126,7 @@ enum wmi_event_id {
 	WMI_GET_ASSOC_LIST_RES_EVENTID			= 0x1A06,
 	WMI_GET_CCA_INDICATIONS_EVENTID			= 0x1A07,
 	WMI_SET_CCA_INDICATIONS_BI_AVG_NUM_EVENTID	= 0x1A08,
+	WMI_SET_VR_PROFILE_EVENTID			= 0x1A09,
 	WMI_INTERNAL_FW_EVENT_EVENTID			= 0x1A0A,
 	WMI_INTERNAL_FW_IOCTL_EVENTID			= 0x1A0B,
 	WMI_LINK_STATS_CONFIG_DONE_EVENTID		= 0x1A0C,
@@ -2436,7 +2443,7 @@ struct wmi_rx_mgmt_info {
 	u8 range;
 	u8 sqi;
 	__le16 stype;
-	__le16 status;
+	__le16 snr;
 	__le32 len;
 	/* Not resolved when == 0xFFFFFFFF == > Broadcast to all MIDS */
 	u8 qid;
@@ -4166,6 +4173,32 @@ struct wmi_rbufcap_cfg_cmd {
 	 * default
 	 */
 	__le16 rx_desc_threshold;
+} __packed;
+
+enum wmi_vr_profile {
+	WMI_VR_PROFILE_DISABLED		= 0,
+	WMI_VR_PROFILE_COMMON_AP	= 1,
+	WMI_VR_PROFILE_COMMON_STA	= 2,
+	WMI_VR_PROFILE_RESERVED0	= 250,
+	WMI_VR_PROFILE_RESERVED1	= 251,
+	WMI_VR_PROFILE_RESERVED2	= 252,
+	WMI_VR_PROFILE_RESERVED3	= 253,
+	WMI_VR_PROFILE_RESERVED4	= 254,
+	WMI_VR_PROFILE_RESERVED5	= 255,
+};
+
+/* WMI_SET_VR_PROFILE_CMDID */
+struct wmi_set_vr_profile_cmd {
+	/* enum wmi_vr_profile */
+	u8 profile;
+	u8 reserved[3];
+} __packed;
+
+/* WMI_SET_VR_PROFILE_EVENTID */
+struct wmi_set_vr_profile_event {
+	/* enum wmi_fw_status */
+	u8 status;
+	u8 reserved[3];
 } __packed;
 
 /* WMI_RBUFCAP_CFG_EVENTID */

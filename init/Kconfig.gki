@@ -200,9 +200,9 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_USB_CONFIGS
 	select GKI_HIDDEN_SOC_BUS_CONFIGS
 	select GKI_HIDDEN_RPMSG_CONFIGS
+	select GKI_HIDDEN_HYPERVISOR_CONFIGS
 	select GKI_HIDDEN_GPU_CONFIGS
 	select GKI_HIDDEN_IRQ_CONFIGS
-	select GKI_HIDDEN_HYPERVISOR_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.

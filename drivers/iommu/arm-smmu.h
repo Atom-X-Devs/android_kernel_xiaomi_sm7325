@@ -24,6 +24,8 @@
 /* Configuration registers */
 #define ARM_SMMU_GR0_sCR0		0x0
 #define sCR0_VMID16EN			BIT(31)
+#define sCR0_SHCFG			GENMASK(23, 22)
+#define sCR0_SHCFG_NSH			0x3
 #define sCR0_BSU			GENMASK(15, 14)
 #define sCR0_FB				BIT(13)
 #define sCR0_PTM			BIT(12)
@@ -94,11 +96,16 @@
 
 /* Stream mapping registers */
 #define ARM_SMMU_GR0_SMR(n)		(0x800 + ((n) << 2))
+#define SMR_MASK_MASK			GENMASK(14, 0)
+#define SID_MASK			GENMASK(14, 0)
 #define SMR_VALID			BIT(31)
 #define SMR_MASK			GENMASK(31, 16)
 #define SMR_ID				GENMASK(15, 0)
 
 #define ARM_SMMU_GR0_S2CR(n)		(0xc00 + ((n) << 2))
+#define S2CR_SHCFG			GENMASK(9, 8)
+#define S2CR_SHCFG_NSH			0x3
+
 #define S2CR_PRIVCFG			GENMASK(25, 24)
 enum arm_smmu_s2cr_privcfg {
 	S2CR_PRIVCFG_DEFAULT,
@@ -132,13 +139,27 @@ enum arm_smmu_cbar_type {
 #define CBAR_VMID			GENMASK(7, 0)
 
 #define ARM_SMMU_GR1_CBFRSYNRA(n)	(0x400 + ((n) << 2))
+#define CBFRSYNRA_SID			GENMASK(15, 0)
+#define CBFRSYNRA_SSD			GENMASK(31, 16)
+
 
 #define ARM_SMMU_GR1_CBA2R(n)		(0x800 + ((n) << 2))
 #define CBA2R_VMID16			GENMASK(31, 16)
 #define CBA2R_VA64			BIT(0)
 
 #define ARM_SMMU_CB_SCTLR		0x0
+#define SCTLR_WACFG			GENMASK(27, 26)
+#define SCTLR_WACFG_WA			0x2
+#define SCTLR_RACFG			GENMASK(25, 24)
+#define SCTLR_RACFG_RA			0x2
+#define SCTLR_SHCFG			GENMASK(23, 22)
+#define SCTLR_SHCFG_OSH			0x1
+#define SCTLR_SHCFG_NSH			0x3
+#define SCTLR_MTCFG			BIT(20)
+#define SCTLR_MEM_ATTR			GENMASK(19, 16)
+#define SCTLR_MEM_ATTR_OISH_WB_CACHE	0xf
 #define SCTLR_S1_ASIDPNE		BIT(12)
+#define SCTLR_HUPCF			BIT(8)
 #define SCTLR_CFCFG			BIT(7)
 #define SCTLR_CFIE			BIT(6)
 #define SCTLR_CFRE			BIT(5)
@@ -162,6 +183,17 @@ enum arm_smmu_cbar_type {
 #define TTBRn_ASID			GENMASK_ULL(63, 48)
 
 #define ARM_SMMU_CB_TCR			0x30
+#define TCR_TCR1			GENMASK(31, 16)
+#define TCR1_TG1			GENMASK(31, 30)
+#define TCR1_TG1_16K			0x1
+#define TCR1_TG1_4K			0x2
+#define TCR1_TG1_64K			0x3
+#define TCR1_EPD1			BIT(23)
+#define TCR_TCR0			GENMASK(15, 0)
+#define TCR0_TG0			GENMASK(15, 14)
+#define TCR0_TG0_4K			0x0
+#define TCR0_TG0_64K			0x1
+#define TCR0_TG0_16K			0x2
 #define ARM_SMMU_CB_CONTEXTIDR		0x34
 #define ARM_SMMU_CB_S1_MAIR0		0x38
 #define ARM_SMMU_CB_S1_MAIR1		0x3c
@@ -186,19 +218,46 @@ enum arm_smmu_cbar_type {
 #define FSR_FAULT			(FSR_MULTI | FSR_SS | FSR_UUT | \
 					 FSR_EF | FSR_PF | FSR_TF | FSR_IGN)
 
+#define ARM_SMMU_CB_FSRRESTORE		0x5c
 #define ARM_SMMU_CB_FAR			0x60
 
 #define ARM_SMMU_CB_FSYNR0		0x68
 #define FSYNR0_WNR			BIT(4)
+#define FSYNR0_PNU			BIT(5)
+#define FSYNR0_IND			BIT(6)
+#define FSYNR0_NSATTR			BIT(8)
+
+#define ARM_SMMU_CB_FSYNR1		0x6c
+#define FSYNR1_BID			GENMASK(15, 13)
+#define FSYNR1_PID			GENMASK(12, 8)
+#define FSYNR1_MID			GENMASK(7, 0)
 
 #define ARM_SMMU_CB_S1_TLBIVA		0x600
 #define ARM_SMMU_CB_S1_TLBIASID		0x610
+#define ARM_SMMU_CB_S1_TLBIALL		0x618
 #define ARM_SMMU_CB_S1_TLBIVAL		0x620
 #define ARM_SMMU_CB_S2_TLBIIPAS2	0x630
 #define ARM_SMMU_CB_S2_TLBIIPAS2L	0x638
 #define ARM_SMMU_CB_TLBSYNC		0x7f0
 #define ARM_SMMU_CB_TLBSTATUS		0x7f4
+#define TLBSTATUS_SACTIVE		BIT(0)
 #define ARM_SMMU_CB_ATS1PR		0x800
+
+/* Implementation Defined Register Space 5 registers */
+/* Relative to IMPL_DEF5 page */
+#define ARM_SMMU_STATS_SYNC_INV_TBU_ACK 0x5dc
+#define TBU_SYNC_ACK			GENMASK(25, 17)
+#define TBU_SYNC_REQ			BIT(16)
+#define TBU_INV_ACK			GENMASK(9, 1)
+#define TBU_INV_REQ			BIT(0)
+
+/* Relative to SMMU_BASE */
+#define ARM_SMMU_TBU_PWR_STATUS         0x2204
+
+/* Relative SMMU_BASE */
+#define ARM_SMMU_MMU2QSS_AND_SAFE_WAIT_CNTR 0x2670
+#define TCU_SYNC_IN_PRGSS		BIT(20)
+#define TCU_INV_IN_PRGSS		BIT(16)
 
 #define ARM_SMMU_CB_ATSR		0x8f0
 #define ATSR_ACTIVE			BIT(0)
@@ -220,14 +279,51 @@ enum arm_smmu_implementation {
 	ARM_MMU500,
 	CAVIUM_SMMUV2,
 	QCOM_SMMUV2,
+	QCOM_SMMUV500,
 };
 
+/*
+ * Describes resources required for on/off power operation.
+ * Separate reference count is provided for atomic/nonatomic
+ * operations.
+ */
+struct arm_smmu_power_resources {
+	struct platform_device		*pdev;
+	struct device			*dev;
+
+	struct clk			**clocks;
+	int				num_clocks;
+
+	struct regulator_bulk_data	*gdscs;
+	int				num_gdscs;
+
+	struct icc_path			*icc_path;
+
+	/* Protects power_count */
+	struct mutex			power_lock;
+	int				power_count;
+
+	/* Protects clock_refs_count */
+	spinlock_t			clock_refs_lock;
+	int				clock_refs_count;
+	int				regulator_defer;
+};
+
+/*
+ * attach_count
+ *	The SMR and S2CR registers are only programmed when the number of
+ *	devices attached to the iommu using these registers is > 0. This
+ *	is required for the "SID switch" use case for secure display.
+ *	Protected by stream_map_mutex.
+ */
 struct arm_smmu_s2cr {
 	struct iommu_group		*group;
 	int				count;
+	int				attach_count;
 	enum arm_smmu_s2cr_type		type;
 	enum arm_smmu_s2cr_privcfg	privcfg;
 	u8				cbndx;
+	bool				cb_handoff;
 	bool				pinned;
 };
 
@@ -241,6 +337,7 @@ struct arm_smmu_device {
 	struct device			*dev;
 
 	void __iomem			*base;
+	phys_addr_t			phys_addr;
 	unsigned int			numpage;
 	unsigned int			pgshift;
 
@@ -259,6 +356,13 @@ struct arm_smmu_device {
 #define ARM_SMMU_FEAT_EXIDS		(1 << 12)
 	u32				features;
 
+#define ARM_SMMU_OPT_FATAL_ASF		(1 << 0)
+#define ARM_SMMU_OPT_SKIP_INIT		(1 << 1)
+#define ARM_SMMU_OPT_3LVL_TABLES	(1 << 2)
+#define ARM_SMMU_OPT_NO_ASID_RETENTION	(1 << 3)
+#define ARM_SMMU_OPT_DISABLE_ATOS	(1 << 4)
+#define ARM_SMMU_OPT_SPLIT_TABLES	(1 << 5)
+	u32				options;
 	enum arm_smmu_arch_version	version;
 	enum arm_smmu_implementation	model;
 	const struct arm_smmu_impl	*impl;
@@ -275,7 +379,7 @@ struct arm_smmu_device {
 	struct arm_smmu_smr		*smrs;
 	struct arm_smmu_s2cr		*s2crs;
 	struct mutex			stream_map_mutex;
-
+	struct mutex			iommu_group_mutex;
 	unsigned long			va_size;
 	unsigned long			ipa_size;
 	unsigned long			pa_size;
@@ -287,11 +391,51 @@ struct arm_smmu_device {
 	struct clk_bulk_data		*clks;
 	int				num_clks;
 
+	struct list_head		list;
+
 	spinlock_t			global_sync_lock;
 
 	/* IOMMU core code handle */
 	struct iommu_device		iommu;
+
+	struct arm_smmu_power_resources *pwr;
+
+	/* protects idr */
+	struct mutex			idr_mutex;
+	struct idr			asid_idr;
+
+	unsigned long			sync_timed_out;
 };
+
+struct qsmmuv500_tbu_device {
+	struct list_head		list;
+	struct device			*dev;
+	struct arm_smmu_device		*smmu;
+	void __iomem			*base;
+	void __iomem			*status_reg;
+
+	struct arm_smmu_power_resources *pwr;
+	u32				sid_start;
+	u32				num_sids;
+
+	/* Protects halt count */
+	spinlock_t			halt_lock;
+	u32				halt_count;
+	unsigned int			*irqs;
+};
+
+struct arm_smmu_master_cfg {
+	struct arm_smmu_device		*smmu;
+	s16				smendx[];
+};
+
+#define INVALID_SMENDX			-1
+#define __fwspec_cfg(fw) ((struct arm_smmu_master_cfg *)fw->iommu_priv)
+#define fwspec_smmu(fw)  (__fwspec_cfg(fw)->smmu)
+#define fwspec_smendx(fw, i) \
+	(i >= fw->num_ids ? INVALID_SMENDX : __fwspec_cfg(fw)->smendx[i])
+#define for_each_cfg_sme(fw, i, idx) \
+	for (i = 0; idx = fwspec_smendx(fw, i), i < fw->num_ids; ++i)
 
 enum arm_smmu_context_fmt {
 	ARM_SMMU_CTX_FMT_NONE,
@@ -307,6 +451,7 @@ struct arm_smmu_cfg {
 		u16			asid;
 		u16			vmid;
 	};
+	u32				procid;
 	enum arm_smmu_cbar_type		cbar;
 	enum arm_smmu_context_fmt	fmt;
 };
@@ -328,18 +473,32 @@ struct arm_smmu_flush_ops {
 
 struct arm_smmu_domain {
 	struct arm_smmu_device		*smmu;
-	struct io_pgtable_ops		*pgtbl_ops;
+	struct device			*dev;
+	struct io_pgtable_ops		*pgtbl_ops[2];
 	const struct arm_smmu_flush_ops	*flush_ops;
 	struct arm_smmu_cfg		cfg;
 	enum arm_smmu_domain_stage	stage;
 	bool				non_strict;
 	struct mutex			init_mutex; /* Protects smmu pointer */
-	spinlock_t			cb_lock; /* Serialises ATS1* ops and TLB syncs */
-	struct iommu_domain		domain;
+	spinlock_t			cb_lock; /* Serialises ATS1* ops */
+	spinlock_t			sync_lock; /* Serialises TLB syncs */
+	struct msm_io_pgtable_info	pgtbl_info[2];
+	DECLARE_BITMAP(attributes, DOMAIN_ATTR_EXTENDED_MAX);
+	u32				secure_vmid;
+	struct list_head		pte_info_list;
+	struct list_head		unassign_list;
+	struct mutex			assign_lock;
+	struct list_head		secure_pool_list;
+	/* nonsecure pool protected by pgtbl_lock */
+	struct list_head		nonsecure_pool;
+	struct iommu_debug_attachment	*logger;
+	struct msm_iommu_domain		domain;
+	bool				defer_flush;
 };
 
 
 /* Implementation details, yay! */
+
 struct arm_smmu_impl {
 	u32 (*read_reg)(struct arm_smmu_device *smmu, int page, int offset);
 	void (*write_reg)(struct arm_smmu_device *smmu, int page, int offset,
@@ -350,6 +509,14 @@ struct arm_smmu_impl {
 	int (*cfg_probe)(struct arm_smmu_device *smmu);
 	int (*reset)(struct arm_smmu_device *smmu);
 	int (*init_context)(struct arm_smmu_domain *smmu_domain);
+	void (*init_context_bank)(struct arm_smmu_domain *smmu_domain,
+				  struct device *dev);
+	phys_addr_t (*iova_to_phys_hard)(struct arm_smmu_domain *smmu_domain,
+					 dma_addr_t iova,
+					 unsigned long trans_flags);
+	void (*tlb_sync_timeout)(struct arm_smmu_device *smmu);
+	void (*device_remove)(struct arm_smmu_device *smmu);
+	int (*device_group)(struct device *dev, struct iommu_group *group);
 };
 
 static inline void __iomem *arm_smmu_page(struct arm_smmu_device *smmu, int n)
@@ -391,6 +558,15 @@ static inline void arm_smmu_writeq(struct arm_smmu_device *smmu, int page,
 
 #define ARM_SMMU_GR0		0
 #define ARM_SMMU_GR1		1
+
+/*
+ * Implementation defined space starts after SMMU GR space, so IMPL_DEF page n
+ * is page n + 2 in the SMMU register space.
+ */
+#define ARM_SMMU_IMPL_DEF0	2
+#define ARM_SMMU_IMPL_DEF4	6
+#define ARM_SMMU_IMPL_DEF5	7
+
 #define ARM_SMMU_CB(s, n)	((s)->numpage + (n))
 
 #define arm_smmu_gr0_read(s, o)		\
@@ -414,7 +590,17 @@ static inline void arm_smmu_writeq(struct arm_smmu_device *smmu, int page,
 
 struct arm_smmu_device *arm_smmu_impl_init(struct arm_smmu_device *smmu);
 struct arm_smmu_device *qcom_smmu_impl_init(struct arm_smmu_device *smmu);
+struct arm_smmu_device *qsmmuv500_impl_init(struct arm_smmu_device *smmu);
+struct arm_smmu_device *qsmmuv2_impl_init(struct arm_smmu_device *smmu);
 
 int arm_mmu500_reset(struct arm_smmu_device *smmu);
+
+int arm_smmu_power_on(struct arm_smmu_power_resources *pwr);
+void arm_smmu_power_off(struct arm_smmu_device *smmu,
+			struct arm_smmu_power_resources *pwr);
+
+/* Misc. constants */
+#define TBUID_SHIFT                     10
+#define ARM_MMU500_ACR_CACHE_LOCK	(1 << 26)
 
 #endif /* _ARM_SMMU_H */

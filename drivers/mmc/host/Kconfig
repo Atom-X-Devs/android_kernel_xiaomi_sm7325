@@ -489,6 +489,8 @@ config MMC_SDHCI_MSM
 	depends on ARCH_QCOM || (ARM && COMPILE_TEST)
 	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
+	select MMC_CQHCI
+	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  support present in Qualcomm SOCs. The controller supports
@@ -1031,3 +1033,28 @@ config MMC_SDHCI_AM654
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
+
+config SDC_QTI
+	tristate "Enable QTI specific code in MMC upstream driver"
+	depends on QGKI && MMC_SDHCI_MSM
+	default n
+	help
+	  This configuration flag allows adding QTI code in
+	  MMC upstream driver.
+
+config MMC_CQHCI_CRYPTO
+	tristate "CQHCI Crypto Engine Support"
+	depends on BLK_INLINE_ENCRYPTION
+	help
+	  Enable Crypto Engine Support in CQHCI.
+	  Enabling this makes it possible for the kernel to use the crypto
+	  capabilities of the CQHCI device (if present) to perform crypto
+	  operations on data being transferred to/from the device.
+
+config MMC_CQHCI_CRYPTO_QTI
+	tristate "Vendor specific CQHCI Crypto Engine Support"
+	depends on MMC_CQHCI_CRYPTO
+	help
+	 Enable Vendor Crypto Engine Support in CQHCI
+	 Enabling this allows kernel to use CQHCI crypto operations defined
+	 and implemented by QTI.

@@ -28,6 +28,9 @@
 #include <linux/mm.h>
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
+#include <linux/memory.h>
+#include <linux/libfdt.h>
+#include <linux/memblock.h>
 
 #include <asm/boot.h>
 #include <asm/fixmap.h>
@@ -269,6 +272,104 @@ int pfn_valid(unsigned long pfn)
 EXPORT_SYMBOL(pfn_valid);
 
 static phys_addr_t memory_limit = PHYS_ADDR_MAX;
+phys_addr_t bootloader_memory_limit;
+
+#ifdef CONFIG_OVERRIDE_MEMORY_LIMIT
+static void __init update_memory_limit(void)
+{
+	unsigned long dt_root = of_get_flat_dt_root();
+	unsigned long node;
+	unsigned long long ram_sz, sz;
+	phys_addr_t end_addr, addr_aligned, offset;
+	int len;
+	const __be32 *prop;
+	char *status;
+	phys_addr_t min_ddr_sz = 0, offline_sz = 0;
+	int t_len = (2 * dt_root_size_cells) * sizeof(__be32);
+
+	if (memory_limit == PHYS_ADDR_MAX)
+		ram_sz = memblock_phys_mem_size();
+	else if (IS_ALIGNED(memory_limit, MIN_MEMORY_BLOCK_SIZE))
+		ram_sz = memory_limit;
+	else {
+		WARN(1, "mem-offline is not supported for DDR size %lld\n",
+				memory_limit);
+		return;
+	}
+
+	node = of_get_flat_dt_subnode_by_name(dt_root, "mem-offline");
+	if (node == -FDT_ERR_NOTFOUND) {
+		pr_err("mem-offine node not found in FDT\n");
+		return;
+	}
+
+	status = (char *)fdt_getprop(initial_boot_params, node, "status", NULL);
+	if (status && !strcmp(status, "disabled")) {
+		pr_info("mem-offline device is disabled\n");
+		return;
+	}
+
+	prop = of_get_flat_dt_prop(node, "offline-sizes", &len);
+	if (prop) {
+		if (len % t_len != 0) {
+			pr_err("mem-offline: invalid offline-sizes property\n");
+			return;
+		}
+
+		while (len > 0) {
+			phys_addr_t tmp_min_ddr_sz = dt_mem_next_cell(
+							dt_root_addr_cells,
+							&prop);
+			phys_addr_t tmp_offline_sz = dt_mem_next_cell(
+							dt_root_size_cells,
+							&prop);
+
+			if (tmp_min_ddr_sz < ram_sz &&
+			    tmp_min_ddr_sz > min_ddr_sz) {
+				if (tmp_offline_sz < ram_sz) {
+					min_ddr_sz = tmp_min_ddr_sz;
+					offline_sz = tmp_offline_sz;
+				} else {
+					pr_info("mem-offline: invalid offline size:%pa\n",
+						 &tmp_offline_sz);
+				}
+			}
+			len -= t_len;
+		}
+	} else {
+		pr_err("mem-offine: offline-sizes property not found in DT\n");
+		return;
+	}
+
+	if (offline_sz == 0) {
+		pr_info("mem-offline: no memory to offline for DDR size:%llu\n",
+			ram_sz);
+		return;
+	}
+
+	sz = ram_sz - offline_sz;
+	memory_limit = (phys_addr_t)sz;
+	end_addr = memblock_max_addr(memory_limit);
+	addr_aligned = ALIGN(end_addr, MIN_MEMORY_BLOCK_SIZE);
+	offset = addr_aligned - end_addr;
+
+	if (offset > MIN_MEMORY_BLOCK_SIZE / 2) {
+		addr_aligned = ALIGN_DOWN(end_addr, MIN_MEMORY_BLOCK_SIZE);
+		offset = end_addr - addr_aligned;
+		memory_limit -= offset;
+	} else {
+		memory_limit += offset;
+	}
+
+	pr_notice("Memory limit set/overridden to %lldMB\n",
+							memory_limit >> 20);
+}
+#else
+static void __init update_memory_limit(void)
+{
+
+}
+#endif
 
 /*
  * Limit the memory size that was specified via FDT.
@@ -348,6 +449,16 @@ void __init arm64_memblock_init(void)
 	}
 
 	/*
+	 * Save bootloader imposed memory limit before we overwirte
+	 * memblock.
+	 */
+	bootloader_memory_limit = memblock_max_addr(memory_limit);
+	if (bootloader_memory_limit > memblock_end_of_DRAM())
+		bootloader_memory_limit = memblock_end_of_DRAM();
+
+	update_memory_limit();
+
+	/*
 	 * Apply the memory limit if it was set. Since the kernel may be loaded
 	 * high up in memory, add back the kernel region that must be accessible
 	 * via the linear mapping.
@@ -389,7 +500,7 @@ void __init arm64_memblock_init(void)
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
 		extern u16 memstart_offset_seed;
 		u64 range = linear_region_size -
-			    (memblock_end_of_DRAM() - memblock_start_of_DRAM());
+			   (bootloader_memory_limit - memblock_start_of_DRAM());
 
 		/*
 		 * If the size of the linear region exceeds, by a sufficient

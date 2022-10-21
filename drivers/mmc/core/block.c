@@ -909,7 +909,9 @@ static inline int mmc_blk_part_switch(struct mmc_card *card,
 		}
 
 		card->ext_csd.part_config = part_config;
-
+#if defined(CONFIG_SDC_QTI)
+		card->part_curr = part_type;
+#endif
 		ret = mmc_blk_part_switch_post(card, main_md->part_curr);
 	}
 
@@ -1475,6 +1477,9 @@ static void mmc_blk_cqe_complete_rq(struct mmc_queue *mq, struct request *req)
 	spin_lock_irqsave(&mq->lock, flags);
 
 	mq->in_flight[issue_type] -= 1;
+#if defined(CONFIG_SDC_QTI)
+	atomic_dec(&host->active_reqs);
+#endif
 
 	put_card = (mmc_tot_in_flight(mq) == 0);
 
@@ -1484,6 +1489,10 @@ static void mmc_blk_cqe_complete_rq(struct mmc_queue *mq, struct request *req)
 
 	if (!mq->cqe_busy)
 		blk_mq_run_hw_queues(q, true);
+#if defined(CONFIG_SDC_QTI)
+	mmc_cqe_clk_scaling_stop_busy(host, true,
+				(issue_type == MMC_ISSUE_DCMD));
+#endif
 
 	if (put_card)
 		mmc_put_card(mq->card, &mq->ctx);
@@ -1498,8 +1507,16 @@ void mmc_blk_cqe_recovery(struct mmc_queue *mq)
 	pr_debug("%s: CQE recovery start\n", mmc_hostname(host));
 
 	err = mmc_cqe_recovery(host);
+#if defined(CONFIG_SDC_QTI)
+	if (err || host->need_hw_reset) {
+		mmc_blk_reset(mq->blkdata, host, MMC_BLK_CQE_RECOVERY);
+		if (host->need_hw_reset)
+			host->need_hw_reset = false;
+	}
+#else
 	if (err)
 		mmc_blk_reset(mq->blkdata, host, MMC_BLK_CQE_RECOVERY);
+#endif
 	mmc_blk_reset_success(mq->blkdata, MMC_BLK_CQE_RECOVERY);
 
 	pr_debug("%s: CQE recovery done\n", mmc_hostname(host));
@@ -1580,13 +1597,27 @@ static int mmc_blk_cqe_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 {
 	struct mmc_queue_req *mqrq = req_to_mmc_queue_req(req);
 	struct mmc_host *host = mq->card->host;
+#if defined(CONFIG_SDC_QTI)
+	int err;
+#endif
 
 	if (host->hsq_enabled)
 		return mmc_blk_hsq_issue_rw_rq(mq, req);
 
 	mmc_blk_data_prep(mq, mqrq, 0, NULL, NULL);
+#if defined(CONFIG_SDC_QTI)
+	mmc_deferred_scaling(mq->card->host);
+	mmc_cqe_clk_scaling_start_busy(mq, mq->card->host, true);
 
+	err =  mmc_blk_cqe_start_req(mq->card->host, &mqrq->brq.mrq);
+
+	if (err)
+		mmc_cqe_clk_scaling_stop_busy(mq->card->host, true, false);
+
+	return err;
+#else
 	return mmc_blk_cqe_start_req(mq->card->host, &mqrq->brq.mrq);
+#endif
 }
 
 static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
@@ -1856,6 +1887,15 @@ static void mmc_blk_mq_rw_recovery(struct mmc_queue *mq, struct request *req)
 	    err && mmc_blk_reset(md, card->host, type)) {
 		pr_err("%s: recovery failed!\n", req->rq_disk->disk_name);
 		mqrq->retries = MMC_NO_RETRIES;
+
+#if defined(CONFIG_SDC_QTI)
+		/* Completely remove the non-recoverable card */
+		if (mmc_card_sd(card)) {
+			mmc_card_set_removed(card);
+			card->host->corrupted_card = true;
+			mmc_detect_change(card->host, msecs_to_jiffies(200));
+		}
+#endif
 		return;
 	}
 
@@ -2032,13 +2072,18 @@ static void mmc_blk_mq_poll_completion(struct mmc_queue *mq,
 
 static void mmc_blk_mq_dec_in_flight(struct mmc_queue *mq, struct request *req)
 {
+#if defined(CONFIG_SDC_QTI)
+	struct mmc_host *host = mq->card->host;
+#endif
 	unsigned long flags;
 	bool put_card;
 
 	spin_lock_irqsave(&mq->lock, flags);
 
 	mq->in_flight[mmc_issue_type(mq, req)] -= 1;
-
+#if defined(CONFIG_SDC_QTI)
+	atomic_dec(&host->active_reqs);
+#endif
 	put_card = (mmc_tot_in_flight(mq) == 0);
 
 	spin_unlock_irqrestore(&mq->lock, flags);

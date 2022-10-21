@@ -974,6 +974,18 @@ config MFD_PM8XXX
 	  Say M here if you want to include support for PM8xxx chips as a
 	  module. This will build a module called "pm8xxx-core".
 
+config MFD_I2C_PMIC
+	tristate "QTI I2C PMIC support"
+	depends on I2C && OF
+	select IRQ_DOMAIN
+	select REGMAP_I2C
+	select MFD_CORE
+	help
+	  This enables support for controlling Qualcomm Technologies, Inc.
+	  PMICs over I2C. The driver controls interrupts, and provides register
+	  access for all of the device's peripherals.  Some QTI PMIC chips
+	  support communication over both I2C and SPMI.
+
 config MFD_QCOM_RPM
 	tristate "Qualcomm Resource Power Manager (RPM)"
 	depends on ARCH_QCOM && OF
@@ -2011,6 +2023,16 @@ config RAVE_SP_CORE
 	help
 	  Select this to get support for the Supervisory Processor
 	  device found on several devices in RAVE line of hardware.
+
+config MFD_WCD
+	tristate "Support for WCD93xx driver core functions"
+	select MFD_CORE
+	help
+	  Select this to get support for MFD CORE enabled for WCD
+	  audio Multifunctional device. Audio MFD core functions
+	  are used to register the WCD9335 series of codec.
+	  This driver include only the core APIs. You have to select
+	  individual drivers separately to enable the codec functionality.
 
 endmenu
 endif

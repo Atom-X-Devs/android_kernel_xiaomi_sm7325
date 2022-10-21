@@ -53,6 +53,8 @@
 
 #include <asm/mman.h>
 
+int want_old_faultaround_pte = 1;
+
 /*
  * Shared mappings implemented 30.11.1994. It's not fully working yet,
  * though.
@@ -153,6 +155,17 @@ static void page_cache_delete(struct address_space *mapping,
 	mapping->nrpages -= nr;
 }
 
+#ifdef CONFIG_VM_EVENT_COUNT_CLEAN_PAGE_RECLAIM
+static void count_vm_event_clean_page_put(void)
+{
+	count_vm_event(PGPGOUTCLEAN);
+}
+#else
+static void count_vm_event_clean_page_put(void)
+{
+}
+#endif
+
 static void unaccount_page_cache_page(struct address_space *mapping,
 				      struct page *page)
 {
@@ -163,10 +176,12 @@ static void unaccount_page_cache_page(struct address_space *mapping,
 	 * invalidate any existing cleancache entries.  We can't leave
 	 * stale data around in the cleancache once our page is gone
 	 */
-	if (PageUptodate(page) && PageMappedToDisk(page))
+	if (PageUptodate(page) && PageMappedToDisk(page)) {
+		count_vm_event_clean_page_put();
 		cleancache_put_page(page);
-	else
+	} else {
 		cleancache_invalidate_page(mapping, page);
+	}
 
 	VM_BUG_ON_PAGE(PageTail(page), page);
 	VM_BUG_ON_PAGE(page_mapped(page), page);
@@ -2408,12 +2423,12 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
 	pgoff_t offset = vmf->pgoff;
 
 	/* If we don't want any read-ahead, don't bother */
-	if (vmf->vma->vm_flags & VM_RAND_READ)
+	if (vmf->vma_flags & VM_RAND_READ)
 		return fpin;
 	if (!ra->ra_pages)
 		return fpin;
 
-	if (vmf->vma->vm_flags & VM_SEQ_READ) {
+	if (vmf->vma_flags & VM_SEQ_READ) {
 		fpin = maybe_unlock_mmap_for_io(vmf, fpin);
 		page_cache_sync_readahead(mapping, ra, file, offset,
 					  ra->ra_pages);
@@ -2457,7 +2472,7 @@ static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
 	pgoff_t offset = vmf->pgoff;
 
 	/* If we don't want any read-ahead, don't bother */
-	if (vmf->vma->vm_flags & VM_RAND_READ || !ra->ra_pages)
+	if (vmf->vma_flags & VM_RAND_READ || !ra->ra_pages)
 		return fpin;
 	if (ra->mmap_miss > 0)
 		ra->mmap_miss--;
@@ -2480,7 +2495,7 @@ static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
  * it in the page cache, and handles the special cases reasonably without
  * having a lot of duplicated code.
  *
- * vma->vm_mm->mmap_sem must be held on entry.
+ * vma->vm_mm->mmap_sem must be held on entry (except FAULT_FLAG_SPECULATIVE).
  *
  * If our return value has VM_FAULT_RETRY set, it's because the mmap_sem
  * may be dropped before doing I/O or by lock_page_maybe_drop_mmap().
@@ -2670,6 +2685,14 @@ void filemap_map_pages(struct vm_fault *vmf,
 		if (vmf->pte)
 			vmf->pte += xas.xa_index - last_pgoff;
 		last_pgoff = xas.xa_index;
+
+		if (want_old_faultaround_pte) {
+			if (xas.xa_index == vmf->pgoff)
+				vmf->flags &= ~FAULT_FLAG_PREFAULT_OLD;
+			else
+				vmf->flags |= FAULT_FLAG_PREFAULT_OLD;
+		}
+
 		if (alloc_set_pte(vmf, NULL, page))
 			goto unlock;
 		unlock_page(page);

@@ -209,6 +209,18 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	if (rocr && !mmc_host_is_spi(host))
 		*rocr = cmd.resp[0];
 
+	/*
+	 * As per design, internal CRC error flag will be cleared after 3
+	 * MCLK once clear command issued. Since the MCLK will be running
+	 * at 400KHz during initialization, design is taking max of 7.5us
+	 * to clear the status. So if the CMD_CRC_CHECK_EN bit is enabled
+	 * before the source is cleared, CRC INTR bit will be set in the 17th
+	 * bit of INTR status register. So it expected to issue the next
+	 * command and enable CMD_CRC_CHK_EN after 7.5us (3*MCLK) delay.
+	 */
+	if (!err)
+		udelay(8);
+
 	return err;
 }
 
@@ -660,11 +672,19 @@ int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error)
 
 	if (cmd.error) {
 		err = cmd.error;
+#if defined(CONFIG_SDC_QTI)
+		/* Ignore crc errors occurred during tuning */
+		if (host->err_stats[MMC_ERR_CMD_CRC])
+			host->err_stats[MMC_ERR_CMD_CRC]--;
+#endif
 		goto out;
 	}
 
 	if (data.error) {
 		err = data.error;
+#if defined(CONFIG_SDC_QTI)
+		 host->err_stats[MMC_ERR_DAT_CRC]--;
+#endif
 		goto out;
 	}
 

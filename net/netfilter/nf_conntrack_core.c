@@ -65,6 +65,12 @@ EXPORT_SYMBOL_GPL(nf_conntrack_expect_lock);
 struct hlist_nulls_head *nf_conntrack_hash __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_hash);
 
+bool (*nattype_refresh_timer)
+	(unsigned long nattype,
+	unsigned long timeout_value)
+	__rcu __read_mostly;
+EXPORT_SYMBOL(nattype_refresh_timer);
+
 struct conntrack_gc_work {
 	struct delayed_work	dwork;
 	u32			next_bucket;
@@ -175,7 +181,14 @@ EXPORT_SYMBOL_GPL(nf_conntrack_htable_size);
 unsigned int nf_conntrack_max __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_max);
 seqcount_t nf_conntrack_generation __read_mostly;
-static unsigned int nf_conntrack_hash_rnd __read_mostly;
+
+#ifdef CONFIG_ENABLE_SFE
+unsigned int nf_conntrack_pkt_threshold __read_mostly;
+EXPORT_SYMBOL(nf_conntrack_pkt_threshold);
+#endif
+
+unsigned int nf_conntrack_hash_rnd __read_mostly;
+EXPORT_SYMBOL(nf_conntrack_hash_rnd);
 
 static u32 hash_conntrack_raw(const struct nf_conntrack_tuple *tuple,
 			      const struct net *net)
@@ -588,10 +601,23 @@ static void destroy_gre_conntrack(struct nf_conn *ct)
 #endif
 }
 
+#ifdef CONFIG_ENABLE_SFE
+void (*delete_sfe_entry)(struct nf_conn *ct) __rcu __read_mostly;
+EXPORT_SYMBOL(delete_sfe_entry);
+#endif
+
 static void
 destroy_conntrack(struct nf_conntrack *nfct)
 {
 	struct nf_conn *ct = (struct nf_conn *)nfct;
+#ifdef CONFIG_ENABLE_SFE
+	void (*delete_entry)(struct nf_conn *ct);
+#endif
+#ifdef CONFIG_NF_CONNTRACK_SIP_SEGMENTATION
+	struct sip_list *sip_node = NULL;
+	struct list_head *sip_node_list;
+	struct list_head *sip_node_save_list;
+#endif
 
 	pr_debug("destroy_conntrack(%p)\n", ct);
 	WARN_ON(atomic_read(&nfct->use) != 0);
@@ -604,7 +630,28 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	if (unlikely(nf_ct_protonum(ct) == IPPROTO_GRE))
 		destroy_gre_conntrack(ct);
 
+#ifdef CONFIG_ENABLE_SFE
+	if (ct->sfe_entry) {
+		delete_entry = rcu_dereference(delete_sfe_entry);
+		if (delete_entry)
+			delete_entry(ct);
+	}
+#endif
+
 	local_bh_disable();
+
+#ifdef CONFIG_NF_CONNTRACK_SIP_SEGMENTATION
+	pr_debug("freeing item in the SIP list\n");
+
+	if (ct->sip_segment_list.next)
+		list_for_each_safe(sip_node_list, sip_node_save_list,
+				   &ct->sip_segment_list) {
+			sip_node = list_entry(sip_node_list,
+					      struct sip_list, list);
+			list_del(&sip_node->list);
+			kfree(sip_node);
+		}
+#endif
 	/* Expectations will have been removed in clean_from_lists,
 	 * except TFTP can create an expectation on the first packet,
 	 * before connection is in the list, so we need to clean here,
@@ -1367,6 +1414,10 @@ __nf_conntrack_alloc(struct net *net,
 
 	nf_ct_zone_add(ct, zone);
 
+#if defined(CONFIG_IP_NF_TARGET_NATTYPE_MODULE)
+	ct->nattype_entry = 0;
+#endif
+
 	trace_android_rvh_nf_conn_alloc(ct);
 
 	/* Because we use RCU lookups, we set ct_general.use to zero before
@@ -1457,6 +1508,9 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 			     GFP_ATOMIC);
 
 	local_bh_disable();
+#ifdef CONFIG_NF_CONNTRACK_SIP_SEGMENTATION
+	INIT_LIST_HEAD(&ct->sip_segment_list);
+#endif
 	if (net->ct.expect_count) {
 		spin_lock(&nf_conntrack_expect_lock);
 		exp = nf_ct_find_expectation(net, zone, tuple);
@@ -1478,6 +1532,10 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 #endif
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
 			ct->secmark = exp->master->secmark;
+#endif
+/* Initialize the NAT type entry. */
+#if defined(CONFIG_IP_NF_TARGET_NATTYPE_MODULE)
+		ct->nattype_entry = 0;
 #endif
 			NF_CT_STAT_INC(net, expect_new);
 		}
@@ -1769,6 +1827,18 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 			  u32 extra_jiffies,
 			  bool do_acct)
 {
+
+#if defined(CONFIG_IP_NF_TARGET_NATTYPE_MODULE)
+	bool (*nattype_ref_timer)
+		(unsigned long nattype,
+		unsigned long timeout_value);
+#endif
+
+#ifdef CONFIG_ENABLE_SFE
+	struct nf_conn_acct *acct;
+	u64 pkts;
+#endif
+
 	/* Only update if this is not a fixed timeout */
 	if (test_bit(IPS_FIXED_TIMEOUT_BIT, &ct->status))
 		goto acct;
@@ -1779,9 +1849,41 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 
 	if (READ_ONCE(ct->timeout) != extra_jiffies)
 		WRITE_ONCE(ct->timeout, extra_jiffies);
+
+/* Refresh the NAT type entry. */
+#if defined(CONFIG_IP_NF_TARGET_NATTYPE_MODULE)
+	nattype_ref_timer = rcu_dereference(nattype_refresh_timer);
+	if (nattype_ref_timer)
+		nattype_ref_timer(ct->nattype_entry, ct->timeout);
+#endif
+
 acct:
+#ifdef CONFIG_ENABLE_SFE
+	if (do_acct) {
+		acct = nf_conn_acct_find(ct);
+		if (acct) {
+			struct nf_conn_counter *counter = acct->counter;
+
+			atomic64_inc(&counter[CTINFO2DIR(ctinfo)].packets);
+			atomic64_add(skb->len, &counter
+					[CTINFO2DIR(ctinfo)].bytes);
+
+			pkts =
+			((u64)atomic64_read(&counter[CTINFO2DIR(ctinfo)].packets)) +
+			((u64)atomic64_read(&counter[!CTINFO2DIR(ctinfo)].packets));
+			/* Report if the packet threshold is reached. */
+			if (nf_conntrack_pkt_threshold > 0 &&
+			    pkts == nf_conntrack_pkt_threshold) {
+				nf_conntrack_event_cache(IPCT_COUNTER, ct);
+				nf_conntrack_event_cache(IPCT_PROTOINFO, ct);
+				nf_ct_deliver_cached_events(ct);
+			}
+		}
+	}
+#else
 	if (do_acct)
 		nf_ct_acct_update(ct, ctinfo, skb->len);
+#endif
 }
 EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 

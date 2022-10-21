@@ -26,6 +26,7 @@
 #include <linux/acpi.h>
 
 #include <asm/arch_timer.h>
+#include <asm/traps.h>
 #include <asm/virt.h>
 
 #include <clocksource/arm_arch_timer.h>
@@ -46,6 +47,8 @@
 #define CNTFRQ		0x10
 #define CNTP_TVAL	0x28
 #define CNTP_CTL	0x2c
+#define CNTCVAL_LO	0x30
+#define CNTCVAL_HI	0x34
 #define CNTV_TVAL	0x38
 #define CNTV_CTL	0x3c
 
@@ -69,7 +72,12 @@ static enum arch_timer_ppi_nr arch_timer_uses_ppi = ARCH_TIMER_VIRT_PPI;
 static bool arch_timer_c3stop;
 static bool arch_timer_mem_use_virtual;
 static bool arch_counter_suspend_stop;
+
+#ifdef CONFIG_GENERIC_GETTIMEOFDAY
 static enum vdso_clock_mode vdso_default = VDSO_CLOCKMODE_ARCHTIMER;
+#else
+static enum vdso_clock_mode vdso_default = VDSO_CLOCKMODE_NONE;
+#endif
 
 static cpumask_t evtstrm_available = CPU_MASK_NONE;
 static bool evtstrm_enable = IS_ENABLED(CONFIG_ARM_ARCH_TIMER_EVTSTREAM);
@@ -957,6 +965,23 @@ bool arch_timer_evtstrm_available(void)
 	return cpumask_test_cpu(raw_smp_processor_id(), &evtstrm_available);
 }
 
+void arch_timer_mem_get_cval(u32 *lo, u32 *hi)
+{
+	u32 ctrl;
+
+	*lo = *hi = ~0U;
+
+	if (!arch_counter_base)
+		return;
+
+	ctrl = readl_relaxed_no_log(arch_counter_base + CNTV_CTL);
+
+	if (ctrl & ARCH_TIMER_CTRL_ENABLE) {
+		*lo = readl_relaxed_no_log(arch_counter_base + CNTCVAL_LO);
+		*hi = readl_relaxed_no_log(arch_counter_base + CNTCVAL_HI);
+	}
+}
+
 static u64 arch_counter_get_cntvct_mem(void)
 {
 	u32 vct_lo, vct_hi, tmp_hi;
@@ -1219,9 +1244,15 @@ static bool __init arch_timer_needs_of_probing(void)
 
 static int __init arch_timer_common_init(void)
 {
+	int ret;
+
 	arch_timer_banner(arch_timers_present);
 	arch_counter_register(arch_timers_present);
-	return arch_timer_arch_init();
+	ret = arch_timer_arch_init();
+	if (!ret)
+		clocksource_select_force();
+
+	return ret;
 }
 
 /**
@@ -1497,6 +1528,8 @@ static int __init arch_timer_mem_of_init(struct device_node *np)
 	ret = arch_timer_mem_frame_register(frame);
 	if (!ret && !arch_timer_needs_of_probing())
 		ret = arch_timer_common_init();
+	get_timer_count_hook_init();
+	get_timer_freq_hook_init();
 out:
 	kfree(timer_mem);
 	return ret;

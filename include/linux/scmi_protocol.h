@@ -207,6 +207,85 @@ struct scmi_reset_ops {
 	int (*deassert)(const struct scmi_handle *handle, u32 domain);
 };
 
+#ifdef CONFIG_QTI_SCMI_MEMLAT_PROTOCOL
+/**
+ * struct scmi_memlat_vendor_ops - represents the various operations provided
+ *	by SCMI HW Memlat Protocol
+ *
+ * @cpu_grp: set the cpugrp
+ * @set_mon: set the supported monitors
+ * @common_pmu_map: sets the common PMU map supported by gov
+ * @mon_pmu_map: sets the common PMU map supported by gov
+ * @ratio_ceil: sets the ratio_ceil needed for hw memlat governor
+ * @stall_floor: sets the stall_floor needed for hw memlat governor
+ * @l2wb_pct: sets the stall_floor needed for hw memlat governor
+ * @l2wb_filter: sets the l2wb_filter needed for hw memlat governor
+ * @sample_ms: sets the sample_ms at this interval governor will poll
+ * @freq_map: sets the freq_map of the monitor
+ * @min_freq: sets the min_freq of monitor
+ * @max_freq: sets the max_freq of monitor
+ * @start_mon: starts monitor in rimps
+ * @stop_mon: stops monitor in rimps
+ * @log_level: configure the supported log_level in rimps
+ * @get_data: added for debug purpose gets the data structure information
+ */
+struct scmi_memlat_vendor_ops {
+	int (*set_cpu_grp)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type);
+	int (*set_mon)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type);
+	int (*common_pmu_map)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type,
+				u32 nr_rows, void *buf);
+	int (*mon_pmu_map)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type,
+				u32 nr_rows, void *buf);
+	int (*ratio_ceil)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type, u32 val);
+	int (*stall_floor)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type, u32 val);
+	int (*l2wb_pct)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type, u32 val);
+	int (*l2wb_filter)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type, u32 val);
+	int (*sample_ms)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type, u32 val);
+	int (*freq_map)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type,
+				u32 nr_rows, void *buf);
+	int (*min_freq)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type, u32 val);
+	int (*max_freq)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type, u32 val);
+	int (*start_monitor)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type);
+	int (*stop_monitor)(const struct scmi_handle *handle,
+				u32 cpus_mpidr, u32 mon_type);
+	int (*set_log_level)(const struct scmi_handle *handle, u32 val);
+	int (*get_data)(const struct scmi_handle *handle, u8 *buf);
+};
+#endif
+
+#ifdef CONFIG_QTI_SCMI_PLH_PROTOCOL
+/**
+ * struct scmi_plh_vendor_ops - represents the various operations provided
+ *	by SCMI PLH Protocol
+ *
+ * @init_splh_ipc_freq_tbl: initialize scroll plh ipc freq voting table in rimps
+ * @start_splh: starts scroll plh in rimps
+ * @stop_splh: stops scroll plh in rimps
+ * @set_plh_log_level: configure the supported log_level in plh module of rimps
+ */
+struct scmi_plh_vendor_ops {
+	int (*init_splh_ipc_freq_tbl)(const struct scmi_handle *handle,
+				u16 *p_init_args, u16 init_len);
+	int (*start_splh)(const struct scmi_handle *handle,	u16 fps);
+	int (*stop_splh)(const struct scmi_handle *handle);
+	int (*set_plh_log_level)(const struct scmi_handle *handle,
+				u16 log_level);
+};
+#endif
+
 /**
  * struct scmi_handle - Handle returned to ARM SCMI clients for usage.
  *
@@ -236,6 +315,12 @@ struct scmi_handle {
 	struct scmi_power_ops *power_ops;
 	struct scmi_sensor_ops *sensor_ops;
 	struct scmi_reset_ops *reset_ops;
+#ifdef CONFIG_QTI_SCMI_MEMLAT_PROTOCOL
+	struct scmi_memlat_vendor_ops *memlat_ops;
+#endif
+#ifdef CONFIG_QTI_SCMI_PLH_PROTOCOL
+	struct scmi_plh_vendor_ops *plh_ops;
+#endif
 	/* for protocol internal use */
 	void *perf_priv;
 	void *clk_priv;
@@ -252,6 +337,12 @@ enum scmi_std_protocol {
 	SCMI_PROTOCOL_CLOCK = 0x14,
 	SCMI_PROTOCOL_SENSOR = 0x15,
 	SCMI_PROTOCOL_RESET = 0x16,
+#ifdef CONFIG_QTI_SCMI_MEMLAT_PROTOCOL
+	SCMI_PROTOCOL_MEMLAT = 0x80,
+#endif
+#ifdef CONFIG_QTI_SCMI_PLH_PROTOCOL
+	SCMI_PROTOCOL_PLH = 0x81,
+#endif
 };
 
 struct scmi_device {

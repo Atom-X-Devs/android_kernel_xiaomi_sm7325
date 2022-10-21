@@ -1163,15 +1163,6 @@ static int msm_set_baud_rate(struct uart_port *port, unsigned int baud,
 	return baud;
 }
 
-static void msm_init_clock(struct uart_port *port)
-{
-	struct msm_port *msm_port = UART_TO_MSM(port);
-
-	clk_prepare_enable(msm_port->clk);
-	clk_prepare_enable(msm_port->pclk);
-	msm_serial_set_mnd_regs(port);
-}
-
 static int msm_startup(struct uart_port *port)
 {
 	struct msm_port *msm_port = UART_TO_MSM(port);
@@ -1181,7 +1172,19 @@ static int msm_startup(struct uart_port *port)
 	snprintf(msm_port->name, sizeof(msm_port->name),
 		 "msm_serial%d", port->line);
 
-	msm_init_clock(port);
+	/*
+	 * UART clk must be kept enabled to
+	 * avoid losing received character
+	 */
+	ret = clk_prepare_enable(msm_port->clk);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(msm_port->pclk);
+	if (ret)
+		goto err_pclk;
+
+	msm_serial_set_mnd_regs(port);
 
 	if (likely(port->fifosize > 12))
 		rfr_level = port->fifosize - 12;
@@ -1220,6 +1223,8 @@ err_irq:
 
 	clk_disable_unprepare(msm_port->pclk);
 	clk_disable_unprepare(msm_port->clk);
+err_pclk:
+	clk_disable_unprepare(msm_port->clk);
 
 	return ret;
 }
@@ -1234,6 +1239,7 @@ static void msm_shutdown(struct uart_port *port)
 	if (msm_port->is_uartdm)
 		msm_release_dma(msm_port);
 
+	clk_disable_unprepare(msm_port->pclk);
 	clk_disable_unprepare(msm_port->clk);
 
 	free_irq(port->irq, port);
@@ -1400,8 +1406,16 @@ static void msm_power(struct uart_port *port, unsigned int state,
 
 	switch (state) {
 	case 0:
-		clk_prepare_enable(msm_port->clk);
-		clk_prepare_enable(msm_port->pclk);
+		/*
+		 * UART clk must be kept enabled to
+		 * avoid losing received character
+		 */
+		if (clk_prepare_enable(msm_port->clk))
+			return;
+		if (clk_prepare_enable(msm_port->pclk)) {
+			clk_disable_unprepare(msm_port->clk);
+			return;
+		}
 		break;
 	case 3:
 		clk_disable_unprepare(msm_port->clk);
@@ -1678,7 +1692,7 @@ static int msm_console_setup(struct console *co, char *options)
 	if (unlikely(!port->membase))
 		return -ENXIO;
 
-	msm_init_clock(port);
+	msm_serial_set_mnd_regs(port);
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -1772,14 +1786,17 @@ static int msm_serial_probe(struct platform_device *pdev)
 	struct uart_port *port;
 	const struct of_device_id *id;
 	int irq, line;
+	bool flag = false;
 
 	if (pdev->dev.of_node)
 		line = of_alias_get_id(pdev->dev.of_node, "serial");
 	else
 		line = pdev->id;
 
-	if (line < 0)
+	if (line < 0) {
+		flag = true;
 		line = atomic_inc_return(&msm_uart_next_id) - 1;
+	}
 
 	if (unlikely(line < 0 || line >= UART_NR))
 		return -ENXIO;
@@ -1797,26 +1814,40 @@ static int msm_serial_probe(struct platform_device *pdev)
 		msm_port->is_uartdm = 0;
 
 	msm_port->clk = devm_clk_get(&pdev->dev, "core");
-	if (IS_ERR(msm_port->clk))
+	if (IS_ERR(msm_port->clk)) {
+		if (flag)
+			atomic_dec(&msm_uart_next_id);
 		return PTR_ERR(msm_port->clk);
+	}
 
 	if (msm_port->is_uartdm) {
 		msm_port->pclk = devm_clk_get(&pdev->dev, "iface");
-		if (IS_ERR(msm_port->pclk))
+		if (IS_ERR(msm_port->pclk)) {
+			if (flag)
+				atomic_dec(&msm_uart_next_id);
 			return PTR_ERR(msm_port->pclk);
+		}
 	}
 
 	port->uartclk = clk_get_rate(msm_port->clk);
 	dev_info(&pdev->dev, "uartclk = %d\n", port->uartclk);
 
 	resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (unlikely(!resource))
+	if (unlikely(!resource)) {
+		if (flag)
+			atomic_dec(&msm_uart_next_id);
 		return -ENXIO;
+	}
+
 	port->mapbase = resource->start;
 
 	irq = platform_get_irq(pdev, 0);
-	if (unlikely(irq < 0))
+	if (unlikely(irq < 0)) {
+		if (flag)
+			atomic_dec(&msm_uart_next_id);
 		return -ENXIO;
+	}
+
 	port->irq = irq;
 
 	platform_set_drvdata(pdev, port);

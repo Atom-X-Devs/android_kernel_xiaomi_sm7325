@@ -726,6 +726,10 @@ struct perf_event {
 	void *security;
 #endif
 	struct list_head		sb_list;
+#ifdef CONFIG_PERF_KERNEL_SHARE
+	/* Is this event shared with other events */
+	bool				shared;
+#endif
 #endif /* CONFIG_PERF_EVENTS */
 };
 
@@ -1264,6 +1268,13 @@ int perf_event_max_stack_handler(struct ctl_table *table, int write,
 #define PERF_SECURITY_KERNEL		2
 #define PERF_SECURITY_TRACEPOINT	3
 
+#define TASK_TOMBSTONE ((void *)-1L)
+
+static bool is_kernel_event(struct perf_event *event)
+{
+	return READ_ONCE(event->owner) == TASK_TOMBSTONE;
+}
+
 static inline int perf_is_paranoid(void)
 {
 	return sysctl_perf_event_paranoid > -1;
@@ -1277,12 +1288,19 @@ static inline int perf_allow_kernel(struct perf_event_attr *attr)
 	return security_perf_event_open(attr, PERF_SECURITY_KERNEL);
 }
 
-static inline int perf_allow_cpu(struct perf_event_attr *attr)
+static inline int perf_allow_cpu(struct perf_event *event)
 {
-	if (sysctl_perf_event_paranoid > 0 && !capable(CAP_SYS_ADMIN))
+	if (sysctl_perf_event_paranoid > 0 && !is_kernel_event(event) &&
+		!capable(CAP_SYS_ADMIN)) {
 		return -EACCES;
+	}
 
-	return security_perf_event_open(attr, PERF_SECURITY_CPU);
+	/*
+	 * Bypass the system call security check if the
+	 * event creation is from the kernel
+	 */
+	return is_kernel_event(event) ? 0 :
+		security_perf_event_open(&event->attr, PERF_SECURITY_CPU);
 }
 
 static inline int perf_allow_tracepoint(struct perf_event_attr *attr)

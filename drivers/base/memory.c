@@ -418,10 +418,66 @@ out:
 static DEVICE_ATTR_RO(valid_zones);
 #endif
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+/*
+ * Returns the number of free pages in a movable memory block, or 0 for other
+ * types of memory blocks.
+ */
+static unsigned long count_free_pages_blk(struct memory_block *memory_blk)
+{
+	unsigned long block_sz = memory_block_size_bytes();
+	unsigned long pages_per_blk = block_sz / PAGE_SIZE;
+	unsigned long tot_free_pages = 0, pfn, end_pfn, flags;
+	struct zone *movable_zone =
+		&NODE_DATA(numa_node_id())->node_zones[ZONE_MOVABLE];
+	struct page *page;
+
+	pfn = section_nr_to_pfn(memory_blk->start_section_nr);
+	if (!zone_intersects(movable_zone, pfn, pages_per_blk))
+		return 0;
+
+	end_pfn = pfn + pages_per_blk;
+	spin_lock_irqsave(&movable_zone->lock, flags);
+	while (pfn < end_pfn) {
+		if (!pfn_valid(pfn) || !PageBuddy(pfn_to_page(pfn))) {
+			pfn++;
+			continue;
+		}
+
+		page = pfn_to_page(pfn);
+		tot_free_pages += 1 << page_private(page);
+		pfn += 1 << page_private(page);
+	}
+	spin_unlock_irqrestore(&movable_zone->lock, flags);
+
+	return tot_free_pages;
+}
+
+static ssize_t allocated_bytes_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct memory_block *mem = to_memory_block(dev);
+	struct zone *movable_zone =
+		&NODE_DATA(numa_node_id())->node_zones[ZONE_MOVABLE];
+	unsigned long tot_free_pages, block_sz = memory_block_size_bytes();
+	unsigned long used;
+
+	if (!populated_zone(movable_zone) || mem->state != MEM_ONLINE)
+		return scnprintf(buf, PAGE_SIZE, "0\n");
+
+	tot_free_pages = count_free_pages_blk(mem);
+	used = block_sz - (tot_free_pages * PAGE_SIZE);
+	return scnprintf(buf, PAGE_SIZE, "%lu\n", used);
+}
+#endif
+
 static DEVICE_ATTR_RO(phys_index);
 static DEVICE_ATTR_RW(state);
 static DEVICE_ATTR_RO(phys_device);
 static DEVICE_ATTR_RO(removable);
+#ifdef CONFIG_MEMORY_HOTPLUG
+static DEVICE_ATTR_RO(allocated_bytes);
+#endif
 
 /*
  * Show the memory block size (shared by all memory blocks).
@@ -502,7 +558,36 @@ out:
 }
 
 static DEVICE_ATTR_WO(probe);
-#endif
+
+#ifdef CONFIG_MEMORY_HOTREMOVE
+static ssize_t remove_store(struct device *dev,
+			    struct device_attribute *attr, const char *buf,
+			    size_t count)
+{
+	u64 phys_addr;
+	int nid, ret;
+	unsigned long pages_per_block = PAGES_PER_SECTION * sections_per_block;
+
+	ret = kstrtoull(buf, 0, &phys_addr);
+	if (ret)
+		return ret;
+
+	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
+		return -EINVAL;
+
+	nid = memory_add_physaddr_to_nid(phys_addr);
+	ret = lock_device_hotplug_sysfs();
+	if (ret)
+		return ret;
+
+	remove_memory(nid, phys_addr,
+			 MIN_MEMORY_BLOCK_SIZE * sections_per_block);
+	unlock_device_hotplug();
+	return count;
+}
+static DEVICE_ATTR_WO(remove);
+#endif /* CONFIG_MEMORY_HOTREMOVE */
+#endif /* CONFIG_ARCH_MEMORY_PROBE */
 
 #ifdef CONFIG_MEMORY_FAILURE
 /*
@@ -591,6 +676,9 @@ static struct attribute *memory_memblk_attrs[] = {
 	&dev_attr_removable.attr,
 #ifdef CONFIG_MEMORY_HOTREMOVE
 	&dev_attr_valid_zones.attr,
+#endif
+#ifdef CONFIG_MEMORY_HOTPLUG
+	&dev_attr_allocated_bytes.attr,
 #endif
 	NULL
 };
@@ -758,6 +846,9 @@ bool is_memblock_offlined(struct memory_block *mem)
 static struct attribute *memory_root_attrs[] = {
 #ifdef CONFIG_ARCH_MEMORY_PROBE
 	&dev_attr_probe.attr,
+#ifdef CONFIG_MEMORY_HOTREMOVE
+	&dev_attr_remove.attr,
+#endif
 #endif
 
 #ifdef CONFIG_MEMORY_FAILURE
@@ -890,4 +981,33 @@ int for_each_memory_block(void *arg, walk_memory_blocks_func_t func)
 
 	return bus_for_each_dev(&memory_subsys, NULL, &cb_data,
 				for_each_memory_block_cb);
+}
+
+static int check_memblock_offlined(struct memory_block *mem, void *arg)
+{
+	unsigned long *nr_pages_offlined = (unsigned long *)arg;
+
+	if (is_memblock_offlined(mem))
+		*nr_pages_offlined += memory_block_size_bytes() / PAGE_SIZE;
+
+	return 0;
+}
+
+/**
+ * get_offlined_pages_count - get total pages offlined in the system
+ *
+ * This function walks through all the memory blocks present and gives
+ * the total offlined pages count in the system.
+ *
+ */
+unsigned long get_offlined_pages_count(void)
+{
+	unsigned long nr_pages_offlined = 0;
+
+	lock_device_hotplug_sysfs();
+	for_each_memory_block(&nr_pages_offlined, check_memblock_offlined);
+	unlock_device_hotplug();
+
+	return nr_pages_offlined;
+
 }

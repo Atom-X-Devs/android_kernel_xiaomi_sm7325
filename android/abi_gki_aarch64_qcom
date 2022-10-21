@@ -1130,6 +1130,7 @@
   ida_free
   idr_alloc
   idr_alloc_cyclic
+  idr_alloc_u32
   idr_destroy
   idr_find
   idr_for_each
@@ -2031,6 +2032,7 @@
   reset_control_put
   reset_control_reset
   revalidate_disk
+  revert_creds
   rfkill_alloc
   rfkill_destroy
   rfkill_init_sw_state

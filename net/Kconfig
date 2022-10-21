@@ -393,6 +393,7 @@ source "net/ceph/Kconfig"
 source "net/nfc/Kconfig"
 source "net/psample/Kconfig"
 source "net/ife/Kconfig"
+source "net/neuron/Kconfig"
 
 config LWTUNNEL
 	bool "Network light weight tunnels"
@@ -449,6 +450,28 @@ config FAILOVER
 	  VF as an accelerated low latency datapath. It also allows live
 	  migration of VMs with direct attached VFs by failing over to the
 	  paravirtual datapath when the VF is unplugged.
+
+#Shortcut-forwarding-engine
+config ENABLE_SFE
+	bool "Enable Shortcut-forwarding-engine"
+	depends on QGKI
+	help
+	  ENABLE_SFE enables software acceleration on the target.
+          The change supports Shortcut forwarding engine feature.
+	  Includes following changes, Add support to packet threshold events.
+	  Changes to support Shortcut Forward Engine.
+	  Add bridge API to access the bridge slave port.
+
+#Generic-Software-Bridge
+config ENABLE_GSB
+        bool "Enable generic-software-bridge"
+        depends on QGKI
+        help
+          ENABLE_GSB enables software acceleration on the target via gsb.
+          The change supports generic software bridge.
+          Helps to include gsb hook on the kernel.
+          Fulfills requirement of GSB network stack receive.
+          Change is supposed to go only on targets supporting gsb.
 
 endif   # if NET
 

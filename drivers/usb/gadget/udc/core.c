@@ -87,7 +87,7 @@ EXPORT_SYMBOL_GPL(usb_ep_set_maxpacket_limit);
  * configurable, with more generic names like "ep-a".  (remember that for
  * USB, "in" means "towards the USB master".)
  *
- * This routine must be called in process context.
+ * This routine may be called in an atomic (interrupt) context..
  *
  * returns zero, or a negative error code.
  */
@@ -132,7 +132,7 @@ EXPORT_SYMBOL_GPL(usb_ep_enable);
  * gadget drivers must call usb_ep_enable() again before queueing
  * requests to the endpoint.
  *
- * This routine must be called in process context.
+ * This routine may be called in an atomic (interrupt) context.
  *
  * returns zero, or a negative error code.
  */
@@ -806,6 +806,19 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_activate);
+
+#ifdef CONFIG_USB_FUNC_WAKEUP_SUPPORTED
+int usb_gadget_func_wakeup(struct usb_gadget *gadget, int interface_id)
+{
+	if (gadget->speed < USB_SPEED_SUPER)
+		return -EOPNOTSUPP;
+
+	if (!gadget->ops->func_wakeup)
+		return -EOPNOTSUPP;
+
+	return gadget->ops->func_wakeup(gadget, interface_id);
+}
+#endif
 
 /* ------------------------------------------------------------------------- */
 

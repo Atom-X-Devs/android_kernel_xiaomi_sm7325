@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+// Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
 
 #include <linux/module.h>
 #include <linux/of.h>
@@ -21,6 +21,11 @@ enum {
 	EAST,
 	WEST
 };
+
+#define HMSS_WEST	0x000BB000
+#define HMSS_EAST	0x000B7000
+#define HMSS_NORTH	0x000BC000
+#define HMSS_SOUTH	0x000BE000
 
 #define FUNCTION(fname)					\
 	[msm_mux_##fname] = {				\
@@ -53,9 +58,15 @@ enum {
 		.intr_status_reg = 0x1000 * id + 0xc,	\
 		.intr_target_reg = 0x1000 * id + 0x8,	\
 		.tile = _tile,			\
+		.dir_conn_reg = _tile == WEST ? HMSS_WEST : \
+				_tile == EAST ? HMSS_EAST : \
+				_tile == NORTH ? HMSS_NORTH : \
+				HMSS_SOUTH, \
 		.mux_bit = 2,			\
 		.pull_bit = 0,			\
 		.drv_bit = 6,			\
+		.egpio_enable = 12,		\
+		.egpio_present = 11,		\
 		.oe_bit = 9,			\
 		.in_bit = 0,			\
 		.out_bit = 1,			\
@@ -67,6 +78,7 @@ enum {
 		.intr_polarity_bit = 1,		\
 		.intr_detection_bit = 2,	\
 		.intr_detection_width = 2,	\
+		.dir_conn_en_bit = 8,		\
 	}
 
 #define SDC_QDSD_PINGROUP(pg_name, ctl, pull, drv)	\
@@ -1500,7 +1512,27 @@ static const struct msm_pingroup sm8150_groups[] = {
 	[178] = SDC_QDSD_PINGROUP(sdc2_data, 0xB2000, 9, 0),
 };
 
-static const struct msm_pinctrl_soc_data sm8150_pinctrl = {
+static const struct msm_gpio_wakeirq_map sm8150_pdc_map[] = {
+	{ 3, 31 }, { 5, 32 }, { 8, 33 }, { 9, 34 }, { 10, 100 },
+	{ 24, 37 }, { 26, 38 }, { 27, 41 }, { 28, 42 }, { 30, 39 },
+	{ 37, 44 }, { 38, 30 }, { 39, 118 }, { 41, 47 }, { 42, 48 },
+	{ 47, 49 }, { 48, 51 }, { 49, 53 }, { 50, 52 }, { 51, 116 },
+	{ 54, 55 }, { 55, 56 }, { 56, 57 }, { 58, 58 }, { 60, 60 },
+	{ 68, 62 }, { 70, 63 }, { 76, 71 }, { 77, 66 }, { 81, 64 },
+	{ 86, 67 }, { 87, 84 }, { 88, 117 }, { 90, 69 }, { 91, 70 },
+	{ 95, 72 }, { 96, 73 }, { 97, 74 }, { 101, 40 }, { 103, 77 },
+	{ 108, 79 }, { 112, 80 }, { 113, 81 }, { 114, 82 }, { 117, 85 },
+	{ 119, 87 }, { 120, 88 }, { 121, 89 }, { 122, 90 }, { 123, 91 },
+	{ 125, 93 }, { 129, 94 }, { 132, 105 }, { 133, 83 }, { 134, 36 },
+	{ 142, 103 }, { 144, 115 }, { 147, 102 }, { 150, 107 }, { 152, 108 },
+};
+
+static struct msm_dir_conn sm8150_dir_conn[] = {
+	  {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0},
+	  {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}
+};
+
+static struct msm_pinctrl_soc_data sm8150_pinctrl = {
 	.pins = sm8150_pins,
 	.npins = ARRAY_SIZE(sm8150_pins),
 	.functions = sm8150_functions,
@@ -1510,10 +1542,60 @@ static const struct msm_pinctrl_soc_data sm8150_pinctrl = {
 	.ngpios = 176,
 	.tiles = sm8150_tiles,
 	.ntiles = ARRAY_SIZE(sm8150_tiles),
+	.wakeirq_map = sm8150_pdc_map,
+	.nwakeirq_map = ARRAY_SIZE(sm8150_pdc_map),
+	.dir_conn = sm8150_dir_conn,
 };
+
+static int sm8150_pinctrl_gpio_irq_map_probe(struct platform_device *pdev)
+{
+	int ret, n, gpio_irq_map_count;
+	struct device_node *np = pdev->dev.of_node;
+	struct msm_gpio_wakeirq_map *gpio_irq_map;
+
+	n = of_property_count_elems_of_size(np, "qcom,gpio-irq-map",
+					sizeof(u32));
+	if (n <= 0 || n % 2)
+		return -EINVAL;
+
+	gpio_irq_map_count = n / 2;
+	gpio_irq_map = devm_kcalloc(&pdev->dev, gpio_irq_map_count,
+				sizeof(*gpio_irq_map), GFP_KERNEL);
+	if (!gpio_irq_map)
+		return -ENOMEM;
+
+	for (n = 0; n < gpio_irq_map_count; n++) {
+		ret = of_property_read_u32_index(np, "qcom,gpio-irq-map",
+						n * 2 + 0,
+						&gpio_irq_map[n].gpio);
+		if (ret)
+			return ret;
+		ret = of_property_read_u32_index(np, "qcom,gpio-irq-map",
+						n * 2 + 1,
+						&gpio_irq_map[n].wakeirq);
+		if (ret)
+			return ret;
+	}
+
+	sm8150_pinctrl.wakeirq_map = gpio_irq_map;
+	sm8150_pinctrl.nwakeirq_map = gpio_irq_map_count;
+
+	return 0;
+}
 
 static int sm8150_pinctrl_probe(struct platform_device *pdev)
 {
+	int len, ret;
+
+	if (of_find_property(pdev->dev.of_node, "qcom,gpio-irq-map", &len)) {
+		ret = sm8150_pinctrl_gpio_irq_map_probe(pdev);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Unable to parse GPIO IRQ map\n");
+			return ret;
+		}
+	}
+
 	return msm_pinctrl_probe(pdev, &sm8150_pinctrl);
 }
 

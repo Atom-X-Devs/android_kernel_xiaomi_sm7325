@@ -66,7 +66,7 @@ void put_online_mems(void)
 	percpu_up_read(&mem_hotplug_lock);
 }
 
-bool movable_node_enabled = false;
+bool movable_node_enabled = IS_ENABLED(CONFIG_MEMORY_HOTPLUG_MOVABLE_NODE);
 
 #ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
 bool memhp_auto_online;
@@ -851,8 +851,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 	node_states_set_node(nid, &arg);
 	if (need_zonelists_rebuild)
 		build_all_zonelists(NULL);
-	else
-		zone_pcp_update(zone);
+	zone_pcp_update(zone);
 
 	init_per_zone_wmark_min();
 
@@ -1003,6 +1002,33 @@ int try_online_node(int nid)
 	ret =  __try_online_node(nid, 0, true);
 	mem_hotplug_done();
 	return ret;
+}
+
+static int online_memory_one_block(struct memory_block *mem, void *arg)
+{
+	bool *onlined_block = (bool *)arg;
+	int ret;
+
+	if (*onlined_block || !is_memblock_offlined(mem))
+		return 0;
+
+	ret = device_online(&mem->dev);
+	if (!ret)
+		*onlined_block = true;
+
+	return 0;
+}
+
+bool try_online_one_block(int nid)
+{
+	bool onlined_block = false;
+
+	if (!trylock_device_hotplug())
+		return false;
+
+	for_each_memory_block(&onlined_block, online_memory_one_block);
+	unlock_device_hotplug();
+	return onlined_block;
 }
 
 static int check_hotplug_memory_range(u64 start, u64 size)
@@ -1315,6 +1341,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 	struct page *page;
 	int ret = 0;
 	LIST_HEAD(source);
+	static DEFINE_RATELIMIT_STATE(migrate_rs, DEFAULT_RATELIMIT_INTERVAL,
+				      DEFAULT_RATELIMIT_BURST);
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
 		if (!pfn_valid(pfn))
@@ -1341,7 +1369,9 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 			if (WARN_ON(PageLRU(page)))
 				isolate_lru_page(page);
 			if (page_mapped(page))
-				try_to_unmap(page, TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS);
+				try_to_unmap(page,
+					TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS,
+					NULL);
 			continue;
 		}
 
@@ -1362,8 +1392,10 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 						    page_is_file_cache(page));
 
 		} else {
-			pr_warn("failed to isolate pfn %lx\n", pfn);
-			dump_page(page, "isolation failed");
+			if (__ratelimit(&migrate_rs)) {
+				pr_warn("failed to isolate pfn %lx\n", pfn);
+				dump_page(page, "isolation failed");
+			}
 		}
 		put_page(page);
 	}
@@ -1373,9 +1405,14 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
 		if (ret) {
 			list_for_each_entry(page, &source, lru) {
-				pr_warn("migrating pfn %lx failed ret:%d ",
-				       page_to_pfn(page), ret);
-				dump_page(page, "migration failure");
+				if (__ratelimit(&migrate_rs)) {
+					pr_warn("migrating pfn %lx failed ret:%d\n",
+						page_to_pfn(page), ret);
+					__dump_page(page, "migration failure");
+#if defined(CONFIG_DEBUG_VM)
+					dump_page_owner(page);
+#endif
+				}
 			}
 			putback_movable_pages(&source);
 		}
