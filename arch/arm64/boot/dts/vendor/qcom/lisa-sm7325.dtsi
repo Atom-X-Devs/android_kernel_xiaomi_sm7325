@@ -6,6 +6,84 @@
 #include "display/lisa-sm7325-sde-display.dtsi"
 #include "lisa-audio-overlay.dtsi"
 
+#define MHZ_TO_MBPS(mhz, w) ((mhz * 1000000 * w) / (1024 * 1024))
+
+&cpu4_cpu_llcc_latmon {
+	qcom,core-dev-table =
+		<  691200 MHZ_TO_MBPS(  300, 16) >,
+		<  940800 MHZ_TO_MBPS(  466, 16) >,
+		< 1228800 MHZ_TO_MBPS(  600, 16) >,
+		< 1651200 MHZ_TO_MBPS(  806, 16) >,
+		< 2131200 MHZ_TO_MBPS(  933, 16) >,
+		< 2400000 MHZ_TO_MBPS( 1066, 16) >;
+};
+
+&cpu4_llcc_ddr_latmon {
+	ddr4-map {
+		qcom,core-dev-table =
+			<  691200 MHZ_TO_MBPS( 451, 4) >,
+			<  940800 MHZ_TO_MBPS( 547, 4) >,
+			< 1228800 MHZ_TO_MBPS(1017, 4) >,
+			< 1651200 MHZ_TO_MBPS(1555, 4) >,
+			< 2131200 MHZ_TO_MBPS(1708, 4) >,
+			< 2400000 MHZ_TO_MBPS(2133, 4) >;
+	};
+};
+
+&cpu4_computemon {
+	ddr4-map {
+		qcom,core-dev-table =
+			<  691200 MHZ_TO_MBPS( 451, 4) >,
+			<  940800 MHZ_TO_MBPS( 547, 4) >,
+			< 1228800 MHZ_TO_MBPS( 768, 4) >,
+			< 1516800 MHZ_TO_MBPS(1017, 4) >,
+			< 1651200 MHZ_TO_MBPS(1555, 4) >,
+			< 1900800 MHZ_TO_MBPS(1708, 4) >,
+			< 2400000 MHZ_TO_MBPS(2133, 4) >;
+	};
+};
+
+&cpu4_llcc_computemon {
+	qcom,core-dev-table =
+		< 1900800 MHZ_TO_MBPS( 300, 16) >,
+		< 2400000 MHZ_TO_MBPS( 600, 16) >;
+};
+
+&cpu7_computemon {
+	ddr4-map {
+		qcom,core-dev-table =
+			< 2035200 MHZ_TO_MBPS( 451, 4) >,
+			< 2400000 MHZ_TO_MBPS(2133, 4) >;
+	};
+};
+
+&cpu7_l3_computemon {
+	qcom,core-dev-table =
+		< 2035200  300000000 >,
+		< 2400000 1516800000 >;
+};
+
+&cpu4_qoslatmon {
+	qcom,core-dev-table =
+		<  300000 1 >,
+		< 2400000 2 >;
+};
+
+&cpu7_qoslatmon {
+	qcom,core-dev-table =
+		< 2035200 1 >,
+		< 2400000 2 >;
+};
+
+&cpu7_rimps_l3_latmon {
+	qcom,core-dev-table =
+		< 1056000  556800000 >,
+		< 1324800  768000000 >,
+		< 1766400 1190400000 >,
+		< 2208000 1401600000 >,
+		< 2400000 1516800000 >;
+};
+
 &qupv3_se3_i2c {
 	status = "ok";
 	tfa98xx_1@34 {
