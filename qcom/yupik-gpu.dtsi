@@ -91,7 +91,7 @@
 			<100>; /* On */
 
 		zap-shader {
-			memory-region = <&pil_gpu_micro_code_mem>;
+			memory-region = <&gpu_micro_code_mem>;
 		};
 
 		qcom,l3-pwrlevels {

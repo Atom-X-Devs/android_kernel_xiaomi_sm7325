@@ -5,7 +5,7 @@
 		reg = <0x0aa00000 0x0100000>;
 		interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
 
-		memory-region = <&pil_video_mem>;
+		memory-region = <&video_mem>;
 		pas-id = <9>;
 
 		/* IOMMU Config */

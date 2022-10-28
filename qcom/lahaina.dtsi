@@ -314,7 +314,7 @@
 		reg = <0x0 0x80700000 0x0 0x160000>;
 	};
 
-	cmd_db: reserved-memory@80860000 {
+	cmd_db: cmd_db@80860000 {
 		compatible = "qcom,cmd-db";
 		no-map;
 		reg = <0x0 0x80860000 0x0 0x20000>;
@@ -340,12 +340,12 @@
 		reg = <0x0 0x80c00000 0x0 0x4600000>;
 	};
 
-	pil_camera_mem: pil_camera_region@85200000 {
+	camera_mem: camera_region@85200000 {
 		no-map;
 		reg = <0x0 0x85200000 0x0 0x500000>;
 	};
 
-	pil_video_mem: pil_video_region@85700000 {
+	video_mem: video_region85700000 {
 		no-map;
 		reg = <0x0 0x85700000 0x0 0x500000>;
 	};
@@ -370,17 +370,17 @@
 		reg = <0x0 0x89700000 0x0 0x1e00000>;
 	};
 
-	pil_ipa_fw_mem: pil_ipa_fw_region@8b500000 {
+	ipa_fw_mem: ipa_fw_region@8b500000 {
 		no-map;
 		reg = <0x0 0x8b500000 0x0 0x10000>;
 	};
 
-	pil_ipa_gsi_mem: pil_ipa_gsi_region@8b510000 {
+	ipa_gsi_mem: ipa_gsi_region@8b510000 {
 		no-map;
 		reg = <0x0 0x8b510000 0x0 0xa000>;
 	};
 
-	pil_gpu_mem: pil_gpu_region@8b51a000 {
+	gpu_micro_code_mem: gpu_micro_code@8b51a000 {
 		no-map;
 		reg = <0x0 0x8b51a000 0x0 0x2000>;
 	};
@@ -400,7 +400,7 @@
 		reg = <0x0 0xd0000000 0x0 0x800000>;
 	};
 
-	pil_trustedvm_mem: pil_trustedvm_region@d0800000 {
+	trustedvm_mem: trustedvm_region@d0800000 {
 		no-map;
 		reg = <0x0 0xd0800000 0x0 0x76f7000>;
 	};
@@ -471,6 +471,14 @@
 		reusable;
 		alignment = <0x0 0x400000>;
 		size = <0x0 0x1000000>;
+	};
+
+	non_secure_display_memory: non_secure_display_region {
+		compatible = "shared-dma-pool";
+		alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
+		reusable;
+		alignment = <0x0 0x400000>;
+		size = <0x0 0x6400000>;
 	};
 
 	secure_display_memory: secure_display_region { /* Secure UI */
@@ -557,14 +565,6 @@
 		alloc-ranges = <0x0 0x00000000 0x0 0xdfffffff>;
 		alignment = <0x0 0x100000>;
 		size = <0x0 0x800000>;
-	};
-
-	non_secure_display_memory: non_secure_display_region {
-		compatible = "shared-dma-pool";
-		alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
-		reusable;
-		alignment = <0x0 0x400000>;
-		size = <0x0 0x6400000>;
 	};
 };
 
@@ -4611,7 +4611,7 @@
 		reg-names = "ipa-base", "gsi-base";
 		pas-ids = <0xf>;
 		firmware-names = "ipa_fws";
-		memory-regions = <&pil_ipa_gsi_mem>;
+		memory-regions = <&ipa_gsi_mem>;
 		interrupts =
 			<0 654 IRQ_TYPE_LEVEL_HIGH>,
 			<0 432 IRQ_TYPE_LEVEL_HIGH>;
@@ -5184,7 +5184,7 @@
 		compatible = "qcom,guestvm-loader";
 		qcom,pas-id = <28>;
 		qcom,firmware-name = "trustedvm";
-		memory-region = <&pil_trustedvm_mem>;
+		memory-region = <&trustedvm_mem>;
 		qcom,reserved-cpus = <4 5>;
 		qcom,unisolate-timeout-ms = <8000>;
 	};
