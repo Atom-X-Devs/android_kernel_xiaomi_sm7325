@@ -1937,10 +1937,6 @@ static const struct msm_pingroup lahaina_groups[] = {
 	[206] = SDC_QDSD_PINGROUP(sdc2_data, 0x1cf000, 9, 0),
 };
 
-static const int lahaina_reserved_gpios[] = {
-	52, 53, 54, 55, 56, 57, 58, 59, -1
-};
-
 static struct pinctrl_qup lahaina_qup_regs[] = {
 	QUP_I3C(8, QUP_I3C_8_MODE_OFFSET),
 	QUP_I3C(14, QUP_I3C_14_MODE_OFFSET),
@@ -1971,7 +1967,6 @@ static struct msm_pinctrl_soc_data lahaina_pinctrl = {
 	.nfunctions = ARRAY_SIZE(lahaina_functions),
 	.groups = lahaina_groups,
 	.ngroups = ARRAY_SIZE(lahaina_groups),
-	.reserved_gpios = lahaina_reserved_gpios,
 	.ngpios = 204,
 	.qup_regs = lahaina_qup_regs,
 	.nqup_regs = ARRAY_SIZE(lahaina_qup_regs),
