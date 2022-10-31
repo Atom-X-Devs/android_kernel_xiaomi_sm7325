@@ -98,8 +98,8 @@ extern void qcom_scm_set_download_mode(enum qcom_download_mode mode,
 extern int qcom_scm_config_cpu_errata(void);
 extern void qcom_scm_phy_update_scm_level_shifter(u32 val);
 extern bool qcom_scm_pas_supported(u32 peripheral);
-extern int qcom_scm_pas_init_image(u32 peripheral, const void *metadata,
-				   size_t size);
+extern int qcom_scm_pas_init_image(u32 peripheral, dma_addr_t metadata);
+
 extern int qcom_scm_pas_mem_setup(u32 peripheral, phys_addr_t addr,
 				  phys_addr_t size);
 extern int qcom_scm_pas_mss_reset(bool reset);
@@ -248,8 +248,8 @@ static inline int qcom_scm_config_cpu_errata(void)
 		{ return -ENODEV; }
 static inline void qcom_scm_phy_update_scm_level_shifter(u32 val) {}
 static inline bool qcom_scm_pas_supported(u32 peripheral) { return false; }
-static inline int qcom_scm_pas_init_image(u32 peripheral, const void *metadata,
-					  size_t size) { return -ENODEV; }
+static inline int qcom_scm_pas_init_image(u32 peripheral, dma_addr_t metadata) { return -ENODEV; }
+
 static inline int qcom_scm_pas_mem_setup(u32 peripheral, phys_addr_t addr,
 					 phys_addr_t size) { return -ENODEV; }
 static inline int qcom_scm_pas_mss_reset(bool reset) { return -ENODEV; }
