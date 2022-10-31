@@ -912,6 +912,8 @@ int sde_connector_pre_kickoff(struct drm_connector *connector)
 
 	mi_sde_connector_dc_fence(connector);
 
+	mi_sde_connector_fod_hbm_fence(connector);
+
 	rc = c_conn->ops.pre_kickoff(connector, c_conn->display, &params);
 
 	if (c_conn->connector_type == DRM_MODE_CONNECTOR_DSI)
