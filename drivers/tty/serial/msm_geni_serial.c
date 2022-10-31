@@ -12,6 +12,7 @@
 #include <linux/ipc_logging.h>
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -27,6 +28,9 @@
 #include <linux/dma-mapping.h>
 #include <uapi/linux/msm_geni_serial.h>
 #include <soc/qcom/boot_stats.h>
+
+static bool con_enabled = IS_ENABLED(CONFIG_SERIAL_MSM_GENI_CONSOLE_DEFAULT_ENABLED);
+module_param(con_enabled, bool, 0644);
 
 /* UART specific GENI registers */
 #define SE_UART_LOOPBACK_CFG		(0x22C)
@@ -164,7 +168,7 @@ enum uart_error_code {
 	UART_ERROR_RX_CANCEL_FAIL,
 	UART_ERROR_RX_ABORT_FAIL,
 	UART_ERROR_RX_FSM_RESET_FAIL,
-	UART_ERROR_RX_TTY_INSET_FAIL,
+	UART_ERROR_RX_TTY_INSERT_FAIL,
 	UART_ERROR_ILLEGAL_INTERRUPT,
 	UART_ERROR_BUFFER_OVERRUN,
 	UART_ERROR_RX_PARITY_ERROR,
@@ -1958,7 +1962,7 @@ static int msm_geni_serial_handle_dma_rx(struct uart_port *uport, bool drop_rx)
 	if (ret != rx_bytes) {
 		dev_err(uport->dev, "%s: ret %d rx_bytes %d\n", __func__,
 								ret, rx_bytes);
-		msm_geni_update_uart_error_code(msm_port, UART_ERROR_RX_TTY_INSET_FAIL);
+		msm_geni_update_uart_error_code(msm_port, UART_ERROR_RX_TTY_INSERT_FAIL);
 		WARN_ON(1);
 	}
 	uport->icount.rx += ret;
@@ -2284,12 +2288,25 @@ static irqreturn_t msm_geni_wakeup_isr(int isr, void *dev)
 							port->edge_count);
 	if (port->wakeup_byte && (port->edge_count == 2)) {
 		tty = uport->state->port.tty;
-		tty_insert_flip_char(tty->port, port->wakeup_byte, TTY_NORMAL);
-		IPC_LOG_MSG(port->ipc_log_rx, "%s: Inject 0x%x\n",
+		/* uport->state->port.tty pointer initialized as part of
+		 * UART port_open. Adding null check to ensure tty should
+		 * have a valid value before dereference it in wakeup_isr.
+		 */
+		if (!tty) {
+			IPC_LOG_MSG(port->ipc_log_rx,
+				"%s: Unexpected wakeup ISR %d\n",
+					__func__, port->edge_count);
+			WARN_ON(1);
+		} else {
+			tty_insert_flip_char(tty->port,
+					port->wakeup_byte, TTY_NORMAL);
+			IPC_LOG_MSG(port->ipc_log_rx, "%s: Inject 0x%x\n",
 					__func__, port->wakeup_byte);
-		port->edge_count = 0;
-		tty_flip_buffer_push(tty->port);
-		__pm_wakeup_event(port->geni_wake, WAKEBYTE_TIMEOUT_MSEC);
+			port->edge_count = 0;
+			tty_flip_buffer_push(tty->port);
+			__pm_wakeup_event(port->geni_wake,
+						WAKEBYTE_TIMEOUT_MSEC);
+		}
 	} else if (port->edge_count < 2) {
 		port->edge_count++;
 	}
@@ -2717,8 +2734,13 @@ static void msm_geni_serial_set_termios(struct uart_port *uport,
 	/* baud rate */
 	baud = uart_get_baud_rate(uport, termios, old, 300, 4000000);
 	port->cur_baud = baud;
-	uart_sampling = IS_ENABLED(CONFIG_SERIAL_MSM_GENI_HALF_SAMPLING) ?
-				UART_OVERSAMPLING / 2 : UART_OVERSAMPLING;
+
+	/* sampling is halved for QUP versions >= 2.5 */
+	uart_sampling = UART_OVERSAMPLING;
+	if ((port->ver_info.hw_major_ver >= 3) || ((port->ver_info.hw_major_ver >= 2) &&
+		(port->ver_info.hw_minor_ver >= 5)))
+		uart_sampling /= 2;
+
 	desired_rate = baud * uart_sampling;
 
 	/*
@@ -3279,6 +3301,7 @@ static int msm_geni_serial_read_dtsi(struct platform_device *pdev,
 
 	dev_port->wrapper_dev = &wrapper_pdev->dev;
 	dev_port->serial_rsc.wrapper_dev = &wrapper_pdev->dev;
+	dev_port->serial_rsc.ctrl_dev = &pdev->dev;
 
 	if (is_console)
 		ret = geni_se_resources_init(&dev_port->serial_rsc,
@@ -3293,8 +3316,6 @@ static int msm_geni_serial_read_dtsi(struct platform_device *pdev,
 		msm_geni_update_uart_error_code(dev_port, UART_ERROR_SE_RESOURCES_INIT_FAIL);
 		return ret;
 	}
-
-	dev_port->serial_rsc.ctrl_dev = &pdev->dev;
 
 	/* RUMI specific */
 	dev_port->rumi_platform = of_property_read_bool(pdev->dev.of_node,
@@ -3390,11 +3411,18 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 
 	is_console = (drv->cons ? true : false);
 	dev_port = get_port_from_line(line, is_console);
+	dev_port->is_console = is_console;
 	if (IS_ERR_OR_NULL(dev_port)) {
 		ret = PTR_ERR(dev_port);
 		dev_err(&pdev->dev, "Invalid line %d(%d)\n",
 					line, ret);
 		goto exit_geni_serial_probe;
+	}
+
+	if (drv->cons && !con_enabled) {
+		dev_err(&pdev->dev, "%s, Console Disabled\n", __func__);
+		platform_set_drvdata(pdev, dev_port);
+		return 0;
 	}
 
 	uport = &dev_port->uport;
@@ -3406,7 +3434,6 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 	}
 
 	uport->dev = &pdev->dev;
-	dev_port->is_console = is_console;
 
 	ret = msm_geni_serial_read_dtsi(pdev, dev_port);
 	if (ret)
@@ -3479,19 +3506,12 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 	 * resume, lead to spinlock bug in stop_rx_sequencer, so initializing it
 	 * before
 	 */
-	if (!is_console)
+	if (!dev_port->is_console)
 		spin_lock_init(&dev_port->rx_lock);
 
 	ret = uart_add_one_port(drv, uport);
 	if (ret)
-		dev_err(&pdev->dev, "Failed to register uart_port: %d\n",
-				ret);
-	/*
-	 * Remove proxy vote from QUP core which was kept from common driver
-	 * probe on behalf of earlycon
-	 */
-	if (dev_port->is_console)
-		geni_se_remove_earlycon_icc_vote(dev_port->wrapper_dev);
+		dev_err(&pdev->dev, "Failed to register uart_port: %d\n", ret);
 
 	if (strcmp(id->compatible, "qcom,msm-geni-console") == 0)
 		snprintf(boot_marker, sizeof(boot_marker),
@@ -3513,6 +3533,11 @@ static int msm_geni_serial_remove(struct platform_device *pdev)
 	struct uart_driver *drv =
 			(struct uart_driver *)port->uport.private_data;
 
+	/* Platform driver is registered for console and when console
+	 * is disabled from cmdline simply return success.
+	 */
+	if (port->is_console && !con_enabled)
+		return 0;
 	if (!uart_console(&port->uport))
 		wakeup_source_unregister(port->geni_wake);
 	if (port->pm_auto_suspend_disable)
@@ -3664,7 +3689,12 @@ static int msm_geni_serial_sys_suspend(struct device *dev)
 	struct msm_geni_serial_port *port = platform_get_drvdata(pdev);
 	struct uart_port *uport = &port->uport;
 
-	if (uart_console(uport) || port->pm_auto_suspend_disable) {
+	/* Platform driver is registered for console and when console
+	 * is disabled from cmdline simply return success.
+	 */
+	if (port->is_console && !con_enabled) {
+		return 0;
+	} else if (uart_console(uport) || port->pm_auto_suspend_disable) {
 		IPC_LOG_MSG(port->console_log, "%s start\n", __func__);
 		uart_suspend_port((struct uart_driver *)uport->private_data,
 					uport);
@@ -3771,19 +3801,23 @@ static int __init msm_geni_serial_init(void)
 		msm_geni_console_port.uport.line = i;
 	}
 
-	ret = console_register(&msm_geni_console_driver);
+	ret = uart_register_driver(&msm_geni_serial_hs_driver);
 	if (ret)
 		return ret;
 
-	ret = uart_register_driver(&msm_geni_serial_hs_driver);
-	if (ret) {
-		uart_unregister_driver(&msm_geni_console_driver);
-		return ret;
+	if (con_enabled) {
+		ret = console_register(&msm_geni_console_driver);
+		if (ret) {
+			uart_unregister_driver(&msm_geni_serial_hs_driver);
+			return ret;
+		}
 	}
 
 	ret = platform_driver_register(&msm_geni_serial_platform_driver);
 	if (ret) {
-		console_unregister(&msm_geni_console_driver);
+		if (con_enabled)
+			console_unregister(&msm_geni_console_driver);
+
 		uart_unregister_driver(&msm_geni_serial_hs_driver);
 		return ret;
 	}

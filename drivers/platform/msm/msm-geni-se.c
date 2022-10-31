@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -36,8 +37,6 @@ static unsigned long default_bus_bw_set[] = {0, 19200000, 50000000,
 				100000000, 150000000, 200000000, 236000000};
 
 struct bus_vectors {
-	int src;
-	int dst;
 	int ab;
 	int ib;
 };
@@ -103,7 +102,6 @@ struct geni_se_device {
 	struct bus_vectors *vectors;
 	int num_paths;
 	bool vote_for_bw;
-	struct se_geni_rsc wrapper_rsc;
 };
 
 #define HW_VER_MAJOR_MASK GENMASK(31, 28)
@@ -711,17 +709,23 @@ static int geni_se_rmv_ab_ib(struct geni_se_device *geni_se_dev,
 	bool bus_bw_update = false;
 	bool bus_bw_update_noc = false;
 	int ret = 0;
+	int index;
 
 	if (geni_se_dev->vectors == NULL)
-		return 0;
-
-	if (rsc->skip_bw_vote)
-		return 0;
+		return ret;
 
 	if (unlikely(list_empty(&rsc->ab_list) || list_empty(&rsc->ib_list)))
 		return -EINVAL;
 
 	mutex_lock(&geni_se_dev->geni_dev_lock);
+
+	if (!rsc->is_list_add) {
+		GENI_SE_ERR(geni_se_dev->log_ctx, true, NULL,
+			"%s: %s: list del already done\n", __func__,
+			dev_name(rsc->ctrl_dev));
+		mutex_unlock(&geni_se_dev->geni_dev_lock);
+		return ret;
+	}
 
 	list_del_init(&rsc->ab_list);
 	geni_se_dev->cur_ab -= rsc->ab;
@@ -752,7 +756,7 @@ static int geni_se_rmv_ab_ib(struct geni_se_device *geni_se_dev,
 		geni_se_dev->cur_ib, rsc->ab, rsc->ib, bus_bw_update);
 
 
-	if (geni_se_dev->num_paths == 2) {
+	if (geni_se_dev->num_paths >= 2) {
 		if (unlikely(list_empty(&rsc->ab_list_noc) ||
 					list_empty(&rsc->ib_list_noc))) {
 			mutex_unlock(&geni_se_dev->geni_dev_lock);
@@ -771,13 +775,16 @@ static int geni_se_rmv_ab_ib(struct geni_se_device *geni_se_dev,
 			geni_se_dev->cur_ib_noc = 0;
 
 		bus_bw_update_noc = geni_se_check_bus_bw_noc(geni_se_dev);
-		geni_se_dev->vectors[1].ab = geni_se_dev->cur_ab_noc;
-		geni_se_dev->vectors[1].ib = geni_se_dev->cur_ib_noc;
-
+		/* qup-ddr path is specified as the last entry in dt, so the
+		 * index is set to num_paths-1.
+		 */
+		index = geni_se_dev->num_paths - 1;
+		geni_se_dev->vectors[index].ab = geni_se_dev->cur_ab_noc;
+		geni_se_dev->vectors[index].ib = geni_se_dev->cur_ib_noc;
 		if (bus_bw_update_noc)
 			ret = icc_set_bw(geni_se_dev->bus_bw_noc,
-						geni_se_dev->vectors[1].ab,
-						geni_se_dev->vectors[1].ib);
+						geni_se_dev->vectors[index].ab,
+						geni_se_dev->vectors[index].ib);
 
 		GENI_SE_DBG(geni_se_dev->log_ctx, false, NULL,
 			"%s: %s: cur_ab_ib_noc(%lu:%lu) req_ab_ib_noc(%lu:%lu) %d\n",
@@ -785,6 +792,7 @@ static int geni_se_rmv_ab_ib(struct geni_se_device *geni_se_dev,
 			geni_se_dev->cur_ab_noc, geni_se_dev->cur_ib_noc,
 			rsc->ab_noc, rsc->ib_noc, bus_bw_update_noc);
 	}
+	rsc->is_list_add = false;
 	mutex_unlock(&geni_se_dev->geni_dev_lock);
 	return ret;
 }
@@ -861,14 +869,20 @@ static int geni_se_add_ab_ib(struct geni_se_device *geni_se_dev,
 	bool bus_bw_update = false;
 	bool bus_bw_update_noc = false;
 	int ret = 0;
+	int index;
 
 	if (geni_se_dev->vectors == NULL)
-		return 0;
-
-	if (rsc->skip_bw_vote)
-		return 0;
+		return ret;
 
 	mutex_lock(&geni_se_dev->geni_dev_lock);
+
+	if (rsc->is_list_add) {
+		GENI_SE_ERR(geni_se_dev->log_ctx, true, NULL,
+			"%s: %s: list add already done\n", __func__,
+			dev_name(rsc->ctrl_dev));
+		mutex_unlock(&geni_se_dev->geni_dev_lock);
+		return ret;
+	}
 
 	list_add(&rsc->ab_list, &geni_se_dev->ab_list_head);
 	geni_se_dev->cur_ab += rsc->ab;
@@ -903,7 +917,7 @@ static int geni_se_add_ab_ib(struct geni_se_device *geni_se_dev,
 		rsc->ab, rsc->ib, bus_bw_update);
 
 
-	if (geni_se_dev->num_paths == 2) {
+	if (geni_se_dev->num_paths >= 2) {
 
 		list_add(&rsc->ab_list_noc, &geni_se_dev->ab_list_head_noc);
 		geni_se_dev->cur_ab_noc += rsc->ab_noc;
@@ -921,13 +935,17 @@ static int geni_se_add_ab_ib(struct geni_se_device *geni_se_dev,
 			geni_se_dev->cur_ib_noc = rsc->ib_noc;
 
 		bus_bw_update_noc = geni_se_check_bus_bw_noc(geni_se_dev);
-		geni_se_dev->vectors[1].ab = geni_se_dev->cur_ab_noc;
-		geni_se_dev->vectors[1].ib = geni_se_dev->cur_ib_noc;
+		/* qup-ddr path is specified as the last entry in dt, so the
+		 * index is set to num_paths-1.
+		 */
+		index = geni_se_dev->num_paths - 1;
+		geni_se_dev->vectors[index].ab = geni_se_dev->cur_ab_noc;
+		geni_se_dev->vectors[index].ib = geni_se_dev->cur_ib_noc;
 
 		if (bus_bw_update_noc)
 			ret = icc_set_bw(geni_se_dev->bus_bw_noc,
-						geni_se_dev->vectors[1].ab,
-						geni_se_dev->vectors[1].ib);
+						geni_se_dev->vectors[index].ab,
+						geni_se_dev->vectors[index].ib);
 
 		GENI_SE_DBG(geni_se_dev->log_ctx, false, NULL,
 			"%s: %s: cur_ab_ib_noc(%lu:%lu) req_ab_ib_noc(%lu:%lu) %d\n",
@@ -935,6 +953,7 @@ static int geni_se_add_ab_ib(struct geni_se_device *geni_se_dev,
 			geni_se_dev->cur_ab_noc, geni_se_dev->cur_ib_noc,
 			rsc->ab_noc, rsc->ib_noc, bus_bw_update_noc);
 	}
+	rsc->is_list_add = true;
 	mutex_unlock(&geni_se_dev->geni_dev_lock);
 	return ret;
 }
@@ -960,6 +979,7 @@ int se_geni_clks_on(struct se_geni_rsc *rsc)
 
 	ret = geni_se_add_ab_ib(geni_se_dev, rsc);
 	if (ret) {
+		geni_se_rmv_ab_ib(geni_se_dev, rsc);
 		GENI_SE_ERR(geni_se_dev->log_ctx, false, NULL,
 			"%s: Error %d during bus_bw_update\n", __func__, ret);
 		return ret;
@@ -1049,15 +1069,14 @@ int geni_se_resources_init(struct se_geni_rsc *rsc,
 	if (geni_se_dev->vectors == NULL)
 		return 0;
 
+	mutex_lock(&geni_se_dev->geni_dev_lock);
 	if (IS_ERR_OR_NULL(geni_se_dev->bus_bw)) {
-		geni_se_dev->bus_bw = icc_get(geni_se_dev->dev,
-					geni_se_dev->vectors[0].src,
-					geni_se_dev->vectors[0].dst);
+		geni_se_dev->bus_bw = of_icc_get(geni_se_dev->dev, "qup-core");
 		if (IS_ERR_OR_NULL(geni_se_dev->bus_bw)) {
 			GENI_SE_ERR(geni_se_dev->log_ctx, false, NULL,
 				"%s: Error Get Path: (Core2x), %ld\n",
 				__func__, PTR_ERR(geni_se_dev->bus_bw));
-
+				mutex_unlock(&geni_se_dev->geni_dev_lock);
 				return geni_se_dev->bus_bw ?
 				PTR_ERR(geni_se_dev->bus_bw) : -ENOENT;
 		}
@@ -1065,11 +1084,10 @@ int geni_se_resources_init(struct se_geni_rsc *rsc,
 	rsc->ab = ab;
 	rsc->ib = ib;
 
-	if (geni_se_dev->num_paths == 2) {
+	if (geni_se_dev->num_paths >= 2) {
 		if (IS_ERR_OR_NULL(geni_se_dev->bus_bw_noc)) {
-			geni_se_dev->bus_bw_noc = icc_get(geni_se_dev->dev,
-						geni_se_dev->vectors[1].src,
-						geni_se_dev->vectors[1].dst);
+			geni_se_dev->bus_bw_noc =
+				of_icc_get(geni_se_dev->dev, "qup-ddr");
 			if (IS_ERR_OR_NULL(geni_se_dev->bus_bw_noc)) {
 				GENI_SE_ERR(geni_se_dev->log_ctx, false, NULL,
 					"%s: Error Get Path: (DDR), %ld\n",
@@ -1077,7 +1095,7 @@ int geni_se_resources_init(struct se_geni_rsc *rsc,
 					PTR_ERR(geni_se_dev->bus_bw_noc));
 				icc_put(geni_se_dev->bus_bw);
 				geni_se_dev->bus_bw = NULL;
-
+				mutex_unlock(&geni_se_dev->geni_dev_lock);
 				return geni_se_dev->bus_bw_noc ?
 				PTR_ERR(geni_se_dev->bus_bw_noc) : -ENOENT;
 			}
@@ -1094,6 +1112,7 @@ int geni_se_resources_init(struct se_geni_rsc *rsc,
 
 	INIT_LIST_HEAD(&rsc->ab_list);
 	INIT_LIST_HEAD(&rsc->ib_list);
+	mutex_unlock(&geni_se_dev->geni_dev_lock);
 
 	return 0;
 }
@@ -1612,69 +1631,13 @@ static struct bus_vectors *get_icc_paths(struct platform_device *pdev,
 				struct geni_se_device *host)
 {
 	struct device *dev = &pdev->dev;
-	int i = 0, len;
-	bool mem_err = false;
-	const uint32_t *vec_arr = NULL;
 	struct bus_vectors *vectors = NULL;
-
-	vec_arr = of_get_property(dev->of_node,
-			"qcom,msm-bus,vectors-bus-ids", &len);
-	if (vec_arr == NULL) {
-		pr_err("Error: Vector array not found\n");
-		goto out;
-	}
-
-	if (len != host->num_paths * sizeof(uint32_t) * 2) {
-		pr_err("Error: Length-error on getting vectors\n");
-		goto out;
-	}
 
 	vectors = devm_kzalloc(dev, host->num_paths *
 			sizeof(struct bus_vectors), GFP_KERNEL);
-	if (!vectors) {
-		mem_err = true;
-		goto out;
-	}
-
-	for (i = 0; i < host->num_paths; i++) {
-		vectors[i].src =
-				be32_to_cpu(vec_arr[(i*2)]);
-		vectors[i].dst =
-				be32_to_cpu(vec_arr[(i*2) + 1]);
-	}
 
 	return vectors;
-out:
-	return NULL;
 }
-
-void geni_se_remove_earlycon_icc_vote(struct device *dev)
-{
-	struct platform_device *pdev;
-	struct device_node *parent;
-	struct device_node *child;
-	struct geni_se_device *geni_se_dev;
-	int ret;
-
-	parent = of_get_next_parent(dev->of_node);
-	for_each_child_of_node(parent, child) {
-		if (!of_device_is_compatible(child, "qcom,qupv3-geni-se"))
-			continue;
-
-		pdev = of_find_device_by_node(child);
-		if (!pdev)
-			continue;
-
-		geni_se_dev = platform_get_drvdata(pdev);
-		ret = geni_se_rmv_ab_ib(geni_se_dev, &geni_se_dev->wrapper_rsc);
-
-		if (ret)
-			dev_err(dev, "%s: Error %d during bus_bw_update\n", __func__,
-					ret);
-	}
-	of_node_put(parent);
-}
-EXPORT_SYMBOL(geni_se_remove_earlycon_icc_vote);
 
 static int geni_se_iommu_probe(struct device *dev)
 {
@@ -1747,7 +1710,7 @@ static int geni_se_probe(struct platform_device *pdev)
 	geni_se_dev->bus_bw_set = default_bus_bw_set;
 	geni_se_dev->bus_bw_set_size =
 				ARRAY_SIZE(default_bus_bw_set);
-	if (geni_se_dev->num_paths == 2) {
+	if (geni_se_dev->num_paths >= 2) {
 		geni_se_dev->bus_bw_set_noc = default_bus_bw_set;
 		geni_se_dev->bus_bw_set_size_noc =
 				ARRAY_SIZE(default_bus_bw_set);
@@ -1755,7 +1718,7 @@ static int geni_se_probe(struct platform_device *pdev)
 	mutex_init(&geni_se_dev->iommu_lock);
 	INIT_LIST_HEAD(&geni_se_dev->ab_list_head);
 	INIT_LIST_HEAD(&geni_se_dev->ib_list_head);
-	if (geni_se_dev->num_paths == 2) {
+	if (geni_se_dev->num_paths >= 2) {
 		INIT_LIST_HEAD(&geni_se_dev->ab_list_head_noc);
 		INIT_LIST_HEAD(&geni_se_dev->ib_list_head_noc);
 	}
@@ -1766,31 +1729,6 @@ static int geni_se_probe(struct platform_device *pdev)
 		dev_err(dev, "%s Failed to allocate log context\n", __func__);
 
 	dev_set_drvdata(dev, geni_se_dev);
-
-	/*
-	 * TBD: Proxy vote on QUP core path on behalf of earlycon.
-	 * Once the ICC sync state feature is implemented, we can make
-	 * console UART as dummy consumer of ICC to get rid of this HACK
-	 */
-#if IS_ENABLED(CONFIG_SERIAL_MSM_GENI_CONSOLE)
-	geni_se_dev->wrapper_rsc.wrapper_dev = dev;
-	geni_se_dev->wrapper_rsc.ctrl_dev = dev;
-
-	ret = geni_se_resources_init(&geni_se_dev->wrapper_rsc,
-					UART_CONSOLE_CORE2X_VOTE,
-					(DEFAULT_SE_CLK * DEFAULT_BUS_WIDTH));
-	if (ret) {
-		dev_err(dev, "Resources init failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = geni_se_add_ab_ib(geni_se_dev, &geni_se_dev->wrapper_rsc);
-	if (ret) {
-		dev_err(dev, "%s: Error %d during bus_bw_update\n", __func__,
-				ret);
-		return ret;
-	}
-#endif
 
 	ret = of_platform_populate(dev->of_node, geni_se_dt_match, NULL, dev);
 	if (ret) {
