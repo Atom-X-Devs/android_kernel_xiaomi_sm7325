@@ -374,6 +374,7 @@ struct qseecom_client_handle {
 	bool from_smcinvoke;
 	struct qtee_shm shm; /* kernel client's shm for req/rsp buf */
 	bool unload_pending;
+	bool from_loadapp;
 };
 
 struct qseecom_listener_handle {
@@ -1643,9 +1644,7 @@ static int __qseecom_unregister_listener(struct qseecom_dev_handle *data,
 	if (ret) {
 		pr_err("scm_call() failed with err: %d (lstnr id=%d)\n",
 				ret, data->listener.id);
-		if (ret == -EBUSY)
-			return ret;
-		goto exit;
+		return ret;
 	}
 
 	if (resp.result != QSEOS_RESULT_SUCCESS) {
@@ -1732,15 +1731,19 @@ static void __qseecom_processing_pending_lsnr_unregister(void)
 		if (entry && entry->data) {
 			pr_debug("process pending unregister %d\n",
 					entry->data->listener.id);
-			/* don't process if qseecom_release is not called*/
-			if (!entry->data->listener.release_called)
+			/* don't process the entry if qseecom_release is not called*/
+			if (!entry->data->listener.release_called) {
+				list_del(pos);
+				list_add_tail(&entry->list,
+					&qseecom.unregister_lsnr_pending_list_head);
 				break;
+			}
 			ptr_svc = __qseecom_find_svc(
 						entry->data->listener.id);
 			if (ptr_svc) {
 				ret = __qseecom_unregister_listener(
 						entry->data, ptr_svc);
-				if (ret == -EBUSY) {
+				if (ret) {
 					pr_debug("unregister %d pending again\n",
 						entry->data->listener.id);
 					mutex_unlock(&listener_access_lock);
@@ -2347,8 +2350,9 @@ static int __qseecom_process_reentrancy_blocked_on_listener(
 
 	/* find app_id & img_name from list */
 	if (!ptr_app) {
-		if (data->client.from_smcinvoke) {
-			pr_debug("This request is from smcinvoke\n");
+		if (data->client.from_smcinvoke || data->client.from_loadapp) {
+			pr_debug("This request is from %s\n",
+				(data->client.from_smcinvoke ? "smcinvoke" : "load_app"));
 			ptr_app = &dummy_app_entry;
 			ptr_app->app_id = data->client.app_id;
 		} else {
@@ -2426,8 +2430,10 @@ static int __qseecom_process_reentrancy_blocked_on_listener(
 		ret = qseecom_scm_call(SCM_SVC_TZSCHEDULER, 1,
 					&ireq, sizeof(ireq),
 					&continue_resp, sizeof(continue_resp));
+
 		if (ret && qseecom.smcinvoke_support) {
 			/* retry with legacy cmd */
+			pr_warn("falling back to legacy method\n");
 			qseecom.smcinvoke_support = false;
 			ireq.app_or_session_id = data->client.app_id;
 			ret = qseecom_scm_call(SCM_SVC_TZSCHEDULER, 1,
@@ -2445,7 +2451,7 @@ static int __qseecom_process_reentrancy_blocked_on_listener(
 		resp->result = continue_resp.result;
 		resp->resp_type = continue_resp.resp_type;
 		resp->data = continue_resp.data;
-		pr_debug("unblock resp = %d\n", resp->result);
+		pr_err("unblock resp = %d\n", resp->result);
 	} while (resp->result == QSEOS_RESULT_BLOCKED_ON_LISTENER);
 
 	if (resp->result != QSEOS_RESULT_INCOMPLETE) {
@@ -2517,6 +2523,7 @@ static int __qseecom_reentrancy_process_incomplete_cmd(
 						lstnr);
 			rc = -ERESTARTSYS;
 			ptr_svc = NULL;
+			table = NULL;
 			status = QSEOS_RESULT_FAILURE;
 			goto err_resp;
 		}
@@ -2940,24 +2947,42 @@ static int qseecom_load_app(struct qseecom_dev_handle *data, void __user *argp)
 			goto loadapp_err;
 		}
 
-		if (resp.result == QSEOS_RESULT_FAILURE) {
-			pr_err("scm_call rsp.result is QSEOS_RESULT_FAILURE\n");
-			ret = -EFAULT;
-			goto loadapp_err;
-		}
-
-		if (resp.result == QSEOS_RESULT_INCOMPLETE) {
-			ret = __qseecom_process_incomplete_cmd(data, &resp);
-			if (ret) {
-				/* TZ has created app_id, need to unload it */
-				pr_err("incomp_cmd err %d, %d, unload %d %s\n",
-					ret, resp.result, resp.data,
-					load_img_req.img_name);
-				__qseecom_unload_app(data, resp.data);
+		do {
+			if (resp.result == QSEOS_RESULT_FAILURE) {
+				pr_err("scm_call rsp.result is QSEOS_RESULT_FAILURE\n");
 				ret = -EFAULT;
 				goto loadapp_err;
 			}
-		}
+
+			if (resp.result == QSEOS_RESULT_INCOMPLETE) {
+				ret = __qseecom_process_incomplete_cmd(data, &resp);
+				if (ret) {
+					/* TZ has created app_id, need to unload it */
+					pr_err("incomp_cmd err %d, %d, unload %d %s\n",
+						ret, resp.result, resp.data,
+						load_img_req.img_name);
+					__qseecom_unload_app(data, resp.data);
+					ret = -EFAULT;
+					goto loadapp_err;
+				}
+			}
+
+			if (resp.result == QSEOS_RESULT_BLOCKED_ON_LISTENER) {
+				pr_err("load app blocked on listener\n");
+				data->client.app_id = resp.result;
+				data->client.from_loadapp = true;
+				ret = __qseecom_process_reentrancy_blocked_on_listener(&resp,
+					NULL, data);
+				if (ret) {
+					pr_err("load app fail proc block on listener,ret :%d\n",
+						ret);
+					ret = -EFAULT;
+					goto loadapp_err;
+				}
+			}
+
+		} while ((resp.result == QSEOS_RESULT_BLOCKED_ON_LISTENER) ||
+			(resp.result == QSEOS_RESULT_INCOMPLETE));
 
 		if (resp.result != QSEOS_RESULT_SUCCESS) {
 			pr_err("scm_call failed resp.result unknown, %d\n",
@@ -3039,7 +3064,7 @@ enable_clk_err:
 
 static int __qseecom_cleanup_app(struct qseecom_dev_handle *data)
 {
-	int ret = 1;	/* Set unload app */
+	int ret = 0;	/* Set unload app */
 
 	wake_up_all(&qseecom.send_resp_wq);
 	if (qseecom.qsee_reentrancy_support)
@@ -3067,7 +3092,6 @@ static int __qseecom_unload_app(struct qseecom_dev_handle *data,
 	/* Populate the structure for sending scm call to load image */
 	req.qsee_cmd_id = QSEOS_APP_SHUTDOWN_COMMAND;
 	req.app_id = app_id;
-
 	/* SCM_CALL to unload the app */
 	ret = qseecom_scm_call(SCM_SVC_TZSCHEDULER, 1, &req,
 			sizeof(struct qseecom_unload_app_ireq),
@@ -3077,31 +3101,43 @@ static int __qseecom_unload_app(struct qseecom_dev_handle *data,
 			app_id, ret);
 		return ret;
 	}
-	switch (resp.result) {
-	case QSEOS_RESULT_SUCCESS:
-		pr_warn("App (%d) is unloaded\n", app_id);
-		break;
-	case QSEOS_RESULT_INCOMPLETE:
-		ret = __qseecom_process_incomplete_cmd(data, &resp);
-		if (ret)
-			pr_err("unload app %d fail proc incom cmd: %d,%d,%d\n",
-				app_id, ret, resp.result, resp.data);
-		else
+
+	do {
+		switch (resp.result) {
+		case QSEOS_RESULT_SUCCESS:
 			pr_warn("App (%d) is unloaded\n", app_id);
-		break;
-	case QSEOS_RESULT_FAILURE:
-		pr_err("app (%d) unload_failed!!\n", app_id);
-		ret = -EFAULT;
-		break;
-	default:
-		pr_err("unload app %d get unknown resp.result %d\n",
-				app_id, resp.result);
-		ret = -EFAULT;
-		break;
-	}
+			break;
+		case QSEOS_RESULT_INCOMPLETE:
+			ret = __qseecom_process_incomplete_cmd(data, &resp);
+			if (ret)
+				pr_err("unload app %d fail proc incom cmd: %d,%d,%d\n",
+					app_id, ret, resp.result, resp.data);
+			else
+				pr_warn("App (%d) is unloaded\n", app_id);
+			break;
+		case QSEOS_RESULT_FAILURE:
+			pr_err("app (%d) unload_failed!!\n", app_id);
+			ret = -EFAULT;
+			break;
+		case QSEOS_RESULT_BLOCKED_ON_LISTENER:
+			pr_err("unload app (%d) blocked on listener\n", app_id);
+			ret = __qseecom_process_reentrancy_blocked_on_listener(&resp, NULL, data);
+			if (ret) {
+				pr_err("unload app fail proc block on listener cmd,ret :%d\n",
+					ret);
+				ret = -EFAULT;
+			}
+			break;
+		default:
+			pr_err("unload app %d get unknown resp.result %d\n",
+					app_id, resp.result);
+			ret = -EFAULT;
+			break;
+		}
+	} while ((resp.result == QSEOS_RESULT_INCOMPLETE) ||
+			(resp.result == QSEOS_RESULT_BLOCKED_ON_LISTENER));
 	return ret;
 }
-
 static int qseecom_unload_app(struct qseecom_dev_handle *data,
 				bool app_crash)
 {
@@ -3123,7 +3159,12 @@ static int qseecom_unload_app(struct qseecom_dev_handle *data,
 		goto unload_exit;
 	}
 
-	__qseecom_cleanup_app(data);
+	ret = __qseecom_cleanup_app(data);
+	if (ret && !app_crash) {
+		pr_err("cleanup app failed, pending ioctl:%d\n", data->ioctl_count);
+		return ret;
+	}
+
 	__qseecom_reentrancy_check_if_no_app_blocked(TZ_OS_APP_SHUTDOWN_ID);
 
 	/* ignore app_id 0, it happens when close qseecom_fd if load app fail*/
@@ -9520,70 +9561,57 @@ static int qseecom_create_kthreads(void)
 	return 0;
 }
 
-static int qseecom_register_heap_shmbridge(uint32_t heapid, uint64_t *handle)
+static int qseecom_register_heap_shmbridge(struct platform_device *pdev,
+					   char *heap_mem_region_name,
+					   uint64_t *handle)
 {
 	phys_addr_t heap_pa = 0;
 	size_t heap_size = 0;
-	struct device *ion_dev = NULL;
 	struct device_node *node = NULL;
 	struct reserved_mem *rmem = NULL;
 	uint32_t ns_vmids[] = {VMID_HLOS};
 	uint32_t ns_vm_perms[] = {PERM_READ | PERM_WRITE};
-	int ret = 0;
 
-	ion_dev = msm_ion_heap_device_by_id(heapid);
-	ret = PTR_ERR_OR_ZERO(ion_dev);
-	if (ret) {
-		pr_err("Failed to find node for heap %d, ret = %d\n",
-			heapid, ret);
-		return ret;
-	}
-
-	node = of_parse_phandle(ion_dev->of_node, "memory-region", 0);
+	node = of_parse_phandle(pdev->dev.of_node, heap_mem_region_name, 0);
 	if (!node) {
-		pr_err("unable to parse memory-region of heap %d\n", heapid);
+		pr_err("unable to parse memory-region of heap %d\n", heap_mem_region_name);
 		return -EINVAL;
 	}
 	rmem = of_reserved_mem_lookup(node);
 	if (!rmem) {
-		pr_err("unable to acquire memory-region of heap %d\n", heapid);
+		pr_err("unable to acquire memory-region of heap %d\n", heap_mem_region_name);
 		return -EINVAL;
 	}
-	ret = of_reserved_mem_device_init_by_idx(ion_dev, ion_dev->of_node, 0);
-	of_node_put(node);
-	if (ret) {
-		pr_err("Failed to initialize reserved mem, ret %d\n", ret);
-		return ret;
-	}
+
 	heap_pa = rmem->base;
 	heap_size = (size_t)rmem->size;
 
-	pr_debug("get heap %d info: shmbridge created\n", heapid);
+	pr_debug("get heap %d info: shmbridge created\n", heap_mem_region_name);
 	return qtee_shmbridge_register(heap_pa,
 			heap_size, ns_vmids, ns_vm_perms, 1,
 			PERM_READ | PERM_WRITE, handle);
 }
 
-static int qseecom_register_shmbridge(void)
+static int qseecom_register_shmbridge(struct platform_device *pdev)
 {
 	int ret = 0;
 
 	if (!qtee_shmbridge_is_enabled())
 		return 0;
 
-	ret = qseecom_register_heap_shmbridge(ION_QSECOM_TA_HEAP_ID,
+	ret = qseecom_register_heap_shmbridge(pdev, "qseecom_ta_mem",
 					&qseecom.ta_bridge_handle);
 	if (ret)
 		return ret;
 
-	ret = qseecom_register_heap_shmbridge(ION_QSECOM_HEAP_ID,
+	ret = qseecom_register_heap_shmbridge(pdev, "qseecom_mem",
 					&qseecom.qseecom_bridge_handle);
 	if (ret) {
 		qtee_shmbridge_deregister(qseecom.ta_bridge_handle);
 		return ret;
 	}
 
-	ret = qseecom_register_heap_shmbridge(ION_USER_CONTIG_HEAP_ID,
+	ret = qseecom_register_heap_shmbridge(pdev, "user_contig_mem",
 					&qseecom.user_contig_bridge_handle);
 	if (ret) {
 		qtee_shmbridge_deregister(qseecom.qseecom_bridge_handle);
@@ -9605,7 +9633,7 @@ static int qseecom_probe(struct platform_device *pdev)
 {
 	int rc;
 
-	rc = qseecom_register_shmbridge();
+	rc = qseecom_register_shmbridge(pdev);
 	if (rc)
 		return rc;
 
