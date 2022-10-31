@@ -19,7 +19,7 @@
 #include <linux/regmap.h>
 #include <linux/workqueue.h>
 
-#include <drm/drm_panel.h>
+#include <linux/soc/qcom/panel_event_notifier.h>
 
 /* AMOLED AB register definitions */
 #define AB_REVISION2				0x01
@@ -152,8 +152,8 @@ struct amoled_ecm_data {
  * @sdam:		Pointer for array of ECM sdams
  * @sdam_lock:		Locking for mutual exclusion
  * @average_work:	Delayed work to calculate ECM average
- * @drm_notifier:	The notifier block for receiving DRM notifications
- * @active_panel:	Active DRM panel which sends DRM notifications
+ * @active_panel:	Active DRM panel which sends panel notifications
+ * @notifier_cookie:	The cookie from panel notifier
  * @num_sdams:		Number of SDAMs used for AMOLED ECM
  * @base:		Base address of the AMOLED ECM module
  * @ab_revision:	Revision of the AMOLED AB module
@@ -168,8 +168,8 @@ struct amoled_ecm {
 	struct amoled_ecm_sdam	*sdam;
 	struct mutex		sdam_lock;
 	struct delayed_work	average_work;
-	struct notifier_block	drm_notifier;
 	struct drm_panel	*active_panel;
+	void			*notifier_cookie;
 	u32			num_sdams;
 	u32			base;
 	u8			ab_revision;
@@ -677,37 +677,6 @@ irq_exit:
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_DRM
-static int amoled_ecm_parse_panel_dt(struct amoled_ecm *ecm)
-{
-	struct device_node *np = ecm->dev->of_node;
-	struct device_node *pnode;
-	struct drm_panel *panel;
-	int i, count;
-
-	count = of_count_phandle_with_args(np, "display-panels", NULL);
-	if (count <= 0)
-		return 0;
-
-	for (i = 0; i < count; i++) {
-		pnode = of_parse_phandle(np, "display-panels", i);
-		panel = of_drm_find_panel(pnode);
-		of_node_put(pnode);
-		if (!IS_ERR(panel)) {
-			ecm->active_panel = panel;
-			return 0;
-		}
-	}
-
-	return PTR_ERR(panel);
-}
-#else
-static inline int amoled_ecm_parse_panel_dt(struct amoled_ecm *ecm)
-{
-	return 0;
-}
-#endif
-
 static int amoled_ecm_parse_dt(struct amoled_ecm *ecm)
 {
 	int rc = 0, i;
@@ -762,88 +731,119 @@ static int amoled_ecm_parse_dt(struct amoled_ecm *ecm)
 		}
 	}
 
-	rc = amoled_ecm_parse_panel_dt(ecm);
-	if (rc && rc != -EPROBE_DEFER)
-		pr_err("failed to get active panel, rc=%d\n", rc);
-
-	return rc;
+	return 0;
 }
 
-#ifdef CONFIG_DRM
-static int drm_notifier_callback(struct notifier_block *nb,
-		unsigned long event, void *data)
+#if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
+static void panel_event_notifier_callback(enum panel_event_notifier_tag tag,
+		struct panel_event_notification *notification, void *data)
 {
-	struct amoled_ecm *ecm = container_of(nb,
-			struct amoled_ecm, drm_notifier);
-	struct drm_panel_notifier *evdata = data;
-	int blank, rc;
+	struct amoled_ecm *ecm = data;
+	int rc;
 
-	pr_debug("DRM event received: %d\n", event);
-	if (event != DRM_PANEL_EVENT_BLANK)
-		return NOTIFY_DONE;
-
-	blank = *(int *)evdata->data;
-	if (blank == DRM_PANEL_BLANK_POWERDOWN && ecm->enable) {
-		rc = amoled_ecm_disable(ecm);
-		if (rc < 0) {
-			pr_err("Failed to disable ECM for display BLANK, rc=%d\n",
-					rc);
-			return rc;
-		}
-
-		ecm->reenable = true;
-		pr_debug("Disabled ECM for display BLANK\n");
-	} else if (blank == DRM_PANEL_BLANK_UNBLANK && ecm->reenable) {
-		rc = amoled_ecm_enable(ecm);
-		if (rc < 0) {
-			pr_err("Failed to reenable ECM for display UNBLANK, rc=%d\n",
-					rc);
-			return rc;
-		}
-
-		ecm->reenable = false;
-		pr_debug("Enabled ECM for display UNBLANK\n");
+	if (!notification) {
+		pr_err("Invalid panel notification\n");
+		return;
 	}
 
-	return NOTIFY_DONE;
+	pr_debug("panel event received, type: %d\n", notification->notif_type);
+	switch (notification->notif_type) {
+	case DRM_PANEL_EVENT_BLANK:
+		if (ecm->enable) {
+			rc = amoled_ecm_disable(ecm);
+			if (rc < 0) {
+				pr_err("Failed to disable ECM for display BLANK, rc=%d\n",
+						rc);
+				return;
+			}
+
+			ecm->reenable = true;
+			pr_debug("Disabled ECM for display BLANK\n");
+		}
+		break;
+	case DRM_PANEL_EVENT_UNBLANK:
+		if (ecm->reenable) {
+			rc = amoled_ecm_enable(ecm);
+			if (rc < 0) {
+				pr_err("Failed to re-enable ECM for display UNBLANK, rc=%d\n",
+						rc);
+				return;
+			}
+
+			ecm->reenable = false;
+			pr_debug("Enabled ECM for display UNBLANK\n");
+		}
+		break;
+	default:
+		pr_debug("Ignore panel event: %d\n", notification->notif_type);
+		break;
+	}
 }
 
-static int qti_amoled_register_drm_notifier(struct amoled_ecm *ecm)
+static int qti_amoled_register_panel_notifier(struct amoled_ecm *ecm)
 {
-	int rc = 0;
+	struct device_node *np = ecm->dev->of_node;
+	struct device_node *pnode;
+	struct drm_panel *panel;
+	void *cookie = NULL;
+	int i, count, rc;
 
-	if (ecm->active_panel) {
-		ecm->drm_notifier.notifier_call = drm_notifier_callback;
-		rc = drm_panel_notifier_register(ecm->active_panel,
-				&ecm->drm_notifier);
-		if (rc < 0)
-			pr_err("failed to register DRM notifier, rc=%d\n", rc);
+	count = of_count_phandle_with_args(np, "display-panels", NULL);
+	if (count <= 0)
+		return 0;
+
+	for (i = 0; i < count; i++) {
+		pnode = of_parse_phandle(np, "display-panels", i);
+		if (!pnode)
+			return -ENODEV;
+
+		panel = of_drm_find_panel(pnode);
+		of_node_put(pnode);
+		if (!IS_ERR(panel)) {
+			ecm->active_panel = panel;
+			break;
+		}
 	}
 
-	return rc;
+	if (!ecm->active_panel) {
+		rc = PTR_ERR(panel);
+		if (rc != -EPROBE_DEFER)
+			pr_err("failed to find active panel, rc=%d\n", rc);
+
+		return rc;
+	}
+
+	cookie = panel_event_notifier_register(
+			PANEL_EVENT_NOTIFICATION_PRIMARY,
+			PANEL_EVENT_NOTIFIER_CLIENT_ECM,
+			ecm->active_panel,
+			panel_event_notifier_callback,
+			(void *)ecm);
+	if (IS_ERR(cookie)) {
+		rc = PTR_ERR(cookie);
+		pr_err("failed to register panel event notifier, rc=%d\n", rc);
+		return rc;
+	}
+
+	pr_debug("register panel notifier successfully\n");
+	ecm->notifier_cookie = cookie;
+	return 0;
 }
 
-static int qti_amoled_unregister_drm_notifier(struct amoled_ecm *ecm)
+static int qti_amoled_unregister_panel_notifier(struct amoled_ecm *ecm)
 {
-	if (ecm->active_panel)
-		return drm_panel_notifier_unregister(ecm->active_panel,
-				&ecm->drm_notifier);
+	if (ecm->notifier_cookie)
+		panel_event_notifier_unregister(ecm->notifier_cookie);
 
 	return 0;
 }
 #else
-static inline int drm_notifier_callback(struct notifier_block *nb,
-		unsigned long event, void *data)
-{
-	return NOTIFY_DONE;
-}
-
-static inline int qti_amoled_register_drm_notifier(struct amoled_ecm *ecm)
+static inline int qti_amoled_register_panel_notifier(struct amoled_ecm *ecm)
 {
 	return 0;
 }
 
-static inline int qti_amoled_unregister_drm_notifier(struct amoled_ecm *ecm)
+static inline int qti_amoled_unregister_panel_notifier(struct amoled_ecm *ecm)
 {
 	return 0;
 }
@@ -870,9 +870,7 @@ static int qti_amoled_ecm_probe(struct platform_device *pdev)
 
 	rc = amoled_ecm_parse_dt(ecm);
 	if (rc < 0) {
-		if (rc != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to parse AMOLED ECM rc=%d\n",
-				rc);
+		dev_err(&pdev->dev, "Failed to parse AMOLED ECM rc=%d\n", rc);
 		return rc;
 	}
 
@@ -922,14 +920,14 @@ static int qti_amoled_ecm_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	return qti_amoled_register_drm_notifier(ecm);
+	return qti_amoled_register_panel_notifier(ecm);
 }
 
 static int qti_amoled_ecm_remove(struct platform_device *pdev)
 {
 	struct amoled_ecm *ecm = dev_get_drvdata(&pdev->dev);
 
-	return qti_amoled_unregister_drm_notifier(ecm);
+	return qti_amoled_unregister_panel_notifier(ecm);
 }
 
 static const struct of_device_id amoled_ecm_match_table[] = {
