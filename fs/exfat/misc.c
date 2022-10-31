@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
+#include <linux/blk_types.h>
 
 #include "exfat_raw.h"
 #include "exfat_fs.h"
@@ -73,6 +74,13 @@ static void exfat_adjust_tz(struct timespec64 *ts, u8 tz_off)
 		ts->tv_sec += TIMEZONE_SEC(0x80 - tz_off);
 }
 
+static inline int exfat_tz_offset(struct exfat_sb_info *sbi)
+{
+	if (sbi->options.sys_tz)
+		return -sys_tz.tz_minuteswest;
+	return sbi->options.time_offset;
+}
+
 /* Convert a EXFAT time/date pair to a UNIX date (seconds since 1 1 70). */
 void exfat_get_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
 		u8 tz, __le16 time, __le16 date, u8 time_cs)
@@ -96,7 +104,7 @@ void exfat_get_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
 		exfat_adjust_tz(ts, tz & ~EXFAT_TZ_VALID);
 	else
 		/* Convert from local time to UTC using time_offset. */
-		ts->tv_sec -= sbi->options.time_offset * SECS_PER_MIN;
+		ts->tv_sec -= exfat_tz_offset(sbi) * SECS_PER_MIN;
 }
 
 /* Convert linear UNIX date to a EXFAT time/date pair. */
@@ -180,7 +188,7 @@ int exfat_update_bhs(struct buffer_head **bhs, int nr_bhs, int sync)
 		set_buffer_uptodate(bhs[i]);
 		mark_buffer_dirty(bhs[i]);
 		if (sync)
-			write_dirty_buffer(bhs[i], 0);
+			write_dirty_buffer(bhs[i], REQ_SYNC);
 	}
 
 	for (i = 0; i < nr_bhs && sync; i++) {
