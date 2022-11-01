@@ -29,7 +29,7 @@
 		interconnects =
 		<&clk_virt MASTER_QUP_CORE_0 &clk_virt SLAVE_QUP_CORE_0>,
 		<&system_noc MASTER_A2NOC_SNOC &gem_noc SLAVE_LLCC>,
-		<&aggre2_noc MASTER_QUP_0 &mc_virt SLAVE_EBI1>;
+		<&aggre1_noc MASTER_QUP_0 &mc_virt SLAVE_EBI1>;
 		iommus = <&apps_smmu 0x123 0x0>;
 		qcom,iommu-dma-addr-pool = <0x40000000 0x10000000>;
 		qcom,iommu-geometry = <0x40000000 0x10000000>;
