@@ -1,4 +1,5 @@
 KBUILD_OPTIONS+= TOUCH_ROOT=$(KERNEL_SRC)/$(M)
+KBUILD_OPTIONS += MODNAME?=touch_dlkm
 
 all:
 	$(MAKE) -C $(KERNEL_SRC) M=$(M) modules $(KBUILD_OPTIONS)
