@@ -31,6 +31,7 @@
 
 #define DDR_STATS_MAGIC_KEY_ADDR	0x0
 #define DDR_STATS_NUM_MODES_ADDR	0x4
+#define DDR_STATS_ENTRY_ADDR		0x8
 #define DDR_STATS_NAME_ADDR		0x0
 #define DDR_STATS_COUNT_ADDR		0x4
 #define DDR_STATS_DURATION_ADDR		0x8
@@ -181,7 +182,7 @@ static int ddr_stats_show(struct seq_file *s, void *d)
 		return 0;
 	}
 
-	reg += DDR_STATS_NUM_MODES_ADDR + 0x4;
+	reg += DDR_STATS_ENTRY_ADDR;
 
 	for (i = 0; i < entry_count; i++) {
 		data[i].count = readl_relaxed(reg + DDR_STATS_COUNT_ADDR);
