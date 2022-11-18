@@ -2883,6 +2883,8 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 
 	if (userfaultfd_pte_wp(vma, *vmf->pte)) {
 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+		if (vmf->flags & FAULT_FLAG_SPECULATIVE)
+			return VM_FAULT_RETRY;
 		return handle_userfault(vmf, VM_UFFD_WP);
 	}
 
@@ -4508,7 +4510,7 @@ vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
 
 #ifdef CONFIG_USERFAULTFD
 	/* Can't call userland page fault handler in the speculative path */
-	if (unlikely(vmf.vma_flags & VM_UFFD_MISSING))
+	if (unlikely(vmf.vma_flags & __VM_UFFD_FLAGS))
 		return VM_FAULT_RETRY;
 #endif
 
