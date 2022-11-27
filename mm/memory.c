@@ -4506,9 +4506,11 @@ vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
 	vmf.vma_flags = READ_ONCE(vmf.vma->vm_flags);
 	vmf.vma_page_prot = READ_ONCE(vmf.vma->vm_page_prot);
 
+#ifdef CONFIG_USERFAULTFD
 	/* Can't call userland page fault handler in the speculative path */
 	if (unlikely(vmf.vma_flags & VM_UFFD_MISSING))
 		return VM_FAULT_RETRY;
+#endif
 
 	if (vmf.vma_flags & VM_GROWSDOWN || vmf.vma_flags & VM_GROWSUP)
 		/*
