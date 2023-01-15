@@ -81,9 +81,9 @@ msm_drm-$(CONFIG_DRM_MSM_SDE) += sde/sde_crtc.o \
 	sde/sde_hw_qdss.o \
 	sde_dsc_helper.o \
 	sde_vdc_helper.o \
-	sde/sde_hw_rc.o \
-	sde_dbg.o \
-	sde_dbg_evtlog.o \
+	sde/sde_hw_rc.o
+
+msm_drm-$(CONFIG_DRM_MSM_DEBUG) += sde_dbg.o sde_dbg_evtlog.o
 
 msm_drm-$(CONFIG_DRM_SDE_VM) += sde/sde_vm_common.o \
 	sde/sde_vm_primary.o \
