@@ -1,9 +1,6 @@
 #include "yupik-audio-overlay.dtsi"
 
 &yupik_snd {
-	qcom,model = "lahaina-yupikidp-snd-card";
-
-	qcom,msm-mi2s-master = <1>, <1>, <1>, <1>, <1>, <1>;
 	qcom,wcn-bt = <1>;
 	qcom,mi2s-audio-intf = <1>;
 	qcom,auxpcm-audio-intf = <1>;
@@ -47,10 +44,7 @@
 		"VA_AIF2 CAP", "VA_SWR_CLK",
 		"VA_AIF3 CAP", "VA_SWR_CLK";
 
-	qcom,msm-mbhc-hphl-swh = <1>;
-	qcom,msm-mbhc-gnd-swh = <1>;
 	qcom,wsa-max-devs = <0>;
-	qcom,swr-dmic-max-devs = <0>;
 	qcom,pri-mi2s-gpios = <&cdc_pri_tdm_gpios>;
 	qcom,msm-mbhc-usbc-audio-supported = <0>;
 	asoc-codec = <&stub_codec>, <&bolero>,
@@ -59,7 +53,6 @@
 	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
 			   "wcd938x_codec", "swr-haptics",
 			   "wsa-codec2", "msm-ext-disp-audio-codec-rx";
-	qcom,msm_audio_ssr_devs = <&audio_apr>, <&q6core>, <&lpi_tlmm>, <&bolero>;
 };
 
 &q6core {
