@@ -1335,4 +1335,6 @@ source "drivers/input/touchscreen/nt36xxx/Kconfig"
 
 source "drivers/input/touchscreen/xiaomi/Kconfig"
 
+source "drivers/input/touchscreen/gt9916_m20/Kconfig"
+
 endif
