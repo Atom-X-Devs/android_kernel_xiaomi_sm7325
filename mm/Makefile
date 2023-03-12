@@ -1,5 +1,7 @@
-# SPDX-License-Identifier: GPL-2.0
+
+CFLAGS_kmemleak.o += -DCONFIG_DEBUG_FS# SPDX-License-Identifier: GPL-2.0
 #
+
 # Makefile for the linux memory manager.
 #
 
@@ -107,3 +109,5 @@ obj-$(CONFIG_PERCPU_STATS) += percpu-stats.o
 obj-$(CONFIG_ZONE_DEVICE) += memremap.o
 obj-$(CONFIG_HMM_MIRROR) += hmm.o
 obj-$(CONFIG_MEMFD_CREATE) += memfd.o
+
+CFLAGS_kmemleak.o += -DCONFIG_DEBUG_FS
