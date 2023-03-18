@@ -31,6 +31,7 @@
 #include <linux/syscalls.h>
 #include <linux/power_supply.h>
 #include <linux/pm_qos.h>
+#include <linux/mmhardware_detect.h>
 #include "ringbuffer.h"
 #include "aw_haptic.h"
 #include "aw8697.h"
@@ -821,6 +822,10 @@ static int awinic_i2c_probe(struct i2c_client *i2c,
 		aw_info("%s error creating ringbuffer\n", __func__);
 		goto err_rb;
 	}
+
+#ifdef CONFIG_MMHARDWARE_DETECTION
+	register_otherkobj_under_mmsysfs(MM_HW_HAPTIC_1, "haptic1");
+#endif
 
 	aw_info("%s awinic driver version %s\n", __func__, AW_DRIVER_VERSION);
 

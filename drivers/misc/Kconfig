@@ -530,6 +530,12 @@ config MI_HARDWARE_ID
 	help
 	  This adds support for mi hwid.
 
+config MMHARDWARE_DETECTION
+	tristate "Register xiaomi mmhardware detection module"
+	depends on MACH_XIAOMI
+	help
+	  This adds support for mmhardware detection
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

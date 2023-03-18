@@ -12,6 +12,7 @@
 #include <linux/usb/ucsi_glink.h>
 #include <linux/soc/qcom/fsa4480-i2c.h>
 #include <linux/iio/consumer.h>
+#include <linux/mmhardware_detect.h>
 
 #define FSA4480_I2C_NAME	"fsa4480-driver"
 
@@ -520,6 +521,10 @@ static int fsa4480_probe(struct i2c_client *i2c,
 		(struct rw_semaphore)__RWSEM_INITIALIZER
 		((fsa_priv->fsa4480_notifier).rwsem);
 	fsa_priv->fsa4480_notifier.head = NULL;
+
+#ifdef CONFIG_MMHARDWARE_DETECTION
+	register_otherkobj_under_mmsysfs(MM_HW_AS, "audioswitch");
+#endif
 
 	return 0;
 
