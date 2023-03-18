@@ -418,6 +418,36 @@ config QTI_BATTERY_CHARGER
 	  To compile the driver as a module, choose M here: the module will be
 	  called qti_battery_charger.
 
+config AI_RSOC
+	tristate "get average current and RSOC config"
+	depends on QTI_BATTERY_CHARGER
+	help
+	  Say Y here to enable create node to get average current and RSOC
+
+config BQ2597X_BATTERY_CHARGER
+	bool "BQ2597X battery charger"
+	depends on QTI_BATTERY_CHARGER
+	help
+	  Say Y here to enable BQ2597X battery charger
+
+config BQ_CLOUD_AUTHENTICATION
+	tristate "BQ cloud thentication config"
+	depends on QTI_BATTERY_CHARGER
+	help
+	  Say Y here to enable Bq cloud thentication
+
+config BQ_FG_1S
+	bool "BQ for one battery"
+	depends on QTI_BATTERY_CHARGER
+	help
+	  Say Y here to enable BQ_FG_1S
+
+config BQ_FUEL_GAUGE
+	tristate "BQ fuel gauge config"
+	depends on QTI_BATTERY_CHARGER
+	help
+	  Say Y here to enable Bq fuel gauge
+
 config CHARGER_88PM860X
 	tristate "Marvell 88PM860x Charger driver"
 	depends on MFD_88PM860X && BATTERY_88PM860X
