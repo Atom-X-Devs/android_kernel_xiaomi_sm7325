@@ -20,6 +20,10 @@ struct i2c_dev {
 	spinlock_t irq_enabled_lock;
 	// NFC_IRQ wake-up state
 	bool irq_wake_up;
+#ifdef CONFIG_MACH_XIAOMI
+	// NFC_IRQ Count
+	unsigned int count_irq;
+#endif
 };
 long nfc_i2c_dev_ioctl(struct file *pfile, unsigned int cmd, unsigned long arg);
 int nfc_i2c_dev_probe(struct i2c_client *client,
