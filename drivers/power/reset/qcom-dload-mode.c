@@ -285,7 +285,6 @@ static int qcom_dload_panic(struct notifier_block *this, unsigned long event,
 static int qcom_dload_restart(struct notifier_block *this, unsigned long event,
 			      void *ptr)
 {
-
 	struct qcom_dload *poweroff = container_of(this, struct qcom_dload,
 						   restart_nb);
 
@@ -307,10 +306,15 @@ static int qcom_dload_reboot(struct notifier_block *this, unsigned long event,
 	poweroff->in_reboot = true;
 	set_download_mode(QCOM_DOWNLOAD_NODUMP);
 	if (cmd) {
+#ifndef CONFIG_MACH_XIAOMI
 		if (!strcmp(cmd, "edl"))
 			set_download_mode(QCOM_DOWNLOAD_EDL);
 		else if (!strcmp(cmd, "qcom_dload"))
 			msm_enable_dump_mode(true);
+#else
+		if (!strcmp(cmd, "qcom_dload"))
+				msm_enable_dump_mode(true);
+#endif
 	}
 
 	if (current_download_mode != QCOM_DOWNLOAD_NODUMP)
