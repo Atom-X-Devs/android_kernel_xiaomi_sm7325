@@ -25,6 +25,10 @@
 #include <linux/nfcinfo.h>
 #include <linux/regulator/consumer.h>
 #include <linux/ipc_logging.h>
+#ifdef CONFIG_MACH_XIAOMI
+#include <linux/hwid.h>
+#endif
+
 #include "nfc_i2c_drv.h"
 #include "nfc_i3c_drv.h"
 
@@ -86,6 +90,10 @@
 #define ESE_SET_PWR		_IOW(NFC_MAGIC, 0x02, unsigned int)
 #define ESE_GET_PWR		_IOR(NFC_MAGIC, 0x03, unsigned int)
 #define NFC_GET_PLATFORM_TYPE	_IO(NFC_MAGIC, 0x04)
+#ifdef CONFIG_MACH_XIAOMI
+#define NFC_GET_IRQ_STATE	_IOW(NFC_MAGIC, 0x05, unsigned int)
+#define NFCC_GET_IRQ_INFO	_IOW(NFC_MAGIC, 0x11, unsigned int)
+#endif
 
 #define DTS_IRQ_GPIO_STR	"qcom,sn-irq"
 #define DTS_VEN_GPIO_STR	"qcom,sn-ven"
