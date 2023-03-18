@@ -53,11 +53,19 @@ static irqreturn_t i2c_irq_handler(int irq, void *dev_id)
 {
 	struct nfc_dev *nfc_dev = dev_id;
 	struct i2c_dev *i2c_dev = &nfc_dev->i2c_dev;
+#ifdef CONFIG_MACH_XIAOMI
+	unsigned long flags;
+#endif
 
 	if (device_may_wakeup(&i2c_dev->client->dev))
 		pm_wakeup_event(&i2c_dev->client->dev, WAKEUP_SRC_TIMEOUT);
 
 	i2c_disable_irq(nfc_dev);
+#ifdef CONFIG_MACH_XIAOMI
+	spin_lock_irqsave(&i2c_dev->irq_enabled_lock, flags);
+	i2c_dev->count_irq++;
+	spin_unlock_irqrestore(&i2c_dev->irq_enabled_lock, flags);
+#endif
 	wake_up(&nfc_dev->read_wq);
 
 	return IRQ_HANDLED;
@@ -275,6 +283,20 @@ int nfc_i2c_dev_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct i2c_dev *i2c_dev = NULL;
 	struct platform_gpio nfc_gpio;
 	struct platform_ldo nfc_ldo;
+
+#ifdef CONFIG_MACH_XIAOMI
+	uint32_t hw_country_ver = 0;
+	int hw_platform_ver = -1;
+
+	hw_platform_ver = get_hw_version_platform();
+	if (hw_platform_ver == HARDWARE_PROJECT_M20) {
+		hw_country_ver = get_hw_country_version();
+		if ((uint32_t)CountryIndia == hw_country_ver) {
+			pr_info("%s: redwood Indian variant nfc not supported", __func__);
+			return -ENODEV;
+		}
+	}
+#endif
 
 	pr_debug("%s: enter\n", __func__);
 

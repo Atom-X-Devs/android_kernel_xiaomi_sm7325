@@ -643,6 +643,33 @@ unsigned int nfc_ioctl_nfcc_info(struct file *filp, unsigned long arg)
 	return r;
 }
 
+#ifdef CONFIG_MACH_XIAOMI
+/*
+ * Inside nfc_ioctl_nfcc_irq_info
+ *
+ * @brief   nfc_ioctl_nfcc_irq_info
+ *
+ * Check the NQ nfcc irq info
+ */
+unsigned int nfc_ioctl_nfcc_irq_info(struct file *filp, unsigned long arg)
+{
+	unsigned int r = 0;
+	struct nfc_dev *nfc_dev = filp->private_data;
+
+	/*
+	* bit 0~23: nfc_dev->i2c_dev.count_irq
+	* bit 24:   nfc_dev->i2c_dev.irq_enabled
+	* bit 25:   gpio_get_value(nfc_dev->gpio.clkreq)
+	*/
+	r = (nfc_dev->i2c_dev.count_irq & 0x00FFFFFF) |
+	    ((nfc_dev->i2c_dev.irq_enabled ? 1 : 0) << 24) |
+	    ((gpio_get_value(nfc_dev->gpio.clkreq) ? 1 : 0) << 25);
+	pr_debug("nfc : %s r = %d\n", __func__, r);
+
+	return r;
+}
+#endif
+
 /** @brief   IOCTL function  to be used to set or get data from upper layer.
  *
  *  @param   pfile  fil node for opened device.
@@ -674,9 +701,19 @@ long nfc_dev_ioctl(struct file *pfile, unsigned int cmd, unsigned long arg)
 	case NFCC_GET_INFO:
 		ret = nfc_ioctl_nfcc_info(pfile, arg);
 		break;
+#ifdef CONFIG_MACH_XIAOMI
+	case NFCC_GET_IRQ_INFO:
+		ret = nfc_ioctl_nfcc_irq_info(pfile, arg);
+		break;
+#endif
 	case NFC_GET_PLATFORM_TYPE:
 		ret = nfc_dev->interface;
 		break;
+#ifdef CONFIG_MACH_XIAOMI
+	case NFC_GET_IRQ_STATE:
+		ret = gpio_get_value(nfc_dev->gpio.irq);
+		break;
+#endif
 	default:
 		pr_err("%s bad cmd %lu\n", __func__, arg);
 		ret = -ENOIOCTLCMD;
@@ -697,6 +734,9 @@ int nfc_dev_open(struct inode *inode, struct file *filp)
 	mutex_lock(&nfc_dev->dev_ref_mutex);
 
 	filp->private_data = nfc_dev;
+#ifdef CONFIG_MACH_XIAOMI
+	nfc_dev->i2c_dev.count_irq = 0;
+#endif
 
 	if (nfc_dev->dev_ref_count == 0) {
 		if (gpio_is_valid(nfc_dev->gpio.dwl_req)) {
@@ -804,8 +844,20 @@ int nfcc_hw_check(struct nfc_dev *nfc_dev)
 	else {
 		/* making sure that the NFCC starts in a clean state. */
 		gpio_set_ven(nfc_dev, 1);/* HPD : Enable*/
+#ifdef CONFIG_MACH_XIAOMI
+		/* hardware dependent delay */
+		usleep_range(10000, 10100);
+#endif
 		gpio_set_ven(nfc_dev, 0);/* ULPM: Disable */
+#ifdef CONFIG_MACH_XIAOMI
+		/* hardware dependent delay */
+		usleep_range(10000, 10100);
+#endif
 		gpio_set_ven(nfc_dev, 1);/* HPD : Enable*/
+#ifdef CONFIG_MACH_XIAOMI
+		/* hardware dependent delay */
+		usleep_range(10000, 10100);
+#endif
 	}
 
 	nci_reset_cmd[0] = 0x20;
@@ -826,7 +878,13 @@ int nfcc_hw_check(struct nfc_dev *nfc_dev)
 
 		if (nfc_dev->interface == PLATFORM_IF_I2C) {
 			gpio_set_ven(nfc_dev, 0);
+#ifdef CONFIG_MACH_XIAOMI
+			usleep_range(10000, 10100);
+#endif
 			gpio_set_ven(nfc_dev, 1);
+#ifdef CONFIG_MACH_XIAOMI
+			usleep_range(10000, 10100);
+#endif
 		}
 
 		nci_get_version_cmd[0] = 0x00;
@@ -846,6 +904,7 @@ int nfcc_hw_check(struct nfc_dev *nfc_dev)
 			goto err_nfcc_hw_check;
 		}
 
+#ifndef CONFIG_MACH_XIAOMI
 		if (nfc_dev->interface == PLATFORM_IF_I2C) {
 			ret = is_data_available_for_read(nfc_dev);
 			if (ret <= 0) {
@@ -855,6 +914,10 @@ int nfcc_hw_check(struct nfc_dev *nfc_dev)
 				goto err_nfcc_hw_check;
 			}
 		}
+#else
+		/* hardware dependent delay */
+		usleep_range(10000, 10100);
+#endif
 
 		ret = nfc_dev->nfc_read(nfc_dev, nci_get_version_rsp,
 					NCI_GET_VERSION_RSP_LEN);
@@ -878,6 +941,7 @@ int nfcc_hw_check(struct nfc_dev *nfc_dev)
 		goto err_nfcc_reset_failed;
 	}
 
+#ifndef CONFIG_MACH_XIAOMI
 	if (nfc_dev->interface == PLATFORM_IF_I2C) {
 		ret = is_data_available_for_read(nfc_dev);
 		if (ret <= 0) {
@@ -888,6 +952,10 @@ int nfcc_hw_check(struct nfc_dev *nfc_dev)
 			goto err_nfcc_hw_check;
 		}
 	}
+#else
+	/* hardware dependent delay */
+	msleep(60);
+#endif
 
 	/* Read Response of RESET command */
 	ret = nfc_dev->nfc_read(nfc_dev, nci_reset_rsp, NCI_RESET_RSP_LEN);
@@ -897,6 +965,7 @@ int nfcc_hw_check(struct nfc_dev *nfc_dev)
 		goto err_nfcc_hw_check;
 	}
 
+#ifndef CONFIG_MACH_XIAOMI
 	if (nfc_dev->interface == PLATFORM_IF_I2C) {
 		ret = is_data_available_for_read(nfc_dev);
 		if (ret <= 0) {
@@ -906,6 +975,10 @@ int nfcc_hw_check(struct nfc_dev *nfc_dev)
 			goto err_nfcc_hw_check;
 		}
 	}
+#else
+	/* hardware dependent delay */
+	msleep(30);
+#endif
 
 	/* Read Notification of RESET command */
 	ret = nfc_dev->nfc_read(nfc_dev, nci_reset_ntf, NCI_RESET_NTF_LEN);
