@@ -3,7 +3,6 @@
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  */
 
-#define CREATE_TRACE_POINTS
 #define MAX_SSR_STRING_LEN 64
 #define MAX_DEBUG_LEVEL_STRING_LEN 15
 #include "msm_vidc_debug.h"

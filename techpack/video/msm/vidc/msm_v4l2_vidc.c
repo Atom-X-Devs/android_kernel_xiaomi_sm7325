@@ -14,6 +14,10 @@
 #include "vidc_hfi_api.h"
 #include "msm_vidc_clocks.h"
 
+#ifdef CONFIG_DEBUG_FS
+#define CREATE_TRACE_POINTS
+#endif
+
 #define BASE_DEVICE_NUMBER 32
 
 struct msm_vidc_drv *vidc_driver;

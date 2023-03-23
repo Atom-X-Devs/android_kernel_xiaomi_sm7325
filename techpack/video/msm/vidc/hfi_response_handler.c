@@ -371,7 +371,9 @@ static int hfi_process_session_error(u32 device_id,
 		struct msm_vidc_cb_info *info)
 {
 	struct msm_vidc_cb_cmd_done cmd_done = {0};
+#ifdef CONFIG_DEBUG_FS
 	u32 sid = pkt->sid;
+#endif
 
 	cmd_done.device_id = device_id;
 	cmd_done.inst_id = (void *)(uintptr_t)pkt->sid;
