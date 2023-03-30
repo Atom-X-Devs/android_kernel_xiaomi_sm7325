@@ -10,6 +10,7 @@
 #include "sde_formats.h"
 #include "dsi_display.h"
 #include "sde_trace.h"
+#include "mi_sde_encoder.h"
 
 #define SDE_DEBUG_VIDENC(e, fmt, ...) SDE_DEBUG("enc%d intf%d " fmt, \
 		(e) && (e)->base.parent ? \
@@ -500,6 +501,8 @@ static void sde_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
 	hw_ctl = phys_enc->hw_ctl;
 	if (!hw_ctl)
 		return;
+
+	mi_sde_encoder_save_vsync_info(phys_enc);
 
 	SDE_ATRACE_BEGIN("vblank_irq");
 

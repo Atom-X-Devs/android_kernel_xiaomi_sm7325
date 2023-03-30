@@ -43,6 +43,9 @@
 #include "sde_hw_qdss.h"
 #include "sde_encoder_dce.h"
 #include "sde_vm.h"
+#include "mi_sde_encoder.h"
+#include "dsi_drm.h"
+#include "dsi_display.h"
 
 #define SDE_DEBUG_ENC(e, fmt, ...) SDE_DEBUG("enc%d " fmt,\
 		(e) ? (e)->base.base.id : -1, ##__VA_ARGS__)
@@ -1657,6 +1660,10 @@ static void _sde_encoder_rc_restart_delayed(struct sde_encoder_virt *sde_enc,
 	struct msm_drm_private *priv;
 	unsigned int lp, idle_pc_duration;
 	struct msm_drm_thread *disp_thread;
+
+	/* return early if called from esd thread */
+	if (sde_enc->delay_kickoff)
+		return;
 
 	/* set idle timeout based on master connector's lp value */
 	if (sde_enc->cur_master)
@@ -4209,6 +4216,8 @@ int sde_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
 				sde_enc->cur_master, sde_kms->qdss_enabled);
 
 end:
+	if (sde_enc->ready_kickoff)
+		sde_enc->prepare_kickoff = true;
 	SDE_ATRACE_END("sde_encoder_prepare_for_kickoff");
 	return ret;
 }
@@ -4252,12 +4261,46 @@ static int _sde_encoder_reset_ctl_hw(struct drm_encoder *drm_enc)
 	return rc;
 }
 
+int sde_encoder_vid_wait_for_active(struct drm_encoder *drm_enc)
+{
+	struct drm_display_mode mode;
+	struct sde_encoder_virt *sde_enc = NULL;
+	u32 ln_cnt, min_ln_cnt, active_mark_region;
+	u32 i, retry = 15;
+	if (!drm_enc) {
+		SDE_ERROR("invalid encoder\n");
+		return -EINVAL;
+	}
+	sde_enc = to_sde_encoder_virt(drm_enc);
+	for (i = 0; i < sde_enc->num_phys_encs; i++) {
+		struct sde_encoder_phys *phys = sde_enc->phys_encs[i];
+		if (!phys || (phys->ops.is_master && !phys->ops.is_master(phys)))
+			continue;
+
+		mode = phys->cached_mode;
+		min_ln_cnt = (mode.vtotal - mode.vsync_start) +
+			(mode.vsync_end - mode.vsync_start);
+		active_mark_region = mode.vdisplay + min_ln_cnt - mode.vdisplay / 4;
+		while (retry) {
+			ln_cnt = phys->ops.get_line_count(phys);
+			if ((ln_cnt > min_ln_cnt) && (ln_cnt < active_mark_region))
+				return 0;
+			udelay(2000);
+			retry--;
+		}
+	}
+	return -EINVAL;
+}
+
 void sde_encoder_kickoff(struct drm_encoder *drm_enc, bool is_error,
 		bool config_changed)
 {
 	struct sde_encoder_virt *sde_enc;
 	struct sde_encoder_phys *phys;
 	unsigned int i;
+	struct dsi_bridge *c_bridge = NULL;
+	struct dsi_display *dsi_display = NULL;
+	struct dsi_display_mode adj_mode;
 
 	if (!drm_enc) {
 		SDE_ERROR("invalid encoder\n");
@@ -4267,6 +4310,16 @@ void sde_encoder_kickoff(struct drm_encoder *drm_enc, bool is_error,
 	sde_enc = to_sde_encoder_virt(drm_enc);
 
 	SDE_DEBUG_ENC(sde_enc, "\n");
+
+	if (sde_enc->disp_info.intf_type == DRM_MODE_CONNECTOR_DSI && drm_enc->bridge) {
+		c_bridge = container_of(drm_enc->bridge, struct dsi_bridge, base);
+		if (c_bridge) {
+			dsi_display = c_bridge->display;
+			adj_mode = c_bridge->dsi_mode;
+		}
+	}
+
+	mi_sde_encoder_calc_fps(drm_enc);
 
 	/* create a 'no pipes' commit to release buffers on errors */
 	if (is_error)
@@ -4285,6 +4338,13 @@ void sde_encoder_kickoff(struct drm_encoder *drm_enc, bool is_error,
 		SDE_EVT32(DRMID(drm_enc), i, SDE_EVTLOG_FUNC_CASE1);
 	}
 
+	if (dsi_display && dsi_display->panel
+		&& sde_enc->disp_info.intf_type == DRM_MODE_CONNECTOR_DSI
+		&& dsi_display->panel->mi_cfg.panel_id == 0x4D323000360200
+		&& adj_mode.dsi_mode_flags & DSI_MODE_FLAG_VRR) {
+		sde_encoder_vid_wait_for_active(drm_enc);
+	}
+
 	/* All phys encs are ready to go, trigger the kickoff */
 	_sde_encoder_kickoff_phys(sde_enc, config_changed);
 
@@ -4293,6 +4353,13 @@ void sde_encoder_kickoff(struct drm_encoder *drm_enc, bool is_error,
 		phys = sde_enc->phys_encs[i];
 		if (phys && phys->ops.handle_post_kickoff)
 			phys->ops.handle_post_kickoff(phys);
+	}
+
+	if (dsi_display && dsi_display->panel
+		&& sde_enc->disp_info.intf_type == DRM_MODE_CONNECTOR_DSI
+		&& dsi_display->panel->mi_cfg.panel_id == 0x4D323000360200
+		&& adj_mode.dsi_mode_flags & DSI_MODE_FLAG_VRR) {
+		dsi_panel_gamma_switch(dsi_display->panel);
 	}
 
 	if (sde_enc->autorefresh_solver_disable &&

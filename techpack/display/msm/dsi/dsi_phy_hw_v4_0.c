@@ -338,17 +338,33 @@ static void dsi_phy_hw_dphy_enable(struct dsi_phy_hw *phy,
 		less_than_1500_mhz = true;
 
 	if (phy->version == DSI_PHY_VERSION_4_2) {
-		vreg_ctrl_0 = less_than_1500_mhz ? 0x53 : 0x52;
+		if (cfg->phy_voltage)
+			vreg_ctrl_0 = cfg->phy_voltage;
+		else
+			vreg_ctrl_0 = less_than_1500_mhz ? 0x53 : 0x52;
 		glbl_rescode_top_ctrl = less_than_1500_mhz ? 0x3c : 0x00;
 		glbl_rescode_bot_ctrl = less_than_1500_mhz ? 0x38 : 0x39;
-		glbl_str_swi_cal_sel_ctrl = 0x00;
-		glbl_hstx_str_ctrl_0 = 0x88;
+		if (cfg->clk_strength) {
+			glbl_str_swi_cal_sel_ctrl = 0x1;
+			glbl_hstx_str_ctrl_0 = cfg->clk_strength;
+		} else {
+			glbl_str_swi_cal_sel_ctrl = 0x00;
+			glbl_hstx_str_ctrl_0 = 0x88;	
+		}
 	} else if (phy->version == DSI_PHY_VERSION_4_1) {
-		vreg_ctrl_0 = less_than_1500_mhz ? 0x53 : 0x52;
+		if (cfg->phy_voltage)
+			vreg_ctrl_0 = cfg->phy_voltage;
+		else
+			vreg_ctrl_0 = less_than_1500_mhz ? 0x53 : 0x52;
 		glbl_rescode_top_ctrl = less_than_1500_mhz ? 0x3d :  0x00;
 		glbl_rescode_bot_ctrl = less_than_1500_mhz ? 0x39 :  0x3c;
-		glbl_str_swi_cal_sel_ctrl = 0x00;
-		glbl_hstx_str_ctrl_0 = 0x88;
+		if (cfg->clk_strength) {
+			glbl_str_swi_cal_sel_ctrl = 0x1;
+			glbl_hstx_str_ctrl_0 = cfg->clk_strength;
+		} else {
+			glbl_str_swi_cal_sel_ctrl = 0x00;
+			glbl_hstx_str_ctrl_0 = 0x88;	
+		}
 	} else {
 		vreg_ctrl_0 = less_than_1500_mhz ? 0x5B : 0x59;
 		glbl_str_swi_cal_sel_ctrl = less_than_1500_mhz ? 0x03 : 0x00;
