@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -3039,19 +3040,22 @@ static int tasha_codec_enable_slimrx(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		dev_dbg(component->dev, "%s: Enabling RX port and channels\n");
 		dai->bus_down_in_recovery = false;
 		tasha_codec_enable_int_port(dai, component);
 		(void) tasha_codec_enable_slim_chmask(dai, true);
 		ret = wcd9xxx_cfg_slim_sch_rx(core, &dai->wcd9xxx_ch_list,
 					      dai->rate, dai->bit_width,
-					      &dai->grph);
+					      dai->direction);
+		dev_dbg(component->dev, "%s: Enabling RX port and channels done, ret =%d\n",
+				__func__, ret);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		tasha_codec_vote_max_bw(component, true);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		ret = wcd9xxx_disconnect_port(core, &dai->wcd9xxx_ch_list,
-					      dai->grph);
+		dev_dbg(component->dev, "%s: Disabling RX port and channels\n", __func__);
+		ret = wcd9xxx_disconnect_port_rx(core);
 		dev_dbg(component->dev, "%s: Disconnect RX port, ret = %d\n",
 			__func__, ret);
 
@@ -3061,8 +3065,8 @@ static int tasha_codec_enable_slimrx(struct snd_soc_dapm_widget *w,
 			dev_dbg(component->dev,
 				"%s: bus in recovery skip enable slim_chmask",
 				__func__);
-		ret = wcd9xxx_close_slim_sch_rx(core, &dai->wcd9xxx_ch_list,
-						dai->grph);
+		dev_dbg(component->dev, "%s: Disabling RX port and channels done,ret=%d\n",
+				__func__, ret);
 		break;
 	}
 	return ret;
@@ -3164,20 +3168,16 @@ static int tasha_codec_enable_slimvi_feedback(struct snd_soc_dapm_widget *w,
 		(void) tasha_codec_enable_slim_chmask(dai, true);
 		ret = wcd9xxx_cfg_slim_sch_tx(core, &dai->wcd9xxx_ch_list,
 					      dai->rate, dai->bit_width,
-					      &dai->grph);
+					      dai->direction);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		ret = wcd9xxx_close_slim_sch_tx(core, &dai->wcd9xxx_ch_list,
-						dai->grph);
 		if (ret)
 			dev_err(component->dev, "%s error in close_slim_sch_tx %d\n",
 				__func__, ret);
 		if (!dai->bus_down_in_recovery)
 			ret = tasha_codec_enable_slim_chmask(dai, false);
 		if (ret < 0) {
-			ret = wcd9xxx_disconnect_port(core,
-				&dai->wcd9xxx_ch_list,
-				dai->grph);
+			ret = wcd9xxx_disconnect_port_tx(core);
 			dev_dbg(component->dev, "%s: Disconnect TX port, ret = %d\n",
 				__func__, ret);
 		}
@@ -3243,29 +3243,28 @@ static int __tasha_codec_enable_slimtx(struct snd_soc_component *component,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		dev_dbg(component->dev, "%s: Enabling tx ports and channels\n",
+				__func__);
 		dai->bus_down_in_recovery = false;
 		tasha_codec_enable_int_port(dai, component);
 		(void) tasha_codec_enable_slim_chmask(dai, true);
 		ret = wcd9xxx_cfg_slim_sch_tx(core, &dai->wcd9xxx_ch_list,
 					      dai->rate, dai->bit_width,
-					      &dai->grph);
+					      dai->direction);
+		dev_dbg(component->dev, "%s: Enabling tx ports and channels done\n", __func__);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		ret = wcd9xxx_close_slim_sch_tx(core, &dai->wcd9xxx_ch_list,
-						dai->grph);
+		dev_dbg(component->dev, "%s: Disbaling tx ports and channels\n", __func__);
 		if (!dai->bus_down_in_recovery)
 			ret = tasha_codec_enable_slim_chmask(dai, false);
 		if (ret < 0) {
-			ret = wcd9xxx_disconnect_port(core,
-						      &dai->wcd9xxx_ch_list,
-						      dai->grph);
-			pr_debug("%s: Disconnect TX port, ret = %d\n",
+			ret = wcd9xxx_disconnect_port_tx(core);
+			pr_debug("%s: Disconnect RX port, ret = %d\n",
 				 __func__, ret);
 		}
-
+		dev_dbg(component->dev, "%s: Disbaling RX ports and channels done\n", __func__);
 		break;
 	}
-
 	return ret;
 }
 
@@ -11876,6 +11875,7 @@ static int tasha_hw_params(struct snd_pcm_substream *substream,
 
 	switch (substream->stream) {
 	case SNDRV_PCM_STREAM_PLAYBACK:
+		tasha->dai[dai->id].direction = substream->stream;
 		ret = tasha_set_interpolator_rate(dai, params_rate(params));
 		if (ret) {
 			pr_err("%s: cannot set sample rate: %u\n",
@@ -11930,6 +11930,7 @@ static int tasha_hw_params(struct snd_pcm_substream *substream,
 		}
 		break;
 	case SNDRV_PCM_STREAM_CAPTURE:
+		tasha->dai[dai->id].direction = substream->stream;
 		switch (params_rate(params)) {
 		case 8000:
 			tx_fs_rate = 0;

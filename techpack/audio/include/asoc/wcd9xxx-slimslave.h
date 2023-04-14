@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __WCD9XXX_SLIMSLAVE_H_
@@ -82,30 +83,25 @@ int wcd9xxx_init_slimslave(struct wcd9xxx *wcd9xxx,
 			   u8 wcd9xxx_pgd_la,
 			   unsigned int tx_num, unsigned int *tx_slot,
 			   unsigned int rx_num, unsigned int *rx_slot);
-
-int wcd9xxx_deinit_slimslave(struct wcd9xxx *wcd9xxx);
-
 int wcd9xxx_cfg_slim_sch_rx(struct wcd9xxx *wcd9xxx,
 			    struct list_head *wcd9xxx_ch_list,
 			    unsigned int rate, unsigned int bit_width,
-			    u16 *grph);
+			    unsigned int direction);
 int wcd9xxx_cfg_slim_sch_tx(struct wcd9xxx *wcd9xxx,
 			    struct list_head *wcd9xxx_ch_list,
 			    unsigned int rate, unsigned int bit_width,
-				u16 *grph);
-int wcd9xxx_close_slim_sch_rx(struct wcd9xxx *wcd9xxx,
-			      struct list_head *wcd9xxx_ch_list, u16 grph);
-int wcd9xxx_close_slim_sch_tx(struct wcd9xxx *wcd9xxx,
-			      struct list_head *wcd9xxx_ch_list, u16 grph);
+			    unsigned int direction);
+int wcd9xxx_close_slim_sch(struct slim_stream_config *sconfig);
 int wcd9xxx_get_channel(struct wcd9xxx *wcd9xxx,
 			unsigned int *rx_ch,
 			unsigned int *tx_ch);
 int wcd9xxx_get_slave_port(unsigned int ch_num);
-int wcd9xxx_disconnect_port(struct wcd9xxx *wcd9xxx,
-			    struct list_head *wcd9xxx_ch_list, u16 grph);
+int wcd9xxx_disconnect_port_tx(struct wcd9xxx *wcd9xxx);
+int wcd9xxx_disconnect_port_rx(struct wcd9xxx *wcd9xxx);
 int wcd9xxx_rx_vport_validation(u32 port_id,
 				struct list_head *codec_dai_list);
 int wcd9xxx_tx_vport_validation(u32 vtable, u32 port_id,
 				struct wcd9xxx_codec_dai_data *codec_dai,
 				u32 num_codec_dais);
+int wcd9xxx_deinit_slimslave(struct wcd9xxx *wcd9xxx);
 #endif /* __WCD9XXX_SLIMSLAVE_H_ */
