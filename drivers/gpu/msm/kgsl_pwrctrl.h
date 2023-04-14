@@ -26,7 +26,6 @@
 #define KGSL_PWRFLAGS_CLK_ON   1
 #define KGSL_PWRFLAGS_AXI_ON   2
 #define KGSL_PWRFLAGS_IRQ_ON   3
-#define KGSL_PWRFLAGS_NAP_OFF  5
 
 /* Only two supported levels, min & max */
 #define KGSL_CONSTRAINT_PWR_MAXLEVELS 2
@@ -168,10 +167,6 @@ struct kgsl_pwrctrl {
 	struct icc_path *icc_path;
 	/** cur_ab: The last ab voted by the driver */
 	u32 cur_ab;
-	/** @minbw_timer - Timer struct for entering minimum bandwidth state */
-	struct timer_list minbw_timer;
-	/** @minbw_timeout - Timeout for entering minimum bandwidth state */
-	u32 minbw_timeout;
 	/** @ddr_qos_devfreq: Devfreq device for setting DDR qos policy */
 	struct devfreq *ddr_qos_devfreq;
 	/** @time_in_pwrlevel: Each pwrlevel active duration in usec */

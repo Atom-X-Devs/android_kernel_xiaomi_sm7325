@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk/qcom.h>
@@ -1170,32 +1171,6 @@ static void a5xx_pwrlevel_change_settings(struct adreno_device *adreno_dev,
 	}
 }
 
-#if IS_ENABLED(CONFIG_COMMON_CLK_QCOM)
-static void a5xx_clk_set_options(struct adreno_device *adreno_dev,
-	const char *name, struct clk *clk, bool on)
-{
-	if (!adreno_is_a540(adreno_dev) && !adreno_is_a512(adreno_dev) &&
-		!adreno_is_a508(adreno_dev))
-		return;
-
-	/* Handle clock settings for GFX PSCBCs */
-	if (on) {
-		if (!strcmp(name, "mem_iface_clk")) {
-			qcom_clk_set_flags(clk, CLKFLAG_NORETAIN_PERIPH);
-			qcom_clk_set_flags(clk, CLKFLAG_NORETAIN_MEM);
-		} else if (!strcmp(name, "core_clk")) {
-			qcom_clk_set_flags(clk, CLKFLAG_RETAIN_PERIPH);
-			qcom_clk_set_flags(clk, CLKFLAG_RETAIN_MEM);
-		}
-	} else {
-		if (!strcmp(name, "core_clk")) {
-			qcom_clk_set_flags(clk, CLKFLAG_NORETAIN_PERIPH);
-			qcom_clk_set_flags(clk, CLKFLAG_NORETAIN_MEM);
-		}
-	}
-}
-#endif
-
 static void a5xx_count_throttles(struct adreno_device *adreno_dev,
 		uint64_t adj)
 {
@@ -1265,15 +1240,10 @@ static void a5xx_gpmu_reset(struct work_struct *work)
 	 * after the watchdog timeout, then there is no need to reset GPMU
 	 * again.
 	 */
-	if (device->state != KGSL_STATE_NAP &&
-		device->state != KGSL_STATE_AWARE &&
-		device->state != KGSL_STATE_ACTIVE)
+	if (device->state != KGSL_STATE_AWARE && device->state != KGSL_STATE_ACTIVE)
 		return;
 
 	mutex_lock(&device->mutex);
-
-	if (device->state == KGSL_STATE_NAP)
-		kgsl_pwrctrl_change_state(device, KGSL_STATE_AWARE);
 
 	if (a5xx_regulator_enable(adreno_dev))
 		goto out;
@@ -2671,9 +2641,6 @@ const struct adreno_gpudev adreno_a5xx_gpudev = {
 			a5xx_preemption_post_ibsubmit,
 	.preemption_init = a5xx_preemption_init,
 	.preemption_schedule = a5xx_preemption_schedule,
-#if IS_ENABLED(CONFIG_COMMON_CLK_QCOM)
-	.clk_set_options = a5xx_clk_set_options,
-#endif
 	.read_alwayson = a5xx_read_alwayson,
 	.hw_isidle = a5xx_hw_isidle,
 	.power_ops = &adreno_power_operations,
