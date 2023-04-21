@@ -4195,10 +4195,6 @@ static void _sde_crtc_reset(struct drm_crtc *crtc)
 	sde_crtc->num_mixers = 0;
 	sde_crtc->mixers_swapped = false;
 
-	/* disable clk & bw control until clk & bw properties are set */
-	cstate->bw_control = false;
-	cstate->bw_split_vote = false;
-
 	sde_crtc_static_img_control(crtc, CACHE_STATE_DISABLED, false);
 }
 
