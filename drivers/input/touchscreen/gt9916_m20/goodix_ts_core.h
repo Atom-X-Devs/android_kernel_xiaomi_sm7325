@@ -1,5 +1,22 @@
+/*
+ * Goodix Gesture Module
+ *
+ * Copyright (C) 2019 - 2020 Goodix, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be a reference
+ * to you, when you are integrating the GOODiX's CTP IC into your system,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ */
 #ifndef _GOODIX_TS_CORE_H_
 #define _GOODIX_TS_CORE_H_
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -16,7 +33,7 @@
 #include <linux/completion.h>
 #include <linux/of_irq.h>
 #include <linux/pm_runtime.h>
-#include <drm/mi_disp_notifier.h>
+
 #ifdef CONFIG_OF
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
@@ -25,6 +42,9 @@
 #include <linux/notifier.h>
 #include <linux/fb.h>
 #endif
+
+#include <drm/mi_disp_notifier.h>
+
 #include "../xiaomi/xiaomi_touch.h"
 
 #define GOODIX_CORE_DRIVER_NAME			"goodix_ts"
@@ -47,22 +67,18 @@
 
 #define TS_DEFAULT_FIRMWARE				"goodix_firmware.bin"
 #define TS_DEFAULT_CFG_BIN 				"goodix_cfg_group.bin"
+
 #define GOODIX_LOCKDOWN_SIZE		8
-#define TS_LOCKDOWN_REG				0x10030
-
 #define GOODIX_XIAOMI_TOUCHFEATURE
-#define GOODIX_DEBUGFS_ENABLE
 
-#define GTP_RESULT_INVALID				0
-#define GTP_RESULT_FAIL					1
-#define GTP_RESULT_PASS					2
-#define CONFIG_TOUCHSCREEN_GOODIX_BRL_SPI
+#define FRAME_DATA_MAX_LEN	2000
 
-#define PANEL_ORIENTATION_DEGREE_0	0	/* normal portrait orientation */
-#define PANEL_ORIENTATION_DEGREE_90	1	/* anticlockwise 90 degrees */
-#define PANEL_ORIENTATION_DEGREE_180	2	/* anticlockwise 180 degrees */
-#define PANEL_ORIENTATION_DEGREE_270	3	/* anticlockwise 270 degrees */
-
+enum PANEL_ORIENTATION {
+	PANEL_ORIENTATION_DEGREE_0 = 0,
+	PANEL_ORIENTATION_DEGREE_90,
+	PANEL_ORIENTATION_DEGREE_180,
+	PANEL_ORIENTATION_DEGREE_270,
+};
 
 enum CORD_PROB_STA {
 	CORE_MODULE_UNPROBED = 0,
@@ -221,23 +237,12 @@ struct goodix_ic_info_misc { /* other data */
 	u32 auto_scan_info_addr;
 };
 
-struct goodix_ic_info_other {
-	u16 normalize_k_version;
-	u32 irrigation_data_addr;
-	u32 algo_debug_data_addr;
-	u16 algo_debug_data_len;
-	u32 update_sync_data_addr;
-	u16 screen_max_x;
-	u16 screen_max_y;
-};
-
 struct goodix_ic_info {
 	u16 length;
 	struct goodix_ic_info_version version;
 	struct goodix_ic_info_feature feature;
 	struct goodix_ic_info_param parm;
 	struct goodix_ic_info_misc misc;
-	struct goodix_ic_info_other other;
 };
 #pragma pack()
 
@@ -251,12 +256,6 @@ struct ts_rawdata_info {
 	int used_size; //fill in rawdata size
 	s16 buff[TS_RAWDATA_BUFF_MAX];
 	char result[TS_RAWDATA_RESULT_MAX];
-};
-
-#define FRAME_DATA_MAX_LEN	2000
-struct ts_framedata {
-	unsigned char buff[FRAME_DATA_MAX_LEN];
-	int used_size;
 };
 
 /*
@@ -294,7 +293,7 @@ struct goodix_ts_board_data {
 	int irq_gpio;
 	int avdd_gpio;
 	int iovdd_gpio;
-	unsigned int  irq_flags;
+	unsigned int irq_flags;
 
 	unsigned int swap_axis;
 	unsigned int panel_max_x;
@@ -367,6 +366,7 @@ enum touch_point_status {
 	TS_RELEASE,
 	TS_TOUCH,
 };
+
 /* coordinate package */
 struct goodix_ts_coords {
 	int status; /* NONE, RELEASE, TOUCH */
@@ -386,9 +386,6 @@ struct goodix_touch_data {
 	int touch_num;
 	struct goodix_ts_coords coords[GOODIX_MAX_TOUCH];
 	u8 tmp_data[32];
-	unsigned int overlay;
-	int fod_id;
-	int t_id;
 };
 
 struct goodix_ts_key {
@@ -456,7 +453,6 @@ struct goodix_ts_hw_ops {
 	int (*charger_on)(struct goodix_ts_core *cd, bool on);
 	int (*palm_on)(struct goodix_ts_core *cd, bool on);
 	int (*game)(struct goodix_ts_core *cd, u8 data0, u8 data1, bool on);
-	int (*get_frame_data)(struct goodix_ts_core *cd, struct ts_framedata *info);
 	int (*switch_report_rate)(struct goodix_ts_core *cd, bool on);
 };
 
@@ -485,11 +481,13 @@ struct goodix_ic_config {
 	int len;
 	u8 data[GOODIX_CFG_MAX_SIZE];
 };
+
 enum ts_work_stat {
 	TP_NORMAL,
 	TP_GESTURE,
 	TP_SLEEP,
 };
+
 struct goodix_ts_core {
 	int init_stage;
 	struct platform_device *pdev;
@@ -504,17 +502,11 @@ struct goodix_ts_core {
 	struct device *goodix_touch_dev;
  	/* TODO counld we remove this from core data? */
 	struct goodix_ts_event ts_event;
-	unsigned long touch_id;
-	u8 eventsdata;
 
 	/* every pointer of this array represent a kind of config */
 	struct goodix_ic_config *ic_configs[GOODIX_MAX_CONFIG_GROUP];
 	struct regulator *avdd;
 	struct regulator *iovdd;
-	struct pinctrl *pinctrl;
-	struct pinctrl_state *pin_sta_active;
-	struct pinctrl_state *pin_sta_suspend;
-	struct pinctrl_state *pin_sta_boot;
 
 	int power_on;
 	int irq;
@@ -522,50 +514,42 @@ struct goodix_ts_core {
 
 	atomic_t irq_enabled;
 	atomic_t suspended;
+
 	/* when this flag is true, driver should not clean the sync flag */
 	bool tools_ctrl_sync;
-	bool fod_finger;
-	bool fod_display_enabled;
 
 	struct notifier_block ts_notifier;
 	struct goodix_ts_esd ts_esd;
 
-#ifdef CONFIG_FB
-	struct notifier_block fb_notifier;
-#endif
 	struct notifier_block charger_notifier;
+	struct notifier_block notifier;
+
 	struct workqueue_struct *event_wq;
 	struct workqueue_struct *gesture_wq;
 	struct workqueue_struct *game_wq;
+
 	struct work_struct suspend_work;
 	struct work_struct resume_work;
 	struct work_struct charger_work;
 	struct work_struct gesture_work;
 	struct work_struct game_work;
 	struct work_struct power_supply_work;
+
 	u8 lockdown_info[GOODIX_LOCKDOWN_SIZE];
-	struct proc_dir_entry *tp_lockdown_info_proc;
-	struct proc_dir_entry *tp_fw_version_proc;
-	struct proc_dir_entry *tp_selftest_proc;
-#ifdef GOODIX_DEBUGFS_ENABLE
-	struct dentry *debugfs;
-#endif
+
 	struct mutex report_mutex;
+
 	int work_status;
 	int gesture_enabled;
 	int double_wakeup;
 	int aod_status;
-	int fod_status;
-	int fod_icon_status;
 	int nonui_status;
 	int charger_status;
 	int palm_status;
-	int result_type;
-	int power_status;
 	int report_rate;
 	bool tp_pm_suspend;
+
 	struct completion pm_resume_completion;
-	struct notifier_block notifier;
 };
 
 /* external module structures */
@@ -698,10 +682,13 @@ struct kobject *goodix_get_default_kobj(void);
 struct goodix_ts_hw_ops *goodix_get_hw_ops(void);
 int goodix_get_config_proc(struct goodix_ts_core *cd);
 
+#ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_SPI
 int goodix_spi_bus_init(void);
 void goodix_spi_bus_exit(void);
+#else
 int goodix_i2c_bus_init(void);
 void goodix_i2c_bus_exit(void);
+#endif
 
 u32 goodix_append_checksum(u8 *data, int len, int mode);
 int checksum_cmp(const u8 *data, int size, int mode);
@@ -718,12 +705,5 @@ int goodix_get_ic_type(struct device_node *node);
 int gesture_module_init(void);
 void gesture_module_exit(void);
 int goodix_gesture_enable(int enabel);
-int inspect_module_init(void);
-void inspect_module_exit(void);
-int goodix_tools_init(void);
-void goodix_tools_exit(void);
-int goodix_get_rawdata(struct device *dev, struct ts_rawdata_info *info);
-
-extern int mi_disp_set_fod_queue_work(u32 fod_btn, bool from_touch);
 
 #endif

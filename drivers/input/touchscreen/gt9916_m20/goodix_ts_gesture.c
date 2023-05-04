@@ -35,9 +35,7 @@
 #define GSX_GESTURE_TYPE_LEN	32
 #define TYPE_B_PROTOCOL
 
-static int  FP_Event_Gesture;
-
-
+static int FP_Event_Gesture;
 
 /*
  * struct gesture_module - gesture module data
@@ -235,8 +233,6 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 	struct goodix_ts_event gs_event = {0};
 	int ret;
 	int key_value;
-	unsigned int fodx,fody, fod_id;
-	unsigned int overlay_area;
 	u8 gesture_data[32];
 
 	if (atomic_read(&cd->suspended) == 0)
@@ -251,67 +247,14 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 	}
 
 	if (!(gs_event.event_type & EVENT_GESTURE)) {
-		ts_err("invalid event type: 0x%x",
-			cd->ts_event.event_type);
+		ts_err("invalid event type: 0x%x", cd->ts_event.event_type);
 		goto re_send_ges_cmd;
 	}
 
-	memcpy(gesture_data,gs_event.touch_data.tmp_data,32*sizeof(u8));
+	memcpy(gesture_data,gs_event.touch_data.tmp_data, 32 * sizeof(u8));
 	if ((gesture_data[0] & 0x08)  != 0)
 		FP_Event_Gesture = 1;
 
-	fod_id = gesture_data[17];
-	if (cd->fod_status && (FP_Event_Gesture == 1) &&
-		(gs_event.gesture_type== 0x46) &&
-		(cd->nonui_status != 2)) {
-		fodx = gesture_data[8] | (gesture_data[9] << 8);
-		fody = gesture_data[10] | (gesture_data[11] << 8);
-		overlay_area=gesture_data[12];
-		ts_info("gesture coordinate fodx:0x%x, fody:0x%x, overlay_area:0x%x",
-                            fodx,fody,overlay_area);
-		ts_info("fod down");
-			input_report_key(cd->input_dev, BTN_INFO, 1);
-			input_sync(cd->input_dev);
-#ifdef TYPE_B_PROTOCOL
-			input_mt_slot(cd->input_dev, fod_id);
-			ts_info("fod id:%d",fod_id);
-			input_mt_report_slot_state(cd->input_dev,
-					MT_TOOL_FINGER, 1);
-#endif
-			input_report_key(cd->input_dev, BTN_TOUCH, 1);
-			input_report_key(cd->input_dev, BTN_TOOL_FINGER, 1);
-			input_report_abs(cd->input_dev,ABS_MT_POSITION_X,fodx);
-			input_report_abs(cd->input_dev,ABS_MT_POSITION_Y,fody);
-			input_report_abs(cd->input_dev, ABS_MT_WIDTH_MAJOR,overlay_area);
-			input_report_abs(cd->input_dev, ABS_MT_WIDTH_MINOR,overlay_area);
-			input_sync(cd->input_dev);
-			mi_disp_set_fod_queue_work(1, true);
-			cd->fod_finger = true;
-			FP_Event_Gesture = 0;
-			goto re_send_ges_cmd;
-	}
-	if  ( (FP_Event_Gesture == 1) && (gs_event.gesture_type== 0x55)){
-		if (cd->fod_finger) {
-			ts_info("fod finger is %d",cd->fod_finger);
-			ts_info("fod up");
-			cd->fod_finger = false;
-			input_report_key(cd->input_dev, BTN_INFO, 0);
-			input_report_abs(cd->input_dev, ABS_MT_WIDTH_MAJOR, 0);
-			input_report_abs(cd->input_dev, ABS_MT_WIDTH_MINOR, 0);
-			input_sync(cd->input_dev);
-#ifdef TYPE_B_PROTOCOL
-			input_mt_slot(cd->input_dev, fod_id);
-			ts_info("fod id:%d",fod_id);
-			input_mt_report_slot_state(cd->input_dev,
-					MT_TOOL_FINGER, 0);
-#endif
-			input_report_key(cd->input_dev, BTN_TOUCH, 0);
-			input_report_key(cd->input_dev, BTN_TOOL_FINGER, 0);
-			input_sync(cd->input_dev);
-			mi_disp_set_fod_queue_work(0, true);
-		}
-		goto re_send_ges_cmd;
-	}
 	if (QUERYBIT(gsx_gesture->gesture_type, gs_event.gesture_type)) {
 		gsx_gesture->gesture_data = gs_event.gesture_type;
 		/* do resume routine */
@@ -320,9 +263,7 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 			ts_info("GTP gesture report double tap");
 			key_value = KEY_WAKEUP;
 		}
-		if ((cd->fod_icon_status || cd->aod_status) &&
-				cd->nonui_status == 0 && 
-				gs_event.gesture_type == 0x4c ) {
+		if (cd->aod_status && cd->nonui_status == 0 && gs_event.gesture_type == 0x4c ) {
 			ts_info("GTP gesture report single tap");
 			key_value = KEY_GOTO;
 		}

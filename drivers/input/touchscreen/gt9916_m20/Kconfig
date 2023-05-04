@@ -1,7 +1,7 @@
 #
 # Goodix touchscreen driver configuration
 #
-config TOUCHSCREEN_GOODIX_BRL_9916_M20
+menuconfig TOUCHSCREEN_GOODIX_BRL
 	tristate "Goodix berlin touchscreen"
 	help
 	  Say Y here if you have a Goodix berlin series touch controller
@@ -9,3 +9,19 @@ config TOUCHSCREEN_GOODIX_BRL_9916_M20
 
 	  If build module, say M.
 	  If unsure, say N.
+
+if TOUCHSCREEN_GOODIX_BRL
+
+config TOUCHSCREEN_GOODIX_BRL_SPI
+	bool "support SPI bus connection"
+	default y
+	help
+		Say Y here if the touchscreen is connected via SPI bus.
+
+config TOUCHSCREEN_GOODIX_BRL_QGKI
+	bool "Goodix berlin touchscreen qgki"
+	default y if QGKI
+	help
+		Goodix berlin touchscreen qgki.
+
+endif
