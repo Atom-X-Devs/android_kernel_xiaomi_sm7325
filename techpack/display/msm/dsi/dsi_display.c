@@ -8,7 +8,6 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/err.h>
-#include <drm/mi_disp_notifier.h>
 
 #include "msm_drv.h"
 #include "sde_connector.h"
@@ -26,7 +25,6 @@
 #include "mi_disp_feature.h"
 #include "mi_dsi_display.h"
 #include "mi_disp_print.h"
-
 
 #define to_dsi_display(x) container_of(x, struct dsi_display, host)
 #define INT_BASE_10 10
@@ -1301,7 +1299,6 @@ int dsi_display_set_power(struct drm_connector *connector,
 {
 	struct dsi_display *display = disp;
 	struct disp_event event;
-	struct mi_disp_notifier notify_data;
 	struct disp_display *dd_ptr;
 
 	struct disp_feature *df = mi_get_disp_feature();
@@ -1316,12 +1313,8 @@ int dsi_display_set_power(struct drm_connector *connector,
 	}
 
 	mutex_lock(&display->display_lock);
-
 	disp_id = mi_get_disp_id(display);
-
 	dd_ptr = &df->d_display[disp_id];
-	notify_data.data = &power_mode;
-	notify_data.disp_id = disp_id;
 
 	DISP_UTC_INFO("Display (%s), Power mode (%s)\n", display->display_type,
 			get_display_power_mode_name(power_mode));
@@ -1332,14 +1325,12 @@ int dsi_display_set_power(struct drm_connector *connector,
 			if (dsi_display_set_ulp_load(display, false) < 0)
 				DSI_WARN("failed to set load for lp1 state\n");
 		}
-		mi_disp_notifier_call_chain(MI_DISP_DPMS_EARLY_EVENT, &notify_data);
+		display->panel->power_mode = power_mode;
 		rc = dsi_panel_set_lp1(display->panel);
-		mi_disp_notifier_call_chain(MI_DISP_DPMS_EVENT, &notify_data);
 		break;
 	case SDE_MODE_DPMS_LP2:
-		mi_disp_notifier_call_chain(MI_DISP_DPMS_EARLY_EVENT, &notify_data);
+		display->panel->power_mode = power_mode;
 		rc = dsi_panel_set_lp2(display->panel);
-		mi_disp_notifier_call_chain(MI_DISP_DPMS_EVENT, &notify_data);
 		if (dsi_display_set_ulp_load(display, true) < 0)
 			DSI_WARN("failed to set load for lp2 state\n");
 		break;
@@ -1350,11 +1341,9 @@ int dsi_display_set_power(struct drm_connector *connector,
 		}
 		if ((display->panel->power_mode == SDE_MODE_DPMS_LP1) ||
 			(display->panel->power_mode == SDE_MODE_DPMS_LP2)) {
-			mi_disp_notifier_call_chain(MI_DISP_DPMS_EARLY_EVENT, &notify_data);
 			rc = dsi_panel_set_nolp(display->panel);
 			update_bl = true;
 		}
-		mi_disp_notifier_call_chain(MI_DISP_DPMS_EVENT, &notify_data);
 		break;
 	case SDE_MODE_DPMS_OFF:
 		event.disp_id = disp_id;
@@ -1385,7 +1374,6 @@ int dsi_display_set_power(struct drm_connector *connector,
 		event.length = sizeof(power_mode);
 		mi_disp_feature_event_notify(&event, (u8 *)&power_mode);
 	}
-
 	mutex_unlock(&display->display_lock);
 
 	return rc;
@@ -7601,8 +7589,6 @@ int dsi_display_set_mode(struct dsi_display *display,
 	struct dsi_display_mode adj_mode;
 	struct dsi_mode_info timing;
 	struct disp_event event;
-	struct mi_disp_notifier notify_data;
-	int fps;
 
 	if (!display || !mode || !display->panel) {
 		DSI_ERR("Invalid params\n");
@@ -7651,13 +7637,8 @@ int dsi_display_set_mode(struct dsi_display *display,
 	event.length = sizeof(timing.refresh_rate);
 	mi_disp_feature_event_notify(&event, (u8 *)&timing.refresh_rate);
 
-	if (display->panel->cur_mode->timing.refresh_rate != timing.refresh_rate) {
-		fps = timing.refresh_rate;
-		notify_data.data = &fps;
-		notify_data.disp_id = mi_get_disp_id(display);
-		mi_disp_notifier_call_chain(MI_DISP_FPS_CHANGE_EVENT, &notify_data);
+	if (display->panel->cur_mode->timing.refresh_rate != timing.refresh_rate)
 		mi_disp_feature_sysfs_notify(event.disp_id, MI_SYSFS_DYNAMIC_FPS);
-	}
 
 	memcpy(display->panel->cur_mode, &adj_mode, sizeof(adj_mode));
 error:

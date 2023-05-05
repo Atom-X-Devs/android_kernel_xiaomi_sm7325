@@ -138,7 +138,6 @@ msm_drm-$(CONFIG_DRM_MSM) += \
 msm_drm-$(CONFIG_HDCP_QSEECOM) += ../hdcp/msm_hdcp.o \
 
 msm_drm-$(CONFIG_DRM_MSM) += \
-	mi_disp/mi_disp_notifier.o \
 	mi_disp/mi_disp_core.o \
 	mi_disp/mi_disp_feature.o \
 	mi_disp/mi_disp_sysfs.o \
