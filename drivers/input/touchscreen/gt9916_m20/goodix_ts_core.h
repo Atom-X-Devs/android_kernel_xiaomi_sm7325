@@ -43,8 +43,6 @@
 #include <linux/fb.h>
 #endif
 
-#include <drm/mi_disp_notifier.h>
-
 #include "../xiaomi/xiaomi_touch.h"
 
 #define GOODIX_CORE_DRIVER_NAME			"goodix_ts"
@@ -521,9 +519,9 @@ struct goodix_ts_core {
 	struct notifier_block ts_notifier;
 	struct goodix_ts_esd ts_esd;
 	bool esd_initialized;
+	void *notifier_cookie;
 
 	struct notifier_block charger_notifier;
-	struct notifier_block notifier;
 
 	struct workqueue_struct *event_wq;
 	struct workqueue_struct *gesture_wq;
