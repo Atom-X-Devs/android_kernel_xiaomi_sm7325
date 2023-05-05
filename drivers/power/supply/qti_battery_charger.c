@@ -26,8 +26,6 @@
 #include <linux/ktime.h>
 #include <linux/thermal.h>
 #include <linux/string.h>
-
-#include <drm/mi_disp_notifier.h>
 #endif
 
 #define MSG_OWNER_BC			32778
@@ -86,6 +84,8 @@
 #define USBPD_UVDM_VERIFIED_LEN		1
 
 #define MAX_THERMAL_LEVEL		16
+
+static int blank_state;
 
 enum uvdm_state {
 	USBPD_UVDM_DISCONNECT,
@@ -467,7 +467,6 @@ struct battery_chg_dev {
 	struct work_struct		usb_type_work;
 #ifdef CONFIG_MACH_XIAOMI
 	struct work_struct		notify_blankstate_work;
-	int				blank_state;
 #endif
 	int				fake_soc;
 	bool				block_tx;
@@ -479,7 +478,6 @@ struct battery_chg_dev {
 	struct notifier_block		reboot_notifier;
 #ifdef CONFIG_MACH_XIAOMI
 	struct notifier_block		shutdown_notifier;
-	struct notifier_block 		blankstate_notifier;
 #endif
 	u32				thermal_fcc_ua;
 	u32				restrict_fcc_ua;
@@ -1814,8 +1812,8 @@ static int power_supply_read_temp(struct thermal_zone_device *tzd,
 	}
 
 	*temp = batt_temp * 1000;
-	pr_info("batt_thermal: temp: %d, delta: %ld, blank_state: %d, chg_type: %s, tl: %d,  ffc: %d, pd_verifed: %d, r: %d\n",
-		batt_temp, delta, bcdev->blank_state, power_supply_usb_type_text[pst->prop[XM_PROP_REAL_TYPE]],
+	pr_debug("batt_thermal: temp: %d, delta: %ld, blank_state: %d, chg_type: %s, tl: %d,  ffc: %d, pd_verifed: %d, r: %d\n",
+		batt_temp, delta, blank_state, power_supply_usb_type_text[pst->prop[XM_PROP_REAL_TYPE]],
 		bcdev->curr_thermal_level, pst->prop[XM_PROP_FASTCHGMODE], pst->prop[XM_PROP_PD_VERIFED],
 		(batt_pst->prop[BATT_CHG_COUNTER]/(batt_pst->prop[BATT_CHG_FULL]/1000)));
 
@@ -4808,35 +4806,12 @@ static void notify_blankstate_changed_work(struct work_struct *work)
 	int rc;
 
 	rc = write_property_id(bcdev, &bcdev->psy_list[PSY_TYPE_XM],
-			XM_PROP_FB_BLANK_STATE, bcdev->blank_state);
+			XM_PROP_FB_BLANK_STATE, blank_state);
 	if (rc < 0)
 		pr_err("%s:write BLANK_STATE failed\n", __func__);
 
 	pr_debug("%s:write BLANK_STATE succeed\n", __func__);
 }
-
-static int mi_disp_notifier_callback(struct notifier_block *nb,
-				unsigned long val, void *data)
-{
-	struct battery_chg_dev *bcdev = container_of(nb, struct battery_chg_dev,
-						     blankstate_notifier);
-	struct mi_disp_notifier *evdata = data;
-	unsigned int blank;
-
-	if (val != MI_DISP_DPMS_EVENT)
-		return NOTIFY_OK;
-
-	if (evdata && evdata->data && bcdev) {
-		blank = *(int *)(evdata->data);
-		pr_debug("val:%lu, blank:%u\n", val, blank);
-
-		bcdev->blank_state = (blank == MI_DISP_DPMS_ON) ? 0 : 1;
-
-		schedule_work(&bcdev->notify_blankstate_work);
-	}
-	return NOTIFY_OK;
-}
-
 #endif
 
 static void panel_event_notifier_callback(enum panel_event_notifier_tag tag,
@@ -4849,18 +4824,40 @@ static void panel_event_notifier_callback(enum panel_event_notifier_tag tag,
 		return;
 	}
 
+#ifdef CONFIG_MACH_XIAOMI
+	if (notification->notif_data.early_trigger)
+		return;
+
+	if (notification->notif_type == DRM_PANEL_EVENT_FPS_CHANGE)
+		return;
+#endif
+
 	pr_debug("panel event received, type: %d\n", notification->notif_type);
 	switch (notification->notif_type) {
 	case DRM_PANEL_EVENT_BLANK:
+#ifdef CONFIG_MACH_XIAOMI
+	case DRM_PANEL_EVENT_BLANK_LP:
+		blank_state = 1;
+#endif
 		battery_chg_notify_disable(bcdev);
 		break;
 	case DRM_PANEL_EVENT_UNBLANK:
+#ifdef CONFIG_MACH_XIAOMI
+		blank_state = 0;
+#endif
 		battery_chg_notify_enable(bcdev);
 		break;
 	default:
 		pr_debug("Ignore panel event: %d\n", notification->notif_type);
 		break;
 	}
+
+#ifdef CONFIG_MACH_XIAOMI
+	pr_debug("%s, blank_state = %d\n", __func__, blank_state);
+	schedule_work(&bcdev->notify_blankstate_work);
+
+	return;
+#endif
 }
 
 static int battery_chg_register_panel_notifier(struct battery_chg_dev *bcdev)
@@ -4954,6 +4951,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 		devm_kzalloc(&pdev->dev, MAX_STR_LEN, GFP_KERNEL);
 	if (!bcdev->psy_list[PSY_TYPE_BATTERY].model)
 		return -ENOMEM;
+
 #ifdef CONFIG_MACH_XIAOMI
 	bcdev->digest=
 		devm_kzalloc(&pdev->dev, BATTERY_DIGEST_LEN, GFP_KERNEL);
@@ -5005,14 +5003,6 @@ static int battery_chg_probe(struct platform_device *pdev)
 	bcdev->shutdown_notifier.notifier_call = battery_chg_shutdown;
 	bcdev->shutdown_notifier.priority = 255;
 	register_reboot_notifier(&bcdev->shutdown_notifier);
-
-	bcdev->blankstate_notifier.notifier_call = mi_disp_notifier_callback;
-	rc = mi_disp_register_client(&bcdev->blankstate_notifier);
-	if (rc < 0) {
-		dev_err(dev, "Failed to register disp notifier rc=%d\n", rc);
-		goto error;
-	}
-
 #endif
 
 	rc = battery_chg_parse_dt(bcdev);
@@ -5063,7 +5053,6 @@ error:
 	complete(&bcdev->ack);
 	pmic_glink_unregister_client(bcdev->client);
 #ifdef CONFIG_MACH_XIAOMI
-	mi_disp_unregister_client(&bcdev->blankstate_notifier);
 	unregister_reboot_notifier(&bcdev->shutdown_notifier);
 #endif
 	unregister_reboot_notifier(&bcdev->reboot_notifier);
@@ -5082,7 +5071,6 @@ static int battery_chg_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(bcdev->debugfs_dir);
 	class_unregister(&bcdev->battery_class);
 #ifdef CONFIG_MACH_XIAOMI
-	mi_disp_unregister_client(&bcdev->blankstate_notifier);
 	unregister_reboot_notifier(&bcdev->shutdown_notifier);
 #endif
 	unregister_reboot_notifier(&bcdev->reboot_notifier);
