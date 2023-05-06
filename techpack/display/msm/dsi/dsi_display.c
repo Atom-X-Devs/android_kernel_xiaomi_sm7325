@@ -78,17 +78,13 @@ char *mi_dsi_display_get_cmdline_panel_info(struct dsi_display *display)
 	buffer = strrchr(buffer, ',');
 	if (buffer && *buffer) {
 		pname = ++buffer;
-	} else {
-		goto exit;
+		buffer = strrchr(pname, ':');
+		if (buffer)
+			*buffer = '\0';
+
+		panel_info = kstrdup(pname, GFP_KERNEL);
 	}
 
-	buffer = strrchr(pname, ':');
-	if (buffer)
-		*buffer = '\0';
-
-	panel_info = kstrdup(pname, GFP_KERNEL);
-
-exit:
 	kfree(buffer_dup);
 	return panel_info;
 }
@@ -761,21 +757,16 @@ static int dsi_display_validate_status(struct dsi_display_ctrl *ctrl,
 	int rc = 0;
 
 	rc = dsi_display_read_status(ctrl, panel);
-	if (rc <= 0) {
-		goto exit;
-	} else {
+	if (rc > 0) {
 		/*
 		 * panel status read successfully.
 		 * check for validity of the data read back.
 		 */
 		rc = dsi_display_validate_reg_read(panel);
-		if (!rc) {
+		if (!rc)
 			rc = -EINVAL;
-			goto exit;
-		}
 	}
 
-exit:
 	return rc;
 }
 
