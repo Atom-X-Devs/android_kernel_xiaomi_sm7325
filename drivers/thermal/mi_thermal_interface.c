@@ -33,13 +33,18 @@ struct mi_thermal_device {
 	struct device *dev;
 	struct class *class;
 	struct attribute_group attrs;
-	struct notifier_block psy_nb;
-	int usb_online;
 };
 
 struct freq_table {
 	u32 frequency;
 };
+
+struct usb_monitor  {
+	struct notifier_block psy_nb;
+	struct work_struct usb_state_work;
+	int usb_online;
+};
+static struct usb_monitor usb_state;
 
 struct cpufreq_device {
 	int id;
@@ -356,7 +361,7 @@ THERMAL_ATTR(temp_state);
 static ssize_t thermal_usb_online_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", mi_thermal_dev.usb_online);
+	return snprintf(buf, PAGE_SIZE, "%d\n", usb_state.usb_online);
 }
 static DEVICE_ATTR(usb_online, 0664, thermal_usb_online_show, NULL);
 
@@ -571,29 +576,35 @@ static void screen_state_check(struct work_struct *work)
 static int usb_online_callback(struct notifier_block *nb,
 		unsigned long val, void *data)
 {
-	static struct power_supply *usb_psy;
 	struct power_supply *psy = data;
-	union power_supply_propval ret = {0,};
-	int err = 0;
 
 	if (strcmp(psy->desc->name, "usb"))
 		return NOTIFY_OK;
+	schedule_work(&usb_state.usb_state_work);
+
+	return NOTIFY_OK;
+}
+
+static void usb_online_work(struct work_struct *work)
+{
+	static struct power_supply *usb_psy;
+	union power_supply_propval ret = { 0,};
+	int err = 0;
 
 	if (!usb_psy)
 		usb_psy = power_supply_get_by_name("usb");
 
 	if (usb_psy) {
-		err = power_supply_get_property(usb_psy, POWER_SUPPLY_PROP_ONLINE, &ret);
+		err = power_supply_get_property(usb_psy,
+				POWER_SUPPLY_PROP_ONLINE, &ret);
 		if (err) {
 			pr_err("usb online read error:%d\n",err);
-			return err;
+			return;
 		}
-
-		mi_thermal_dev.usb_online = ret.intval;
-		sysfs_notify(&mi_thermal_dev.dev->kobj, NULL, "usb_online");
+		usb_state.usb_online = ret.intval;
+		if (mi_thermal_dev.dev)
+			sysfs_notify(&mi_thermal_dev.dev->kobj, NULL, "usb_online");
 	}
-
-	return NOTIFY_OK;
 }
 
 static int of_parse_thermal_message(void)
@@ -632,8 +643,9 @@ static int __init mi_thermal_interface_init(void)
 
 	create_thermal_message_node();
 
-	mi_thermal_dev.psy_nb.notifier_call = usb_online_callback;
-	ret = power_supply_reg_notifier(&mi_thermal_dev.psy_nb);
+	INIT_WORK(&usb_state.usb_state_work, usb_online_work);
+	usb_state.psy_nb.notifier_call=usb_online_callback;
+	ret = power_supply_reg_notifier(&usb_state.psy_nb);
 	if (ret < 0)
 		pr_err("%s: usb online notifier registration failed err: %d\n",ret);
 
