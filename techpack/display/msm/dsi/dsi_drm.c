@@ -7,17 +7,11 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic.h>
 
-#include <linux/pm_wakeup.h>
-
 #include "msm_kms.h"
 #include "sde_connector.h"
 #include "dsi_drm.h"
 #include "sde_trace.h"
-#include "sde_encoder.h"
 #include "sde_dbg.h"
-#include "msm_drv.h"
-
-#include "mi_dsi_display.h"
 
 #define to_dsi_bridge(x)     container_of((x), struct dsi_bridge, base)
 #define to_dsi_state(x)      container_of((x), struct dsi_connector_state, base)
@@ -262,11 +256,6 @@ static void dsi_bridge_enable(struct drm_bridge *bridge)
 			sde_connector_schedule_status_work(display->drm_conn,
 				true);
 	}
-	rc = mi_dsi_display_esd_irq_ctrl(c_bridge->display, true);
-	if (rc) {
-		DSI_ERR("[%d] DSI display enable esd irq failed, rc=%d\n",
-				c_bridge->id, rc);
-	}
 }
 
 static void dsi_bridge_disable(struct drm_bridge *bridge)
@@ -286,12 +275,6 @@ static void dsi_bridge_disable(struct drm_bridge *bridge)
 
 	if (display)
 		display->enabled = false;
-
-	rc = mi_dsi_display_esd_irq_ctrl(c_bridge->display, false);
-	if (rc) {
-		DSI_ERR("[%d] DSI display disable esd irq failed, rc=%d\n",
-				c_bridge->id, rc);
-	}
 
 	if (display && display->drm_conn) {
 		display->poms_pending =
