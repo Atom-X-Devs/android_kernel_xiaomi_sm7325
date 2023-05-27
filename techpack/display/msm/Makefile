@@ -4,6 +4,7 @@ ccflags-y += -I$(srctree)/techpack/display/msm/sde
 ccflags-y += -I$(srctree)/techpack/display/rotator
 ccflags-y += -I$(srctree)/techpack/display/hdcp
 ccflags-y += -I$(srctree)/drivers/clk/qcom/
+ccflags-y += -I$(srctree)/techpack/display/msm/mi_disp
 
 msm_drm-$(CONFIG_DRM_MSM_DP) += dp/dp_altmode.o \
 	dp/dp_parser.o \
@@ -135,6 +136,17 @@ msm_drm-$(CONFIG_DRM_MSM) += \
 	msm_prop.o
 
 msm_drm-$(CONFIG_HDCP_QSEECOM) += ../hdcp/msm_hdcp.o \
+
+msm_drm-$(CONFIG_DRM_MSM) += \
+	mi_disp/mi_disp_core.o \
+	mi_disp/mi_disp_feature.o \
+	mi_disp/mi_disp_sysfs.o \
+	mi_disp/mi_disp_file.o \
+	mi_disp/mi_disp_parser.o \
+	mi_disp/mi_dsi_display.o \
+	mi_disp/mi_dsi_panel.o \
+	mi_disp/mi_sde_connector.o \
+	mi_disp/mi_cooling_device.o
 
 msm_drm-$(CONFIG_MSM_SDE_ROTATOR) += ../rotator/sde_rotator_dev.o \
 	../rotator/sde_rotator_core.o \

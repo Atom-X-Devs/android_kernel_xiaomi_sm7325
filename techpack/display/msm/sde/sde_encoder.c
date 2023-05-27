@@ -43,6 +43,8 @@
 #include "sde_hw_qdss.h"
 #include "sde_encoder_dce.h"
 #include "sde_vm.h"
+#include "dsi_drm.h"
+#include "dsi_display.h"
 
 #include "dsi_drm.h"
 #include "dsi_display.h"
@@ -4216,6 +4218,8 @@ int sde_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
 				sde_enc->cur_master, sde_kms->qdss_enabled);
 
 end:
+	if (sde_enc->ready_kickoff)
+		sde_enc->prepare_kickoff = true;
 	SDE_ATRACE_END("sde_encoder_prepare_for_kickoff");
 	return ret;
 }
@@ -4335,6 +4339,7 @@ void sde_encoder_kickoff(struct drm_encoder *drm_enc, bool is_error,
 	}
 
 	if (dsi_display && dsi_display->panel
+		&& dsi_display->panel->mi_cfg.panel_id == 0x4D323000360200
 		&& adj_mode.dsi_mode_flags & DSI_MODE_FLAG_VRR)
 		sde_encoder_vid_wait_for_active(drm_enc);
 
@@ -4349,6 +4354,7 @@ void sde_encoder_kickoff(struct drm_encoder *drm_enc, bool is_error,
 	}
 
 	if (dsi_display && dsi_display->panel
+		&& dsi_display->panel->mi_cfg.panel_id == 0x4D323000360200
 		&& adj_mode.dsi_mode_flags & DSI_MODE_FLAG_VRR)
 		dsi_panel_gamma_switch(dsi_display->panel);
 

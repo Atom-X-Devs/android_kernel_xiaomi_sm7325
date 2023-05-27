@@ -14,12 +14,15 @@
 #include <linux/firmware.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_mipi_dsi.h>
 
 #include "msm_drv.h"
 #include "dsi_defs.h"
 #include "dsi_ctrl.h"
 #include "dsi_phy.h"
 #include "dsi_panel.h"
+
+#include <video/mipi_display.h>
 
 #define MAX_DSI_CTRLS_PER_DISPLAY             2
 #define DSI_CLIENT_NAME_SIZE		20
@@ -788,6 +791,12 @@ int dsi_display_cont_splash_res_disable(void *display);
  */
 int dsi_display_get_panel_vfp(void *display,
 	int h_active, int v_active);
+
+int dsi_display_cmd_engine_enable(struct dsi_display *display);
+int dsi_display_cmd_engine_disable(struct dsi_display *display);
+int dsi_host_alloc_cmd_tx_buffer(struct dsi_display *display);
+
+char *mi_dsi_display_get_cmdline_panel_info(struct dsi_display *display);
 
 /**
  * dsi_display_dump_clks_state() - dump clocks state to console
