@@ -249,11 +249,11 @@ static int aw86927_haptic_wait_enter_standby(struct aw86927 *aw86927,
 	while (cnt) {
 		ret = aw86927_is_enter_standby(aw86927);
 		if (!ret) {
-			aw_info("%s: entered standby!\n", __func__);
+			aw_dbg("%s: entered standby!\n", __func__);
 			break;
 		}
 		cnt--;
-		aw_info("%s: wait for standby\n", __func__);
+		aw_dbg("%s: wait for standby\n", __func__);
 
 		usleep_range(2000, 2500);
 	}
@@ -1136,7 +1136,7 @@ void aw86927_vibrate_params_init(struct aw86927 *aw86927)
 	aw86927->index = reg_val & 0x7F;
 	aw86927_i2c_read(aw86927, AW86927_REG_PLAYCFG2, &reg_val);
 	aw86927->gain = reg_val & 0xFF;
-	aw_info("%s aw86927->gain =0x%02X\n",
+	aw_dbg("%s aw86927->gain =0x%02X\n",
 		    __func__, aw86927->gain);
 	aw86927_i2c_read(aw86927, AW86927_REG_PLAYCFG1, &reg_val);
 	if (aw86927->info.bst_vol_default > 0)
@@ -1221,42 +1221,42 @@ static void aw86927_haptic_misc_para_init(struct aw86927 *aw86927)
 
 	/* brk_bst_md */
 	if (!aw86927->info.brk_bst_md)
-		aw_err("%s aw86927->info.brk_bst_md = 0!\n", __func__);
+		aw_dbg("%s aw86927->info.brk_bst_md = 0!\n", __func__);
 	aw86927_i2c_write_bits(aw86927, AW86927_REG_CONTCFG1,
 			       AW86927_BIT_CONTCFG1_BRK_BST_MD_MASK,
 			       (aw86927->info.brk_bst_md<< 6));
 	/* cont_brk_time */
 	if (!aw86927->info.cont_brk_time)
-		aw_err("%s aw86927->info.cont_brk_time = 0!\n", __func__);
+		aw_dbg("%s aw86927->info.cont_brk_time = 0!\n", __func__);
 	aw86927_i2c_write(aw86927, AW86927_REG_CONTCFG10,
 			  aw86927->info.cont_brk_time);
 	/* cont_tset */
 	if (!aw86927->info.cont_tset)
-		aw_err("%s aw86927->info.cont_tset = 0!\n", __func__);
+		aw_dbg("%s aw86927->info.cont_tset = 0!\n", __func__);
 	aw86927_i2c_write_bits(aw86927, AW86927_REG_CONTCFG13,
 			       AW86927_BIT_CONTCFG13_TSET_MASK,
 			       (aw86927->info.cont_tset << 4));
 	/* cont_bemf_set */
 	if (!aw86927->info.cont_bemf_set)
-		aw_err("%s aw86927->info.cont_bemf_set = 0!\n", __func__);
+		aw_dbg("%s aw86927->info.cont_bemf_set = 0!\n", __func__);
 	aw86927_i2c_write_bits(aw86927, AW86927_REG_CONTCFG13,
 			       AW86927_BIT_CONTCFG13_BEME_SET_MASK,
 			       aw86927->info.cont_bemf_set);
 	/* cont_bst_brk_gain */
 	if (!aw86927->info.cont_bst_brk_gain)
-		aw_err("%s aw86927->info.cont_bst_brk_gain = 0!\n", __func__);
+		aw_dbg("%s aw86927->info.cont_bst_brk_gain = 0!\n", __func__);
 	aw86927_i2c_write_bits(aw86927, AW86927_REG_CONTCFG5,
 			       AW86927_BIT_CONTCFG5_BST_BRK_GAIN_MASK,
 			       aw86927->info.cont_bst_brk_gain << 4);
 	/* cont_brk_gain */
 	if (!aw86927->info.cont_brk_gain)
-		aw_err("%s aw86927->info.cont_brk_gain = 0!\n", __func__);
+		aw_dbg("%s aw86927->info.cont_brk_gain = 0!\n", __func__);
 	aw86927_i2c_write_bits(aw86927, AW86927_REG_CONTCFG5,
 			       AW86927_BIT_CONTCFG5_BRK_GAIN_MASK,
 			       aw86927->info.cont_brk_gain);
 	/* d2s_gain */
 	if (!aw86927->info.d2s_gain)
-		aw_err("%s aw86927->info.d2s_gain = 0!\n", __func__);
+		aw_dbg("%s aw86927->info.d2s_gain = 0!\n", __func__);
 	aw86927_i2c_write_bits(aw86927, AW86927_REG_DETCFG2,
 			       AW86927_BIT_DETCFG2_D2S_GAIN_MASK,
 			       aw86927->info.d2s_gain);
@@ -1644,10 +1644,9 @@ static int aw86927_haptic_get_ram_number(struct aw86927 *aw86927)
 	first_wave_addr = (ram_data[1] << 8 | ram_data[2]);
 	aw86927->ram.ram_num =
 			(first_wave_addr - aw86927->ram.base_addr - 1) / 4;
-	aw_info("%s: ram_version = 0x%02x\n", __func__, ram_data[0]);
-	aw_info("%s: first waveform addr = 0x%04x\n", __func__,
-		first_wave_addr);
-	aw_info("%s: ram_num = %d\n", __func__, aw86927->ram.ram_num);
+	aw_dbg("%s: ram_version = 0x%02x\n", __func__, ram_data[0]);
+	aw_dbg("%s: first waveform addr = 0x%04x\n", __func__, first_wave_addr);
+	aw_dbg("%s: ram_num = %d\n", __func__, aw86927->ram.ram_num);
 	/* RAMINIT Disable */
 	aw86927_haptic_raminit(aw86927, false);
 	mutex_unlock(&aw86927->lock);
@@ -1831,7 +1830,7 @@ static void aw86927_calculate_cali_step(struct aw86927 *aw86927)
 	f0_cali_step = 100000 * ((int)aw86927->f0 -
 				 (int)aw86927->info.f0_pre) /
 				 ((int)aw86927->f0 * 24);
-	aw_info("%s f0_cali_step = %d\n", __func__,
+	aw_dbg("%s f0_cali_step = %d\n", __func__,
 		    f0_cali_step);
 
 	if (f0_cali_step >= 0) { /*f0_cali_step >= 0 */
@@ -1851,7 +1850,7 @@ static void aw86927_calculate_cali_step(struct aw86927 *aw86927)
 		f0_cali_lra = (char)f0_cali_step + 32;
 
 	aw86927->f0_calib_data = (int)f0_cali_lra;
-	aw_info("%s origin trim_lra = 0x%02X, f0_cali_lra = 0x%02X, final f0_calib_data = 0x%02X\n",
+	aw_dbg("%s origin trim_lra = 0x%02X, f0_cali_lra = 0x%02X, final f0_calib_data = 0x%02X\n",
 		__func__, (reg_val & 0x3f), f0_cali_lra,
 		aw86927->f0_calib_data);
 
@@ -3451,27 +3450,27 @@ int aw86927_parse_dt(struct aw86927 *aw86927, struct device *dev,
 		rc = of_property_read_u32(child_node, "qcom,effect-id",
 					  &effect->id);
 		if (rc != 0)
-			aw_info("%s Read qcom,effect-id failed\n", __func__);
+			aw_dbg("%s Read qcom,effect-id failed\n", __func__);
 
 		effect->vmax_mv = config->vmax_mv;
 		rc = of_property_read_u32(child_node, "qcom,wf-vmax-mv", &tmp);
 		if (rc != 0)
-			aw_info("%s  Read qcom,wf-vmax-mv failed !\n", __func__);
+			aw_dbg("%s  Read qcom,wf-vmax-mv failed !\n", __func__);
 		else
 			effect->vmax_mv = tmp;
 
-		aw_info("%s ---%d effect->vmax_mv =%d\n", __func__, __LINE__,
+		aw_dbg("%s ---%d effect->vmax_mv =%d\n", __func__, __LINE__,
 			effect->vmax_mv);
 		rc = of_property_count_elems_of_size(child_node,
 						     "qcom,wf-pattern",
 						     sizeof(u8));
 		if (rc < 0) {
-			aw_info("%s Count qcom,wf-pattern property failed !\n",
+			aw_dbg("%s Count qcom,wf-pattern property failed !\n",
 			       __func__);
 		} else if (rc == 0) {
-			aw_info("%s qcom,wf-pattern has no data\n", __func__);
+			aw_dbg("%s qcom,wf-pattern has no data\n", __func__);
 		}
-		aw_info("%s ---%d\n", __func__, __LINE__);
+		aw_dbg("%s ---%d\n", __func__, __LINE__);
 
 		effect->pattern_length = rc;
 		effect->pattern = devm_kcalloc(aw86927->dev,
@@ -3482,7 +3481,7 @@ int aw86927_parse_dt(struct aw86927 *aw86927, struct device *dev,
 					       effect->pattern,
 					       effect->pattern_length);
 		if (rc < 0) {
-			aw_info("%s Read qcom,wf-pattern property failed !\n",
+			aw_dbg("%s Read qcom,wf-pattern property failed !\n",
 			       __func__);
 		}
 
@@ -3490,7 +3489,7 @@ int aw86927_parse_dt(struct aw86927 *aw86927, struct device *dev,
 		rc = of_property_read_u32(child_node, "qcom,wf-play-rate-us",
 					  &tmp);
 		if (rc < 0)
-			aw_info("%s Read qcom,wf-play-rate-us failed !\n",
+			aw_dbg("%s Read qcom,wf-play-rate-us failed !\n",
 			       __func__);
 		else
 			effect->play_rate_us = tmp;
@@ -3498,7 +3497,7 @@ int aw86927_parse_dt(struct aw86927 *aw86927, struct device *dev,
 		rc = of_property_read_u32(child_node, "qcom,wf-repeat-count",
 					  &tmp);
 		if (rc < 0) {
-			aw_info("%s Read  qcom,wf-repeat-count failed !\n",
+			aw_dbg("%s Read  qcom,wf-repeat-count failed !\n",
 			       __func__);
 		} else {
 			for (j = 0; j < ARRAY_SIZE(wf_repeat); j++)
@@ -3511,7 +3510,7 @@ int aw86927_parse_dt(struct aw86927 *aw86927, struct device *dev,
 		rc = of_property_read_u32(child_node, "qcom,wf-s-repeat-count",
 					  &tmp);
 		if (rc < 0) {
-			aw_info("%s Read  qcom,wf-s-repeat-count failed !\n",
+			aw_dbg("%s Read  qcom,wf-s-repeat-count failed !\n",
 			       __func__);
 		} else {
 			for (j = 0; j < ARRAY_SIZE(wf_s_repeat); j++)
@@ -3532,7 +3531,7 @@ int aw86927_parse_dt(struct aw86927 *aw86927, struct device *dev,
 			continue;
 
 		if (tmp > HAP_BRAKE_PATTERN_MAX) {
-			aw_info("%s wf-brake-pattern shouldn't be more than %d bytes\n",
+			aw_dbg("%s wf-brake-pattern shouldn't be more than %d bytes\n",
 			       __func__, HAP_BRAKE_PATTERN_MAX);
 		}
 
@@ -3540,7 +3539,7 @@ int aw86927_parse_dt(struct aw86927 *aw86927, struct device *dev,
 					       "qcom,wf-brake-pattern",
 					       effect->brake, tmp);
 		if (rc < 0) {
-			aw_info("%s Failed to get wf-brake-pattern !\n",
+			aw_dbg("%s Failed to get wf-brake-pattern !\n",
 			       __func__);
 		}
 
@@ -3863,7 +3862,7 @@ static void aw86927_ram_loaded(const struct firmware *cont, void *context)
 		aw86927->ram_init = 1;
 		aw86927_trig_config(aw86927);
 		aw86927_haptic_get_ram_number(aw86927);
-		aw_info("%s: ram firmware update complete!\n",
+		aw_dbg("%s: ram firmware update complete!\n",
 			    __func__);
 	}
 	aw86927->ram.len = aw86927_fw->len - aw86927->ram.ram_shift;
