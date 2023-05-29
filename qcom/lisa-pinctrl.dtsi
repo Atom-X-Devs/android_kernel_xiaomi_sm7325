@@ -1,4 +1,6 @@
 &tlmm {
+	qcom,gpios-reserved = <32 33 48 49 50 51 56 57 57 59>;
+
 	/* AW8624_RESET_N */
 	aw8624_gpio_reset: aw8624gpio_reset {
 		mux {

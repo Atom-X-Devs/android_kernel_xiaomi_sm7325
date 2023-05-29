@@ -1,4 +1,6 @@
 &tlmm {
+	qcom,gpios-reserved = <32 33 48 49 50 51 56 57 58 59>;
+
 	/* AW8697_RESET_N */
 	awinic_gpio_reset: awinic_gpio_reset {
 		mux {
