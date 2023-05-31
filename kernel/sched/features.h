@@ -15,13 +15,6 @@ SCHED_FEAT(PLACE_DEADLINE_INITIAL, true)
 SCHED_FEAT(NEXT_BUDDY, false)
 
 /*
- * Prefer to schedule the task that ran last (when we did
- * wake-preempt) as that likely will touch the same data, increases
- * cache locality.
- */
-SCHED_FEAT(LAST_BUDDY, true)
-
-/*
  * Consider buddies to be cache hot, decreases the likelyness of a
  * cache buddy being migrated away, increases cache locality.
  */
@@ -90,5 +83,3 @@ SCHED_FEAT(UTIL_EST, true)
  */
 SCHED_FEAT(SUGOV_RT_MAX_FREQ, false)
 SCHED_FEAT(UTIL_EST_FASTUP, true)
-
-SCHED_FEAT(EEVDF, true)
