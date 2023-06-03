@@ -28,7 +28,7 @@
 		clocks = <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
 			<&gcc GCC_GPU_SNOC_DVM_GFX_CLK>,
 			<&gpucc GPU_CC_AHB_CLK>,
-			<&aopcc QDSS_CLK>,
+			<&aoss_qmp QDSS_CLK>,
 			<&gpucc GPU_CC_HLOS1_VOTE_GPU_SMMU_CLK>,
 			<&gpucc GPU_CC_CX_GMU_CLK>,
 			<&gpucc GPU_CC_HUB_AON_CLK>,
