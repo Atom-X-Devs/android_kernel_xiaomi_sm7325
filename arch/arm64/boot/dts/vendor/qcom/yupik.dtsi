@@ -2391,7 +2391,7 @@
 		reg = <0x7040000 0x1000>;
 		reg-names = "etm-base";
 
-		clocks = <&aopcc QDSS_CLK>;
+		clocks = <&aoss_qmp QDSS_CLK>;
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU0>;
@@ -2403,7 +2403,7 @@
 		reg = <0x7140000 0x1000>;
 		reg-names = "etm-base";
 
-		clocks = <&aopcc QDSS_CLK>;
+		clocks = <&aoss_qmp QDSS_CLK>;
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU1>;
@@ -2415,7 +2415,7 @@
 		reg = <0x7240000 0x1000>;
 		reg-names = "etm-base";
 
-		clocks = <&aopcc QDSS_CLK>;
+		clocks = <&aoss_qmp QDSS_CLK>;
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU2>;
@@ -2427,7 +2427,7 @@
 		reg = <0x7340000 0x1000>;
 		reg-names = "etm-base";
 
-		clocks = <&aopcc QDSS_CLK>;
+		clocks = <&aoss_qmp QDSS_CLK>;
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU3>;
@@ -2439,7 +2439,7 @@
 		reg = <0x7440000 0x1000>;
 		reg-names = "etm-base";
 
-		clocks = <&aopcc QDSS_CLK>;
+		clocks = <&aoss_qmp QDSS_CLK>;
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU4>;
@@ -2451,7 +2451,7 @@
 		reg = <0x7540000 0x1000>;
 		reg-names = "etm-base";
 
-		clocks = <&aopcc QDSS_CLK>;
+		clocks = <&aoss_qmp QDSS_CLK>;
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU5>;
@@ -2463,7 +2463,7 @@
 		reg = <0x7640000 0x1000>;
 		reg-names = "etm-base";
 
-		clocks = <&aopcc QDSS_CLK>;
+		clocks = <&aoss_qmp QDSS_CLK>;
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU6>;
@@ -2475,7 +2475,7 @@
 		reg = <0x7740000 0x1000>;
 		reg-names = "etm-base";
 
-		clocks = <&aopcc QDSS_CLK>;
+		clocks = <&aoss_qmp QDSS_CLK>;
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU7>;
@@ -2557,14 +2557,6 @@
 			clock-output-names = "usb3_phy_wrapper_gcc_usb30_pipe_clk";
 			#clock-cells = <0>;
 		};
-	};
-
-	aopcc: qcom,aopcc {
-		compatible = "qcom,aop-qmp-clk";
-		mboxes = <&qmp_aop 0>;
-		mbox-names = "qdss_clk";
-		#clock-cells = <1>;
-		qcom,clk-stop-bimc-log;
 	};
 
 	gcc: clock-controller@100000 {
@@ -3046,7 +3038,7 @@
 		reg = <0x9200000 0xd0000>, <0x9600000 0x50000>;
 		reg-names = "llcc_base", "llcc_broadcast_base";
 		cap-based-alloc-and-pwr-collapse;
-		clocks = <&aopcc QDSS_CLK>;
+		clocks = <&aoss_qmp QDSS_CLK>;
 		clock-names = "qdss_clk";
 	};
 
@@ -3726,7 +3718,7 @@
 		compatible = "qcom,spmi-pmic-arb-debug";
 		reg = <0x6b12000 0x60>, <0x7820b0 0x4>;
 		reg-names = "core", "fuse";
-		clocks = <&aopcc QDSS_CLK>;
+		clocks = <&aoss_qmp QDSS_CLK>;
 		clock-names = "core_clk";
 		qcom,fuse-disable-bit = <24>;
 		#address-cells = <2>;
@@ -4267,22 +4259,24 @@
 		mbox-names = "wpss-pil";
 	};
 
-	qmp_aop: qcom,qmp-aop@c300000 {
-		compatible = "qcom,qmp-mbox";
-		mboxes = <&ipcc_mproc IPCC_CLIENT_AOP
-			  IPCC_MPROC_SIGNAL_GLINK_QMP>;
-		mbox-names = "aop_qmp";
+	aoss_qmp: power-controller@c300000 {
+		compatible = "qcom,sm8350-aoss-qmp";
+		reg = <0xc300000 0x400>;
 		interrupt-parent = <&ipcc_mproc>;
 		interrupts = <IPCC_CLIENT_AOP
 			      IPCC_MPROC_SIGNAL_GLINK_QMP
 			      IRQ_TYPE_EDGE_RISING>;
-		reg = <0xc300000 0x400>;
-		reg-names = "msgram";
+		mboxes = <&ipcc_mproc IPCC_CLIENT_AOP
+			  IPCC_MPROC_SIGNAL_GLINK_QMP>;
 
+		#power-domain-cells = <1>;
+		#clock-cells = <0>;
+	};
+
+	qmp_aop: qcom,qmp-aop@c300000 {
+		compatible = "qcom,qmp-mbox";
+		qcom,qmp = <&aoss_qmp>;
 		label = "aop";
-		qcom,early-boot;
-		priority = <0>;
-		mbox-desc-offset = <0x0>;
 		#mbox-cells = <1>;
 	};
 
@@ -5394,7 +5388,6 @@
 };
 
 #include "shima-gdsc.dtsi"
-#include "yupik-coresight.dtsi"
 #include "yupik-pinctrl.dtsi"
 #include "yupik-pm.dtsi"
 #include "ipcc-test-yupik.dtsi"
