@@ -861,12 +861,11 @@ void last_touch_events_collect(int slot, int state)
 }
 EXPORT_SYMBOL_GPL(last_touch_events_collect);
 
-struct file_operations last_touch_events_ops = {
-	.owner = THIS_MODULE,
-	.open = last_touch_events_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
+struct proc_ops last_touch_events_ops = {
+	.proc_open = last_touch_events_open,
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+	.proc_release = seq_release,
 };
 
 static int xiaomi_touch_probe(struct platform_device *pdev)
