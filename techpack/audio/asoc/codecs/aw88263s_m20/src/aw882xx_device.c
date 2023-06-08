@@ -15,8 +15,6 @@
 #include <linux/syscalls.h>
 #include <sound/control.h>
 #include <linux/uaccess.h>
-#include <linux/mmhardware_sysfs.h>
-
 
 #include "aw882xx_log.h"
 #include "aw882xx_device.h"
@@ -724,7 +722,6 @@ int aw882xx_dev_status(struct aw_device *aw_dev)
 	return aw_dev->status;
 }
 
-int cnt = 0;
 int aw882xx_dev_init_cali_re(struct aw_device *aw_dev)
 {
 	int ret = 0;
@@ -738,36 +735,6 @@ int aw882xx_dev_init_cali_re(struct aw_device *aw_dev)
 				cali_desc->cali_re = AW_ERRO_CALI_VALUE;
 				cali_desc->cali_result = CALI_RESULT_NONE;
 				return 0;
-			} else {
-				cnt++;
-				switch (cnt) {
-					case 1:
-						on_calibration_under_mmsysfs(MM_HW_PA_1, "pa1");
-						break;
-					case 2:
-						on_calibration_under_mmsysfs(MM_HW_PA_2, "pa2");
-						break;
-					case 3:
-						on_calibration_under_mmsysfs(MM_HW_PA_3, "pa3");
-						break;
-					case 4:
-						on_calibration_under_mmsysfs(MM_HW_PA_4, "pa4");
-						break;
-					case 5:
-						on_calibration_under_mmsysfs(MM_HW_PA_5, "pa5");
-						break;
-					case 6:
-						on_calibration_under_mmsysfs(MM_HW_PA_6, "pa6");
-						break;
-					case 7:
-						on_calibration_under_mmsysfs(MM_HW_PA_7, "pa7");
-						break;
-					case 8:
-						on_calibration_under_mmsysfs(MM_HW_PA_8, "pa8");
-						break;
-					default:
-						break;
-				}
 			}
 
 			if (cali_desc->cali_re < aw_dev->re_min ||
