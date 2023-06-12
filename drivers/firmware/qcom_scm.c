@@ -2526,7 +2526,7 @@ static int __init qcom_scm_init(void)
 
 	return qtee_shmbridge_driver_init();
 }
-subsys_initcall(qcom_scm_init);
+core_initcall(qcom_scm_init);
 
 #ifdef CONFIG_QCOM_RTIC
 #define TZ_RTIC_ENABLE_MEM_PROTECTION	0x4
