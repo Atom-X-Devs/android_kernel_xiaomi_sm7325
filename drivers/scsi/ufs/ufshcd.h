@@ -978,9 +978,6 @@ struct ufs_hba {
 #define	UFSHCD_CAP_WB_EN (1 << 8)
 
 #ifdef CONFIG_SCSI_UFSHCD_QTI
-#define UFSHCD_CAP_POWER_COLLAPSE_DURING_HIBERN8 (1 << 9)
-	/* Allow standalone Hibern8 enter on idle */
-#define UFSHCD_CAP_HIBERN8_ENTER_ON_IDLE (1 << 10)
 	struct rw_semaphore lock;
 	/* Bitmask for enabling debug prints */
 	u32 ufshcd_dbg_print;
@@ -1095,46 +1092,10 @@ static inline bool ufshcd_is_auto_hibern8_supported(struct ufs_hba *hba)
 	return (hba->capabilities & MASK_AUTO_HIBERN8_SUPPORT);
 }
 
-#ifdef CONFIG_SCSI_UFSHCD_QTI
-static inline void ufshcd_mark_shutdown_ongoing(struct ufs_hba *hba)
-{
-	set_bit(0, &hba->shutdown_in_prog);
-}
-
-static inline bool ufshcd_is_shutdown_ongoing(struct ufs_hba *hba)
-{
-	return !!(test_bit(0, &hba->shutdown_in_prog));
-}
-
-static inline bool ufshcd_is_power_collapse_during_hibern8_allowed(
-						struct ufs_hba *hba)
-{
-	return !!(hba->caps & UFSHCD_CAP_POWER_COLLAPSE_DURING_HIBERN8);
-}
-
-static inline bool ufshcd_is_hibern8_on_idle_allowed(struct ufs_hba *hba)
-{
-	return hba->caps & UFSHCD_CAP_HIBERN8_ENTER_ON_IDLE;
-}
-
-static inline bool ufshcd_is_auto_hibern8_enabled(struct ufs_hba *hba)
-{
-	return ufshcd_is_auto_hibern8_supported(hba) && !!hba->ahit;
-}
-
-static inline bool ufshcd_is_embedded_dev(struct ufs_hba *hba)
-{
-	if ((hba->dev_info.b_device_sub_class == UFS_DEV_EMBEDDED_BOOTABLE) ||
-	    (hba->dev_info.b_device_sub_class == UFS_DEV_EMBEDDED_NON_BOOTABLE))
-		return true;
-	return false;
-}
-#else
 static inline bool ufshcd_is_auto_hibern8_enabled(struct ufs_hba *hba)
 {
 	return FIELD_GET(UFSHCI_AHIBERN8_TIMER_MASK, hba->ahit) ? true : false;
 }
-#endif
 
 static inline bool ufshcd_is_wb_allowed(struct ufs_hba *hba)
 {
