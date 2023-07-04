@@ -1934,20 +1934,18 @@ static void ufs_qcom_set_caps(struct ufs_hba *hba)
 
 	if (!host->disable_lpm) {
 		hba->caps |= UFSHCD_CAP_CLK_GATING |
-			UFSHCD_CAP_HIBERN8_WITH_CLK_GATING |
-			UFSHCD_CAP_CLK_SCALING | UFSHCD_CAP_AUTO_BKOPS_SUSPEND |
-			UFSHCD_CAP_RPM_AUTOSUSPEND;
+		UFSHCD_CAP_HIBERN8_WITH_CLK_GATING |
+		UFSHCD_CAP_CLK_SCALING |
+		UFSHCD_CAP_AUTO_BKOPS_SUSPEND |
+		UFSHCD_CAP_RPM_AUTOSUSPEND;
 		hba->caps |= UFSHCD_CAP_WB_EN;
+		hba->caps |= UFSHCD_CAP_AGGR_POWER_COLLAPSE;
 	}
 
-	if (host->hw_ver.major >= 0x2) {
-#ifdef CONFIG_SCSI_UFSHCD_QTI
-		if (!host->disable_lpm)
-			hba->caps |= UFSHCD_CAP_POWER_COLLAPSE_DURING_HIBERN8;
-#endif
+	if (host->hw_ver.major >= 0x2)
 		host->caps = UFS_QCOM_CAP_QUNIPRO |
-			     UFS_QCOM_CAP_RETAIN_SEC_CFG_AFTER_PWR_COLLAPSE;
-	}
+			UFS_QCOM_CAP_RETAIN_SEC_CFG_AFTER_PWR_COLLAPSE;
+
 	if (host->hw_ver.major >= 0x3) {
 		host->caps |= UFS_QCOM_CAP_QUNIPRO_CLK_GATING;
 		/*
