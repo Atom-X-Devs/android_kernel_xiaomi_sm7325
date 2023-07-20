@@ -409,20 +409,19 @@ static int bt_configure_gpios(int on)
 			} else {
 				pr_info("%s: gpio_request for xo_reset_gpio succeed\n",
 					__func__);
-				// XO clk GPIO must be asserted for some time
+				//pull GPIO high
 				rc = gpio_direction_output(xo_reset_gpio, 1);
 				if (rc) {
 					pr_err("%s: Unable to set direction of xo_reset_gpio\n",
 						__func__);
 				}
-				usleep_range(2000, 5000);
-				// pull XO clk GPIO low after 2 ms delay
+				udelay(2000);
+				//pull GPIO low after 2 ms delay
 				rc = gpio_direction_output(xo_reset_gpio, 0);
 				if (rc) {
 					pr_err("%s: Unable to set direction of xo_reset_gpio\n",
 						__func__);
 				}
-				gpio_free(xo_reset_gpio);
 			}
 		}
 		msleep(50);
@@ -521,6 +520,8 @@ gpio_fail:
 			gpio_free(bt_power_pdata->bt_gpio_sys_rst);
 		if (bt_power_pdata->wl_gpio_sys_rst > 0)
 			gpio_free(bt_power_pdata->wl_gpio_sys_rst);
+		if (bt_power_pdata->xo_gpio_sys_rst > 0)
+			gpio_free(bt_power_pdata->xo_gpio_sys_rst);
 		if  (bt_power_pdata->bt_gpio_sw_ctrl > 0)
 			gpio_free(bt_power_pdata->bt_gpio_sw_ctrl);
 		if  (bt_power_pdata->bt_gpio_debug > 0)
