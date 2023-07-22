@@ -254,7 +254,7 @@ static int gsx_gesture_init(struct goodix_ts_core *cd,
 	}
 
 	gsx->ts_core = cd;
-	gsx->ts_core->gesture_type = 0;
+	gsx->ts_core->gesture_type = GESTURE_SINGLE_TAP | GESTURE_DOUBLE_TAP;
 	atomic_set(&gsx->registered, 1);
 
 	return 0;
@@ -270,6 +270,7 @@ static int gsx_gesture_exit(struct goodix_ts_core *cd,
 		return -EINVAL;
 	}
 
+	cd->gesture_type = 0;
 	atomic_set(&gsx->registered, 0);
 
 	return 0;
