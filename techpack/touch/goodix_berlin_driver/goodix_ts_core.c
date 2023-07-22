@@ -1344,6 +1344,10 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 	}
 #endif
 
+	/* prevent CPU from entering deep sleep */
+	cpu_latency_qos_update_request(&core_data->pm_qos_touch_req, 100);
+	cpu_latency_qos_update_request(&core_data->pm_qos_spi_req, 100);
+
 	/* inform external module */
 	mutex_lock(&goodix_modules.mutex);
 	list_for_each_entry_safe(ext_module, next, &goodix_modules.head, list) {
@@ -1374,6 +1378,9 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 			goodix_ts_request_handle(core_data, ts_event);
 	}
 
+	cpu_latency_qos_update_request(&core_data->pm_qos_spi_req, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_update_request(&core_data->pm_qos_touch_req, PM_QOS_DEFAULT_VALUE);
+
 	pm_relax(core_data->bus->dev);
 
 	return IRQ_HANDLED;
@@ -1395,6 +1402,14 @@ static int goodix_ts_irq_setup(struct goodix_ts_core *core_data)
 		ts_err("failed get irq num %d", core_data->irq);
 		return -EINVAL;
 	}
+
+	core_data->pm_qos_spi_req.type = PM_QOS_REQ_AFFINE_IRQ;
+	core_data->pm_qos_spi_req.irq = core_data->bus->irq;
+	cpu_latency_qos_add_request(&core_data->pm_qos_spi_req, PM_QOS_DEFAULT_VALUE);
+
+	core_data->pm_qos_touch_req.type = PM_QOS_REQ_AFFINE_IRQ;
+	core_data->pm_qos_touch_req.irq = core_data->irq;
+	cpu_latency_qos_add_request(&core_data->pm_qos_touch_req, PM_QOS_DEFAULT_VALUE);
 
 	ts_info("IRQ:%u,flags:%d", core_data->irq, (int)ts_bdata->irq_flags);
 	ret = devm_request_threaded_irq(&core_data->pdev->dev,
@@ -2925,6 +2940,8 @@ static int goodix_ts_remove(struct platform_device *pdev)
 		goodix_ts_sysfs_exit(core_data);
 		goodix_ts_procfs_exit(core_data);
 		goodix_ts_power_off(core_data);
+		cpu_latency_qos_request_active(&core_data->pm_qos_touch_req);
+		cpu_latency_qos_request_active(&core_data->pm_qos_spi_req);
 	}
 
 	return 0;

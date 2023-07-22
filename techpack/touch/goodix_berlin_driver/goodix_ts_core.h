@@ -36,6 +36,7 @@
 #include <linux/regulator/consumer.h>
 #endif
 #include <linux/pm_runtime.h>
+#include <linux/pm_qos.h>
 
 #include "../xiaomi/xiaomi_touch.h"
 
@@ -437,6 +438,7 @@ struct goodix_bus_interface {
 	int bus_type;
 	int ic_type;
 	int sub_ic_type;
+	int irq;
 	struct device *dev;
 	int (*read)(struct device *dev, unsigned int addr,
 			 unsigned char *data, unsigned int len);
@@ -575,6 +577,9 @@ struct goodix_ts_core {
 	bool tp_pm_suspend;
 
 	struct completion pm_resume_completion;
+
+	struct pm_qos_request pm_qos_touch_req;
+	struct pm_qos_request pm_qos_spi_req;
 };
 
 /* external module structures */
