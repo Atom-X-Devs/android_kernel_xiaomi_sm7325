@@ -28,6 +28,7 @@
 #include <linux/input/mt.h>
 #include "goodix_ts_core.h"
 
+#define GOODIX_FOD_ENABLE 0
 
 #define GOODIX_GESTURE_DOUBLE_TAP		0xCC
 #define GOODIX_GESTURE_SINGLE_TAP		0x4C
@@ -137,6 +138,7 @@ static ssize_t gsx_single_type_store(struct goodix_ext_module *module,
 	return count;
 }
 
+#if GOODIX_FOD_ENABLE
 static ssize_t gsx_fod_type_show(struct goodix_ext_module *module,
 		char *buf)
 {
@@ -179,15 +181,17 @@ static ssize_t gsx_fod_type_store(struct goodix_ext_module *module,
 
 	return count;
 }
-
+#endif
 
 const struct goodix_ext_attribute gesture_attrs[] = {
 	__EXTMOD_ATTR(double_en, 0664,
 			gsx_double_type_show, gsx_double_type_store),
 	__EXTMOD_ATTR(single_en, 0664,
 			gsx_single_type_show, gsx_single_type_store),
+#if GOODIX_FOD_ENABLE
 	__EXTMOD_ATTR(fod_en, 0664,
 			gsx_fod_type_show, gsx_fod_type_store),
+#endif
 };
 
 static int gsx_gesture_init(struct goodix_ts_core *cd,
@@ -236,7 +240,9 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 {
 	struct goodix_ts_hw_ops *hw_ops = cd->hw_ops;
 	struct goodix_ts_event gs_event = {0};
+#if GOODIX_FOD_ENABLE
 	int fodx, fody, overlay_area;
+#endif
 	int ret;
 
 	if (atomic_read(&cd->suspended) == 0 || cd->gesture_type == 0)
@@ -279,6 +285,7 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 			ts_debug("not enable DOUBLE-TAP");
 		}
 		break;
+#if GOODIX_FOD_ENABLE
 	case GOODIX_GESTURE_FOD_DOWN:
 		if (cd->gesture_type & GESTURE_FOD_PRESS) {
 			ts_info("get FOD-DOWN gesture");
@@ -312,6 +319,7 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 			ts_debug("not enable FOD-UP");
 		}
 		break;
+#endif
 	default:
 		ts_err("not support gesture type[%02X]", gs_event.gesture_type);
 		break;
