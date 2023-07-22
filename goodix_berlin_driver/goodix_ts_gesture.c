@@ -52,6 +52,32 @@ struct gesture_module {
 static struct gesture_module *gsx_gesture; /*allocated in gesture init module*/
 static bool module_initialized;
 
+int goodix_gesture_enable(int enable)
+{
+	int ret = 0;
+
+	if (!module_initialized)
+		return 0;
+
+	if (enable) {
+		if (atomic_read(&gsx_gesture->registered))
+			ts_info("gesture module has been already registered");
+		else {
+			ret = goodix_register_ext_module_no_wait(&gsx_gesture->module);
+			atomic_set(&gsx_gesture->registered, 1);
+		}
+	} else {
+		if (!atomic_read(&gsx_gesture->registered))
+			ts_info("gesture module has been already unregistered");
+		else {
+			ret = goodix_unregister_ext_module(&gsx_gesture->module);
+			atomic_set(&gsx_gesture->registered, 0);
+		}
+	}
+
+	return ret;
+}
+
 static ssize_t gsx_double_type_show(struct goodix_ext_module *module,
 		char *buf)
 {
@@ -183,7 +209,30 @@ static ssize_t gsx_fod_type_store(struct goodix_ext_module *module,
 }
 #endif
 
+static ssize_t gsx_gesture_enable_show(struct goodix_ext_module *module,
+		char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&gsx_gesture->registered));
+}
+
+static ssize_t gsx_gesture_enable_store(struct goodix_ext_module *module,
+		const char *buf, size_t count)
+{
+	bool val;
+	int ret;
+
+	ret = strtobool(buf, &val);
+	if (ret < 0)
+		return ret;
+
+	ret = goodix_gesture_enable(val);
+
+	return ret ? ret : count;
+}
+
 const struct goodix_ext_attribute gesture_attrs[] = {
+	__EXTMOD_ATTR(enable, 0666,
+			gsx_gesture_enable_show, gsx_gesture_enable_store),
 	__EXTMOD_ATTR(double_en, 0664,
 			gsx_double_type_show, gsx_double_type_store),
 	__EXTMOD_ATTR(single_en, 0664,
@@ -422,7 +471,7 @@ int gesture_module_init(void)
 	}
 
 	module_initialized = true;
-	goodix_register_ext_module_no_wait(&gsx_gesture->module);
+	goodix_gesture_enable(1);
 	ts_info("gesture module init success");
 
 	return 0;
@@ -441,7 +490,7 @@ void gesture_module_exit(void)
 	if (!module_initialized)
 		return;
 
-	goodix_unregister_ext_module(&gsx_gesture->module);
+	goodix_gesture_enable(0);
 
 	/* deinit sysfs */
 	for (i = 0; i < ARRAY_SIZE(gesture_attrs); i++)

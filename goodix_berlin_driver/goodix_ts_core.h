@@ -681,6 +681,7 @@ int goodix_do_fw_update(struct goodix_ic_config *ic_config, int mode);
 int goodix_get_ic_type(struct device_node *node, struct goodix_bus_interface *bus_inf);
 int gesture_module_init(void);
 void gesture_module_exit(void);
+int goodix_gesture_enable(int enable);
 
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_DEBUG
 int inspect_module_init(struct goodix_ts_core *core_data);
