@@ -656,10 +656,13 @@ struct kobject *goodix_get_default_kobj(void);
 struct goodix_ts_hw_ops *goodix_get_hw_ops(void);
 int goodix_get_config_proc(struct goodix_ts_core *cd);
 
+#ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_SPI
 int goodix_spi_bus_init(void);
 void goodix_spi_bus_exit(void);
+#else
 int goodix_i2c_bus_init(void);
 void goodix_i2c_bus_exit(void);
+#endif
 
 u32 goodix_append_checksum(u8 *data, int len, int mode);
 int checksum_cmp(const u8 *data, int size, int mode);

@@ -42,13 +42,17 @@ ifeq ($(CONFIG_TOUCHSCREEN_GOODIX_BRL), y)
 		 ./goodix_berlin_driver/goodix_cfg_bin.o \
 		 ./goodix_berlin_driver/goodix_ts_utils.o \
 		 ./goodix_berlin_driver/goodix_brl_fwupdate.o \
-		 ./goodix_berlin_driver/goodix_ts_gesture.o \
-		 ./goodix_berlin_driver/goodix_brl_spi.o \
-		 ./goodix_berlin_driver/goodix_brl_i2c.o
+		 ./goodix_berlin_driver/goodix_ts_gesture.o
 
 	goodix_ts-$(CONFIG_TOUCHSCREEN_GOODIX_BRL_DEBUG) += \
 		 ./goodix_berlin_driver/goodix_ts_inspect.o \
 		 ./goodix_berlin_driver/goodix_ts_tools.o
+
+	ifeq ($(CONFIG_TOUCHSCREEN_GOODIX_BRL_SPI), y)
+		goodix_ts-y += ./goodix_berlin_driver/goodix_brl_spi.o
+	else
+		goodix_ts-y += ./goodix_berlin_driver/goodix_brl_i2c.o
+	endif
 
 	obj-$(CONFIG_MSM_TOUCH) += goodix_ts.o
 endif
