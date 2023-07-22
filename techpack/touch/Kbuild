@@ -36,6 +36,13 @@ endif
 
 ######### CONFIG_MSM_TOUCH ########
 
+ifeq ($(CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE), y)
+	LINUX_INC += -include $(TOUCH_ROOT)/xiaomi/xiaomi_touch.h
+	xiaomi_touch-y := ./xiaomi/xiaomi_touch.o
+
+	obj-$(CONFIG_MSM_TOUCH) += xiaomi_touch.o
+endif
+
 ifeq ($(CONFIG_TOUCHSCREEN_GOODIX_BRL), y)
 	LINUX_INC += -include $(TOUCH_ROOT)/goodix_berlin_driver/goodix_ts_core.h
 
