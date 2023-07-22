@@ -1,5 +1,9 @@
 KDIR := $(TOP)/kernel_platform/common
 
+ifeq ($(TOUCH_ROOT),)
+TOUCH_ROOT=$(srctree)/techpack/touch
+endif
+
 ifeq ($(CONFIG_ARCH_LAHAINA), y)
 	include $(TOUCH_ROOT)/config/gki_lahainatouch.conf
 	LINUX_INC += -include $(TOUCH_ROOT)/config/gki_lahainatouchconf.h
