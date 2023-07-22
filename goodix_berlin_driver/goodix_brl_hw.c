@@ -1291,10 +1291,8 @@ static int brl_event_handler(struct goodix_ts_core *cd,
 
 	memset(ts_event, 0, sizeof(*ts_event));
 
-	pre_read_len = IRQ_EVENT_HEAD_LEN +
-		BYTES_PER_POINT * 2 + COOR_DATA_CHECKSUM_SIZE;
-	ret = hw_ops->read(cd, misc->touch_data_addr,
-			   pre_buf, pre_read_len);
+	pre_read_len = IRQ_EVENT_HEAD_LEN + BYTES_PER_POINT * 2 + COOR_DATA_CHECKSUM_SIZE;
+	ret = hw_ops->read(cd, misc->touch_data_addr, pre_buf, pre_read_len);
 	if (ret) {
 		ts_debug("failed get event head data");
 		return ret;
@@ -1306,15 +1304,13 @@ static int brl_event_handler(struct goodix_ts_core *cd,
 	}
 
 	if (checksum_cmp(pre_buf, IRQ_EVENT_HEAD_LEN, CHECKSUM_MODE_U8_LE)) {
-		ts_debug("touch head checksum err[%*ph]",
-				IRQ_EVENT_HEAD_LEN, pre_buf);
+		ts_debug("touch head checksum err[%*ph]", IRQ_EVENT_HEAD_LEN, pre_buf);
 		return -EINVAL;
 	}
 
 	event_status = pre_buf[0];
 	if (event_status & GOODIX_TOUCH_EVENT)
-		return goodix_touch_handler(cd, ts_event,
-					    pre_buf, pre_read_len);
+		return goodix_touch_handler(cd, ts_event, pre_buf, pre_read_len);
 
 	if (event_status & GOODIX_REQUEST_EVENT) {
 		ts_event->event_type = EVENT_REQUEST;

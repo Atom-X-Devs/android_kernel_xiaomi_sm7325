@@ -35,10 +35,6 @@
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
 #endif
-#if IS_ENABLED(CONFIG_FB)
-#include <linux/notifier.h>
-#include <linux/fb.h>
-#endif
 
 #define GOODIX_CORE_DRIVER_NAME			"goodix_ts"
 #define GOODIX_PEN_DRIVER_NAME			"goodix_ts,pen"
@@ -523,10 +519,6 @@ struct goodix_ts_core {
 	struct notifier_block ts_notifier;
 	struct goodix_ts_esd ts_esd;
 	bool esd_initialized;
-
-#if IS_ENABLED(CONFIG_FB)
-	struct notifier_block fb_notifier;
-#endif
 };
 
 /* external module structures */

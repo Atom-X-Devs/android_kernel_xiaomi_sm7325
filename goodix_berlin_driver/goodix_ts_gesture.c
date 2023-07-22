@@ -304,8 +304,7 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 	}
 
 	if (!(gs_event.event_type & EVENT_GESTURE)) {
-		ts_err("invalid event type: 0x%x",
-			cd->ts_event.event_type);
+		ts_err("invalid event type: 0x%x", cd->ts_event.event_type);
 		goto re_send_ges_cmd;
 	}
 
@@ -314,13 +313,9 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 		if (cd->gesture_type & GESTURE_SINGLE_TAP) {
 			ts_info("get SINGLE-TAP gesture");
 			input_report_key(cd->input_dev, KEY_WAKEUP, 1);
-			// input_report_key(cd->input_dev, KEY_GOTO, 1);
 			input_sync(cd->input_dev);
 			input_report_key(cd->input_dev, KEY_WAKEUP, 0);
-			// input_report_key(cd->input_dev, KEY_GOTO, 0);
 			input_sync(cd->input_dev);
-		} else {
-			ts_debug("not enable SINGLE-TAP");
 		}
 		break;
 	case GOODIX_GESTURE_DOUBLE_TAP:
@@ -330,8 +325,6 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 			input_sync(cd->input_dev);
 			input_report_key(cd->input_dev, KEY_WAKEUP, 0);
 			input_sync(cd->input_dev);
-		} else {
-			ts_debug("not enable DOUBLE-TAP");
 		}
 		break;
 #if GOODIX_FOD_ENABLE
