@@ -20,7 +20,6 @@ CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 	-DANI_OS_TYPE_ANDROID=6 \
 	-DPTT_SOCK_SVC_ENABLE \
 	-Wall\
-	-Werror\
 	-D__linux__
 
 KBUILD_CPPFLAGS += $(CDEFINES)
@@ -87,5 +86,3 @@ ifeq ($(CONFIG_TOUCHSCREEN_FOCALTECH), y)
 
 	obj-$(CONFIG_MSM_TOUCH) += focaltech_fts.o
 endif
-
-CDEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"
