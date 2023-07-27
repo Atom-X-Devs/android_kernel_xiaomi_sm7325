@@ -60,5 +60,3 @@ ifeq ($(CONFIG_TOUCHSCREEN_GOODIX_BRL), y)
 
 	obj-$(CONFIG_MSM_TOUCH) += goodix_ts.o
 endif
-
-CDEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"
