@@ -79,7 +79,6 @@ int kgsl_zap_shader_load(struct device *dev, const char *name)
 	void *mem_region = NULL;
 	phys_addr_t mem_phys;
 	struct resource res;
-	const char *fwname;
 	ssize_t mem_size;
 	int ret;
 
@@ -101,19 +100,9 @@ int kgsl_zap_shader_load(struct device *dev, const char *name)
 	if (ret)
 		return ret;
 
-	/*
-	 * To avoid confusion we will keep the "legacy" naming scheme
-	 * without the .mdt postfix (i.e. "a660_zap") outside of this function
-	 * so we have to fix it up here
-	 */
-	fwname = kasprintf(GFP_KERNEL, "%s.mdt", name);
-	if (!fwname)
-		return -ENOMEM;
-
-	ret = request_firmware(&fw, fwname, dev);
+	ret = request_firmware(&fw, name, dev);
 	if (ret) {
-		dev_err(dev, "Couldn't load the firmware %s\n", fwname);
-		kfree(fwname);
+		dev_err(dev, "Couldn't load the firmware %s\n", name);
 		return ret;
 	}
 
@@ -136,7 +125,7 @@ int kgsl_zap_shader_load(struct device *dev, const char *name)
 		goto out;
 	}
 
-	ret = qcom_mdt_load(dev, fw, fwname, GPU_PASID, mem_region,
+	ret = qcom_mdt_load(dev, fw, name, GPU_PASID, mem_region,
 		mem_phys, mem_size, NULL);
 	if (ret) {
 		dev_err(dev, "Error %d while loading the MDT\n", ret);
@@ -150,6 +139,5 @@ out:
 		memunmap(mem_region);
 
 	release_firmware(fw);
-	kfree(fwname);
 	return ret;
 }
