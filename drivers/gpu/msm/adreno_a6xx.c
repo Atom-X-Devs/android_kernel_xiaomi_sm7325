@@ -2523,6 +2523,19 @@ int a6xx_perfcounter_update(struct adreno_device *adreno_dev,
 	struct cpu_gpu_lock *lock = ptr;
 	u32 *data = ptr + sizeof(*lock);
 	int i, offset = 0;
+	bool select_reg_present = false;
+
+	for (i = 0; i < lock->list_length >> 1; i++) {
+		if (data[offset] == reg->select) {
+			select_reg_present = true;
+			break;
+		}
+
+		if (data[offset] == A6XX_RBBM_PERFCTR_CNTL)
+			break;
+
+		offset += 2;
+	}
 
 	if (cpu_gpu_lock(lock)) {
 		cpu_gpu_unlock(lock);
@@ -2534,16 +2547,9 @@ int a6xx_perfcounter_update(struct adreno_device *adreno_dev,
 	 * update it, otherwise append the <select register, value> pair to
 	 * the end of the list.
 	 */
-	for (i = 0; i < lock->list_length >> 1; i++) {
-		if (data[offset] == reg->select) {
-			data[offset + 1] = reg->countable;
-			goto update;
-		}
-
-		if (data[offset] == A6XX_RBBM_PERFCTR_CNTL)
-			break;
-
-		offset += 2;
+	if (select_reg_present) {
+		data[offset + 1] = reg->countable;
+		goto update;
 	}
 
 	/*
@@ -2551,7 +2557,6 @@ int a6xx_perfcounter_update(struct adreno_device *adreno_dev,
 	 * so overwrite the existing A6XX_RBBM_PERFCNTL_CTRL and add it back to
 	 * the end.
 	 */
-
 	data[offset] = reg->select;
 	data[offset + 1] = reg->countable;
 	data[offset + 2] = A6XX_RBBM_PERFCTR_CNTL,
