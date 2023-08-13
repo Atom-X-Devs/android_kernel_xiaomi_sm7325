@@ -74,7 +74,7 @@ struct usb_dtp {
 	struct semaphore	limit_sem;/*to stop writes at full throttle from using up all RAM*/
 	struct usb_anchor	submitted;/*URBs to wait for before suspend*/
 	struct rw_semaphore	io_rwsem;
-	int disconnected:1;
+	u32 disconnected:1;
 };
 
 static struct usb_dtp *_usb_dtp = NULL;
