@@ -472,7 +472,6 @@ static void receive_file_work(struct work_struct *data)
 	size_t count = 0;
 	int bytes_read = 0;
 	int retval = 0;
-	int ret = 0;
 	int r = 0;
 	loff_t offset = 0;
 
