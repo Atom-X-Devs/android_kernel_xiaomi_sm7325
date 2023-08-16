@@ -1295,12 +1295,11 @@ static int qcom_glink_native_rx(struct qcom_glink *glink, int iterations)
 	int ret = 0;
 	int i;
 
-	if (should_wake) {
+	if (should_wake && !glink->intentless) {
 		glink_resume_pkt = true;
 		should_wake = false;
+		log_abnormal_wakeup_reason("IRQ %d, %s", glink->irq, glink->irqname);
 		pm_system_wakeup();
-		if (!glink->intentless)
-			log_abnormal_wakeup_reason("IRQ %d, %s", glink->irq, glink->irqname);
 	}
 	/* To wakeup any blocking writers */
 	wake_up_all(&glink->tx_avail_notify);
