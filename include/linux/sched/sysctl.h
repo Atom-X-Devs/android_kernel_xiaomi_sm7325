@@ -26,7 +26,6 @@ enum { sysctl_hung_task_timeout_secs = 0 };
 #define MAX_MARGIN_LEVELS (MAX_CLUSTERS - 1)
 
 extern unsigned int sysctl_sched_base_slice;
-extern unsigned int sysctl_sched_child_runs_first;
 extern unsigned int sysctl_sched_force_lb_enable;
 #ifdef CONFIG_QCOM_HYP_CORE_CTL
 extern unsigned int sysctl_hh_suspend_timeout_ms;
