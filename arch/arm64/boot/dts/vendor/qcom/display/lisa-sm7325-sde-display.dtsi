@@ -1,0 +1,269 @@
+// Written by Divyanshu-Modi <Atom-X-Devs https://github.com/Atom-X-Devs>
+
+#include <dt-bindings/clock/mdss-5nm-pll-clk.h>
+#include <dt-bindings/clock/qcom,dispcc-yupik.h>
+#include "dsi-panel-k9d-36-02-0a-dsc-cmd.dtsi"
+#include "dsi-panel-k9d-42-0d-0b-dsc-cmd.dtsi"
+
+&sde_dp {
+	status = "disabled";
+};
+
+&qcom_msmhdcp {
+	status = "disabled";
+};
+
+&mdss_mdp {
+	connectors = <&smmu_sde_unsec &smmu_sde_sec &sde_wb &sde_dsi &sde_rscc>;
+};
+
+&soc {
+	display_panel_dvdd: display_gpio_regulator@1 {
+		compatible = "qti-regulator-fixed";
+		regulator-name = "display_panel_dvdd";
+		gpio = <&tlmm 46 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	sde_wb: qcom,wb-display@0 {
+		compatible = "qcom,wb-display";
+		cell-index = <0>;
+		label = "wb_display";
+	};
+
+	dsi_panel_pwr_supply_k9d: dsi_panel_pwr_supply_k9d {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,panel-supply-entry@0 {
+			reg = <0>;
+			qcom,supply-name = "vddio";
+			qcom,supply-min-voltage = <1800000>;
+			qcom,supply-max-voltage = <1800000>;
+			qcom,supply-enable-load = <60700>;
+			qcom,supply-disable-load = <80>;
+			qcom,supply-post-on-sleep = <5>;
+			qcom,supply-pre-off-sleep = <4>;
+		};
+
+		qcom,panel-supply-entry@1 {
+			reg = <1>;
+			qcom,supply-name = "dvdd";
+			qcom,supply-min-voltage = <1200000>;
+			qcom,supply-max-voltage = <1200000>;
+			qcom,supply-enable-load = <60700>;
+			qcom,supply-disable-load = <80>;
+			qcom,supply-post-on-sleep = <5>;
+			qcom,supply-pre-off-sleep = <2>;
+		};
+
+		qcom,panel-supply-entry@2 {
+			reg = <2>;
+			qcom,supply-name = "vdd";
+			qcom,supply-min-voltage = <3000000>;
+			qcom,supply-max-voltage = <3000000>;
+			qcom,supply-enable-load = <10000>;
+			qcom,supply-disable-load = <0>;
+		};
+	};
+
+	dsi_panel_pwr_supply_k9d_0b: dsi_panel_pwr_supply_k9d_0b {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,panel-supply-entry@0 {
+			reg = <0>;
+			qcom,supply-name = "vddio";
+			qcom,supply-min-voltage = <1800000>;
+			qcom,supply-max-voltage = <1800000>;
+			qcom,supply-enable-load = <60700>;
+			qcom,supply-disable-load = <80>;
+			qcom,supply-post-on-sleep = <5>;
+			qcom,supply-pre-off-sleep = <6>;
+		};
+
+		qcom,panel-supply-entry@1 {
+			reg = <1>;
+			qcom,supply-name = "vdd";
+			qcom,supply-min-voltage = <3000000>;
+			qcom,supply-max-voltage = <3000000>;
+			qcom,supply-enable-load = <10000>;
+			qcom,supply-disable-load = <80>;
+			qcom,supply-post-on-sleep = <5>;
+			qcom,supply-pre-off-sleep = <4>;
+		};
+
+		qcom,panel-supply-entry@2 {
+			reg = <2>;
+			qcom,supply-name = "dvdd";
+			qcom,supply-min-voltage = <1200000>;
+			qcom,supply-max-voltage = <1200000>;
+			qcom,supply-enable-load = <60700>;
+			qcom,supply-disable-load = <0>;
+			qcom,supply-post-on-sleep = <13>;
+		};
+	};
+
+	sde_dsi: qcom,dsi-display-primary {
+		compatible = "qcom,dsi-display";
+		label = "primary";
+
+		qcom,dsi-ctrl = <&mdss_dsi0>;
+		qcom,dsi-phy = <&mdss_dsi_phy0>;
+		qcom,mdp = <&mdss_mdp>;
+
+		clocks = <&mdss_dsi_phy0 BYTECLK_MUX_0_CLK>,
+				<&mdss_dsi_phy0 PCLK_MUX_0_CLK>,
+				<&mdss_dsi_phy0 CPHY_BYTECLK_SRC_0_CLK>,
+				<&mdss_dsi_phy0 CPHY_PCLK_SRC_0_CLK>,
+				<&mdss_dsi_phy0 BYTECLK_SRC_0_CLK>,
+				<&mdss_dsi_phy0 PCLK_SRC_0_CLK>,
+				<&mdss_dsi_phy0 SHADOW_BYTECLK_SRC_0_CLK>,
+				<&mdss_dsi_phy0 SHADOW_PCLK_SRC_0_CLK>,
+				<&mdss_dsi_phy0 SHADOW_CPHY_BYTECLK_SRC_0_CLK>,
+				<&mdss_dsi_phy0 SHADOW_CPHY_PCLK_SRC_0_CLK>,
+				/*
+				 * Currently the dsi clock handles are under the dsi
+				 * controller DT node. As soon as the controller probe
+				 * finishes, the dispcc sync state can get called before
+				 * the dsi_display probe potentially disturbing the clock
+				 * votes for cont_splash use case. Hence we are no longer
+				 * protected by the component model in this case against the
+				 * disp cc sync state getting triggered after the dsi_ctrl
+				 * probe. To protect against this incorrect sync state trigger
+				 * add this dummy MDP clk vote handle to the dsi_display
+				 * DT node. Since the dsi_display driver does not parse
+				 * MDP clock nodes, no actual vote shall be added and this
+				 * change is done just to satisfy sync state requirements.
+				 */
+				<&dispcc DISP_CC_MDSS_MDP_CLK>;
+		clock-names = "mux_byte_clk0", "mux_pixel_clk0",
+				"cphy_byte_clk0", "cphy_pixel_clk0",
+				"src_byte_clk0", "src_pixel_clk0",
+				"shadow_byte_clk0", "shadow_pixel_clk0",
+				"shadow_cphybyte_clk0", "shadow_cphypixel_clk0",
+				"mdp_core_clk";
+
+		pinctrl-names = "panel_active", "panel_suspend";
+		pinctrl-0 = <&sde_dsi_active &sde_te_active>;
+		pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend>;
+		qcom,platform-te-gpio = <&tlmm 80 0>;
+		qcom,panel-te-source = <0>;
+
+		vddio-supply = <&L12C>;
+		vdd-supply = <&L13C>;
+		dvdd-supply = <&display_panel_dvdd>;
+		qcom,dsi-default-panel = <&dsi_k9d_36_02_0a_dsc_cmd>;
+	};
+};
+
+&dsi_k9d_36_02_0a_dsc_cmd {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_k9d>;
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
+	qcom,mdss-dsi-bl-min-level = <1>;
+	qcom,mdss-dsi-bl-max-level = <4095>;
+	qcom,mdss-brightness-init-level = <307>;
+	qcom,mdss-brightness-max-level = <4095>;
+	qcom,mdss-dsi-panel-peak-brightness = <4200000>;
+	qcom,mdss-dsi-panel-blackness-level = <3230>;
+	qcom,platform-te-gpio = <&tlmm 80 0>;
+	qcom,platform-reset-gpio = <&tlmm 44 0>;
+	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
+
+	qcom,mdss-dsi-clk-strength = <0xFF>;
+	qcom,mdss-dsi-dma-schedule-line = <1>;
+	qcom,mdss-dsi-dma-schedule-window = <50>;
+
+	qcom,esd-check-enabled;
+	qcom,esd-aod-check-enabled;
+
+	qcom,mdss-dsi-panel-status-check-mode = "reg_read";
+	qcom,mdss-dsi-panel-status-offset-command = [
+		39 01 00 00 00 00 05 FF AA 55 A5 81
+		15 01 00 00 00 00 02 6F 0F
+	];
+	qcom,mdss-dsi-panel-status-offset-command-state = "dsi_lp_mode";
+	qcom,mdss-dsi-panel-status-command = [06 01 00 00 00 00 01 FA];
+	qcom,mdss-dsi-panel-status-command-state = "dsi_lp_mode";
+	qcom,mdss-dsi-panel-status-value = <0x00>;
+	qcom,mdss-dsi-panel-status-read-length = <1>;
+
+	qcom,mdss-dsi-display-timings {
+		/* 60 Hz */
+		timing@0 {
+			qcom,mdss-dsi-panel-phy-timings = [
+				00 18 06 06 21 20 06
+				06 04 02 04 00 15 16
+			];
+			qcom,display-topology = <1 1 1>;
+			qcom,default-topology-index = <0>;
+		};
+		/* 90 Hz */
+		timing@1 {
+			qcom,mdss-dsi-panel-phy-timings = [
+				00 18 06 06 21 20 06
+				06 04 02 04 00 15 16
+			];
+			qcom,display-topology = <1 1 1>;
+			qcom,default-topology-index = <0>;
+		};
+	};
+};
+
+&dsi_k9d_42_0d_0b_dsc_cmd {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_k9d_0b>;
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
+	qcom,mdss-dsi-bl-min-level = <1>;
+	qcom,mdss-dsi-bl-max-level = <4095>;
+	qcom,mdss-brightness-init-level = <307>;
+	qcom,mdss-brightness-max-level = <4095>;
+	qcom,platform-te-gpio = <&tlmm 80 0>;
+	qcom,platform-reset-gpio = <&tlmm 44 0>;
+	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
+
+	qcom,mdss-dsi-clk-strength = <0xFF>;
+
+	qcom,esd-check-enabled;
+	qcom,esd-aod-check-enabled;
+
+	qcom,mdss-dsi-panel-status-check-mode = "reg_read";
+	qcom,mdss-dsi-panel-status-offset-command = [
+		39 01 00 00 00 00 03 FF 5A 80
+		15 01 00 00 00 00 02 65 37
+	];
+	qcom,mdss-dsi-panel-status-offset-command-state = "dsi_lp_mode";
+	qcom,mdss-dsi-panel-status-command = [
+		06 01 00 00 00 00 01 F5
+		06 01 00 00 00 00 01 0A
+		06 01 00 00 00 00 01 AA
+	];
+	qcom,mdss-dsi-panel-status-command-state = "dsi_lp_mode";
+	qcom,mdss-dsi-panel-status-value = <
+		0x00 0x00 0x00 0x9c 0x53
+		0x00 0x00 0x00 0xdc 0x93
+	>;
+	qcom,mdss-dsi-panel-status-read-length = <3 1 1>;
+
+	qcom,mdss-dsi-display-timings {
+		/* 60 Hz */
+		timing@0 {
+			qcom,mdss-dsi-panel-phy-timings = [
+				00 18 06 06 21 20 06
+				06 04 02 04 00 15 16
+			];
+			qcom,display-topology = <1 1 1>;
+			qcom,default-topology-index = <0>;
+
+		};
+		/* 90 Hz */
+		timing@1 {
+			qcom,mdss-dsi-panel-phy-timings = [
+				00 18 06 06 21 20 06
+				06 04 02 04 00 15 16
+			];
+			qcom,display-topology = <1 1 1>;
+			qcom,default-topology-index = <0>;
+		};
+	};
+};
