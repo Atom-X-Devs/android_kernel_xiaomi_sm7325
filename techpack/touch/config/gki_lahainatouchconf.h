@@ -1,0 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#define CONFIG_TOUCHSCREEN_GOODIX_BRL 1
+#define CONFIG_TOUCHSCREEN_GOODIX_BRL_SPI 1
