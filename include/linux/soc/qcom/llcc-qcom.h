@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- *
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/platform_device.h>
+#include <linux/types.h>
 #ifndef __LLCC_QCOM__
 #define __LLCC_QCOM__
 
@@ -37,9 +38,24 @@
 #define LLCC_WRTCH       31
 #define LLCC_CVPFW       32
 #define LLCC_CPUSS1      33
-#define LLCC_CMPT1       34
+#define LLCC_CAMEXP0     34
+#define LLCC_CPUMTE      35
 #define LLCC_CPUHWT      36
-#define LLCC_MDMCLD2     37
+#define LLCC_MDMCLAD2    37
+#define LLCC_CAMEXP1     38
+#define LLCC_CMPTHCP     39
+#define LLCC_LCPDARE     40
+#define LLCC_AENPU       45
+#define LLCC_ISLAND1     46
+#define LLCC_ISLAND2     47
+#define LLCC_ISLAND3     48
+#define LLCC_ISLAND4     49
+#define LLCC_CAMEXP2     50
+#define LLCC_CAMEXP3     51
+#define LLCC_CAMEXP4     52
+#define LLCC_DISP_WB     53
+#define LLCC_DISP_1      54
+#define LLCC_VIDVSP      64
 
 /**
  * llcc_slice_desc - Cache slice descriptor
@@ -49,65 +65,7 @@
 struct llcc_slice_desc {
 	u32 slice_id;
 	size_t slice_size;
-};
-
-/**
- * llcc_slice_config - Data associated with the llcc slice
- * @usecase_id: usecase id for which the llcc slice is used
- * @slice_id: llcc slice id assigned to each slice
- * @max_cap: maximum capacity of the llcc slice
- * @priority: priority of the llcc slice
- * @fixed_size: whether the llcc slice can grow beyond its size
- * @bonus_ways: bonus ways associated with llcc slice
- * @res_ways: reserved ways associated with llcc slice
- * @cache_mode: mode of the llcc slice
- * @probe_target_ways: Probe only reserved and bonus ways on a cache miss
- * @dis_icap_alloc: Disable capacity based allocation
- * @write_scid_en: Enables write cache support for a given scid.
- * @retain_on_pc: Retain through power collapse
- * @activate_on_init: activate the slice on init
- */
-struct llcc_slice_config {
-	u32 usecase_id;
-	u32 slice_id;
-	u32 max_cap;
-	u32 priority;
-	bool fixed_size;
-	u32 bonus_ways;
-	u32 res_ways;
-	u32 cache_mode;
-	u32 probe_target_ways;
-	bool dis_cap_alloc;
-	bool write_scid_en;
-	bool retain_on_pc;
-	bool activate_on_init;
-};
-
-/**
- * llcc_drv_data - Data associated with the llcc driver
- * @regmap: regmap associated with the llcc device
- * @bcast_regmap: regmap associated with llcc broadcast offset
- * @cfg: pointer to the data structure for slice configuration
- * @lock: mutex associated with each slice
- * @cfg_size: size of the config data table
- * @max_slices: max slices as read from device tree
- * @num_banks: Number of llcc banks
- * @bitmap: Bit map to track the active slice ids
- * @offsets: Pointer to the bank offsets array
- * @ecc_irq: interrupt for llcc cache error detection and reporting
- */
-struct llcc_drv_data {
-	struct regmap *regmap;
-	struct regmap *bcast_regmap;
-	const struct llcc_slice_config *cfg;
-	struct mutex lock;
-	u32 cfg_size;
-	u32 max_slices;
-	u32 num_banks;
-	unsigned long *bitmap;
-	u32 *offsets;
-	int ecc_irq;
-	bool cap_based_alloc_and_pwr_collapse;
+	atomic_t refcount;
 };
 
 /**
@@ -132,6 +90,47 @@ struct llcc_edac_reg_data {
 	u32 ways_mask;
 	u8  count_shift;
 	u8  ways_shift;
+};
+
+/**
+ * llcc_drv_data - Data associated with the llcc driver
+ * @regmap: regmap associated with the llcc device
+ * @bcast_regmap: regmap associated with llcc broadcast offset
+ * @cfg: pointer to the data structure for slice configuration
+ * @lock: mutex associated with each slice
+ * @cfg_size: size of the config data table
+ * @max_slices: max slices as read from device tree
+ * @num_banks: Number of llcc banks
+ * @bitmap: Bit map to track the active slice ids
+ * @offsets: Pointer to the bank offsets array
+ * @ecc_irq: interrupt for llcc cache error detection and reporting
+ * @llcc_ver: hardware version (20 for V2.0)
+ * @desc: Array pointer of llcc_slice_desc
+ */
+struct llcc_drv_data {
+	struct regmap *regmap;
+	struct regmap *bcast_regmap;
+	const struct llcc_slice_config *cfg;
+	struct mutex lock;
+	u32 cfg_size;
+	u32 max_slices;
+	u32 num_banks;
+	unsigned long *bitmap;
+	u32 *offsets;
+	int ecc_irq;
+	int llcc_ver;
+	bool cap_based_alloc_and_pwr_collapse;
+	struct llcc_slice_desc *desc;
+};
+
+/**
+ * llcc_tcm_data - Data associated with the llcc tcm driver
+ *
+ */
+struct llcc_tcm_data {
+	phys_addr_t phys_addr;
+	void __iomem *virt_addr;
+	size_t mem_size;
 };
 
 #if IS_ENABLED(CONFIG_QCOM_LLCC)
@@ -170,21 +169,6 @@ int llcc_slice_activate(struct llcc_slice_desc *desc);
  * @desc: Pointer to llcc slice descriptor
  */
 int llcc_slice_deactivate(struct llcc_slice_desc *desc);
-
-/**
- * qcom_llcc_probe - program the sct table
- * @pdev: platform device pointer
- * @table: soc sct table
- * @sz: Size of the config table
- */
-int qcom_llcc_probe(struct platform_device *pdev,
-		      const struct llcc_slice_config *table, u32 sz);
-
-/**
- * qcom_llcc_remove - remove the sct table
- * @pdev: Platform device pointer
- */
-int qcom_llcc_remove(struct platform_device *pdev);
 #else
 static inline struct llcc_slice_desc *llcc_slice_getd(u32 uid)
 {
@@ -213,16 +197,6 @@ static inline int llcc_slice_activate(struct llcc_slice_desc *desc)
 static inline int llcc_slice_deactivate(struct llcc_slice_desc *desc)
 {
 	return -EINVAL;
-}
-static inline int qcom_llcc_probe(struct platform_device *pdev,
-		      const struct llcc_slice_config *table, u32 sz)
-{
-	return -ENODEV;
-}
-
-static inline int qcom_llcc_remove(struct platform_device *pdev)
-{
-	return -ENODEV;
 }
 #endif
 

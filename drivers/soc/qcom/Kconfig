@@ -164,80 +164,9 @@ config QCOM_LLCC
 	select REGMAP_MMIO
 	help
 	  Qualcomm Technologies, Inc. platform specific
-	  Last Level Cache Controller(LLCC) driver. This provides interfaces
-	  to clients that use the LLCC. Say yes here to enable LLCC slice
-	  driver.
-
-config QCOM_LAHAINA_LLCC
-	tristate "Qualcomm Technologies, Inc. LAHAINA LLCC driver"
-	depends on QCOM_LLCC
-	help
-	  Say y or m here to enable the LLCC driver for Lahaina platform.
-	  This provides data required to configure LLCC so that clients
-	  can start using the LLCC slices.
-	  If unsure, say n.
-
-config QCOM_SDXLEMUR_LLCC
-	tristate "Qualcomm Technologies, Inc. SDXLEMUR LLCC driver"
-	depends on QCOM_LLCC
-	help
-	  Say y or m here to enable the LLCC driver for SDXLEMUR platform.
-	  This provides data required to configure LLCC so that clients
-	  can start using the LLCC slices.
-	  If unsure, say n.
-
-config QCOM_SHIMA_LLCC
-	tristate "Qualcomm Technologies, Inc. SHIMA LLCC driver"
-	depends on QCOM_LLCC
-	help
-	  Say y or m here to enable the LLCC driver for Shima platform.
-	  This provides data required to configure LLCC so that clients
-	  can start using the LLCC slices.
-	  If unsure, say n.
-
-config QCOM_YUPIK_LLCC
-	tristate "Qualcomm Technologies, Inc. YUPIK LLCC driver"
-	depends on QCOM_LLCC
-	help
-	  Say y or m here to enable the LLCC driver for Yupik platform.
-	  This provides data required to configure LLCC so that clients
-	  can start using the LLCC slices.
-	  If unsure, say n.
-
-config QCOM_SM8150_LLCC
-	tristate "Qualcomm Technologies, Inc. SM8150 LLCC driver"
-	depends on QCOM_LLCC
-	help
-	 Say y or m here to enable the LLCC driver for SM8150 platform.
-	 This provides data required to configure LLCC so that clients
-	 can start using the LLCC slices.
-	 If unsure, say n.
-
-config QCOM_SDMSHRIKE_LLCC
-	tristate "Qualcomm Technologies, Inc. SDMSHRIKE LLCC driver"
-	depends on QCOM_LLCC
-	help
-	  Say y or m here to enable the LLCC driver for SDMSHRIKE platform.
-	  This provides data required to configure LLCC so that clients
-	  can start using the LLCC slices.
-	  If unsure, say n.
-
-config QCOM_SM6150_LLCC
-	tristate "Qualcomm Technologies, Inc. SM6150 LLCC driver"
-	depends on QCOM_LLCC
-	help
-	  Say yes here to enable the LLCC driver for SM6150. This is provides
-	  data required to configure LLCC so that clients can start using the
-	  LLCC slices.
-	  If unsure, say n.
-
-config QCOM_SDM845_LLCC
-	tristate "Qualcomm Technologies, Inc. SDM845 LLCC driver"
-	depends on QCOM_LLCC
-	help
-	  Say yes here to enable the LLCC driver for SDM845. This provides
-	  data required to configure LLCC so that clients can start using the
-	  LLCC slices.
+	  Last Level Cache Controller (LLCC) driver for platforms such as,
+	  SDM845. This provides interfaces to clients that use the LLCC.
+	  Say yes here to enable LLCC slice driver.
 
 config QCOM_LLCC_PERFMON
 	tristate "Qualcomm Technologies, Inc. LLCC Perfmon driver"
@@ -248,15 +177,6 @@ config QCOM_LLCC_PERFMON
 	  This is used for performance and debug activity and exports sysfs
 	  interface. sysfs interface is used to configure and dump the LLCC
 	  performance events.
-
-config QCOM_DIREWOLF_LLCC
-	tristate "Qualcomm Technologies, Inc. Direwolf LLCC driver"
-	depends on QCOM_LLCC
-	help
-	  Say y or m here to enable the LLCC driver for Direwolf platform.
-	  This provides data required to configure LLCC so that clients
-	  can start using the LLCC slices.
-	  If unsure, say n.
 
 config QCOM_MDT_LOADER
 	tristate
