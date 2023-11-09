@@ -8,7 +8,6 @@
 
 #include <linux/scatterlist.h>
 #include <linux/usb/gadget.h>
-#include <linux/soc/qcom/llcc-tcm.h>
 
 /* used for struct usb_phy flags */
 #define PHY_HOST_MODE			BIT(0)
@@ -86,8 +85,6 @@ struct usb_gsi_request {
 	struct sg_table sgt_trb_xfer_ring;
 	struct sg_table sgt_data_buff;
 	struct device *dev;
-	bool use_tcm_mem;
-	struct llcc_tcm_data *tcm_mem;
 };
 
 /*
