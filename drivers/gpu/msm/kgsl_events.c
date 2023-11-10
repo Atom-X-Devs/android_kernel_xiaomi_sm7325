@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/debugfs.h>
@@ -186,8 +186,10 @@ void kgsl_cancel_event(struct kgsl_device *device,
 
 	list_for_each_entry_safe(event, tmp, &group->events, node) {
 		if (timestamp == event->timestamp && func == event->func &&
-			event->priv == priv)
+			event->priv == priv) {
 			signal_event(device, event, KGSL_EVENT_CANCELLED);
+			break;
+		}
 	}
 
 	spin_unlock(&group->lock);
