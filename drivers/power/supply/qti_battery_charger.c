@@ -1666,8 +1666,7 @@ static int battery_psy_get_prop(struct power_supply *psy,
 #else
 		pval->intval = DIV_ROUND_CLOSEST(pst->prop[prop_id], 100);
 #endif
-		if (IS_ENABLED(CONFIG_QTI_PMIC_GLINK_CLIENT_DEBUG) &&
-		   (bcdev->fake_soc >= 0 && bcdev->fake_soc <= 100))
+		if (bcdev->fake_soc >= 0 && bcdev->fake_soc <= 100)
 			pval->intval = bcdev->fake_soc;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
@@ -1807,7 +1806,7 @@ static int power_supply_read_temp(struct thermal_zone_device *tzd,
 
 	time_now = ktime_get();
 	delta = ktime_ms_delta(time_now, last_read_time);
-	if(delta < 5000)
+	if (delta < 5000)
 		batt_temp = last_temp;
 	else {
 		rc = read_property_id(bcdev, pst, XM_PROP_THERMAL_TEMP);
