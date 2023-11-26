@@ -8,6 +8,9 @@
 
 enum battery_charger_prop {
 	BATTERY_RESISTANCE,
+#ifdef CONFIG_MACH_XIAOMI
+	USB_CC_ORIENTATION,
+#endif
 	BATTERY_CHARGER_PROP_MAX,
 };
 
