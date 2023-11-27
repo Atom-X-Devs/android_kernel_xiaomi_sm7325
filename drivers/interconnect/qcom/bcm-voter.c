@@ -1,13 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
- *
+ * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
  */
+
+#include <asm/div64.h>
 #include <linux/interconnect-provider.h>
 #include <linux/list_sort.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
 #include <soc/qcom/rpmh.h>
@@ -17,6 +17,7 @@
 #include "icc-rpmh.h"
 
 static LIST_HEAD(bcm_voters);
+static DEFINE_MUTEX(bcm_voter_lock);
 
 /**
  * struct bcm_voter - Bus Clock Manager voter
@@ -42,17 +43,10 @@ struct bcm_voter {
 
 static int cmp_vcd(void *priv, struct list_head *a, struct list_head *b)
 {
-	const struct qcom_icc_bcm *bcm_a =
-			list_entry(a, struct qcom_icc_bcm, list);
-	const struct qcom_icc_bcm *bcm_b =
-			list_entry(b, struct qcom_icc_bcm, list);
+	const struct qcom_icc_bcm *bcm_a = list_entry(a, struct qcom_icc_bcm, list);
+	const struct qcom_icc_bcm *bcm_b = list_entry(b, struct qcom_icc_bcm, list);
 
-	if (bcm_a->aux_data.vcd < bcm_b->aux_data.vcd)
-		return -1;
-	else if (bcm_a->aux_data.vcd == bcm_b->aux_data.vcd)
-		return 0;
-	else
-		return 1;
+	return bcm_a->aux_data.vcd - bcm_b->aux_data.vcd;
 }
 
 static u64 bcm_div(u64 num, u64 base)
@@ -72,37 +66,52 @@ static void bcm_aggregate(struct qcom_icc_bcm *bcm, bool init)
 	size_t i, bucket;
 	u64 agg_avg[QCOM_ICC_NUM_BUCKETS] = {0};
 	u64 agg_peak[QCOM_ICC_NUM_BUCKETS] = {0};
+	bool perf_mode[QCOM_ICC_NUM_BUCKETS] = {0};
 	u64 temp;
-	u32 bcm_width, bcm_unit;
-
-	bcm_width = le16_to_cpu(bcm->aux_data.width);
-	bcm_unit = le32_to_cpu(bcm->aux_data.unit);
 
 	for (bucket = 0; bucket < QCOM_ICC_NUM_BUCKETS; bucket++) {
 		for (i = 0; i < bcm->num_nodes; i++) {
 			node = bcm->nodes[i];
-			temp = bcm_div(node->sum_avg[bucket] * bcm_width,
+			temp = bcm_div(node->sum_avg[bucket] * bcm->aux_data.width,
 				       node->buswidth * node->channels);
 			agg_avg[bucket] = max(agg_avg[bucket], temp);
 
-			temp = bcm_div(node->max_peak[bucket] * bcm_width,
+			temp = bcm_div(node->max_peak[bucket] * bcm->aux_data.width,
 				       node->buswidth);
 			agg_peak[bucket] = max(agg_peak[bucket], temp);
+
+			perf_mode[bucket] |= node->perf_mode[bucket];
 		}
 
 		temp = agg_avg[bucket] * bcm->vote_scale;
-		bcm->vote_x[bucket] = bcm_div(temp, bcm_unit);
+		bcm->vote_x[bucket] = bcm_div(temp, bcm->aux_data.unit);
 
 		temp = agg_peak[bucket] * bcm->vote_scale;
-		bcm->vote_y[bucket] = bcm_div(temp, bcm_unit);
+		bcm->vote_y[bucket] = bcm_div(temp, bcm->aux_data.unit);
+
+		if (bcm->enable_mask && (bcm->vote_x[bucket] || bcm->vote_y[bucket])) {
+			bcm->vote_x[bucket] = 0;
+			bcm->vote_y[bucket] = bcm->enable_mask;
+			if (perf_mode[bucket])
+				bcm->vote_y[bucket] |= bcm->perf_mode_mask;
+		}
 	}
 
 	if (bcm->keepalive) {
+		/*
+		 * Keepalive should normally only be enforced for AMC/WAKE so
+		 * that BCMs are only kept alive when HLOS is active. But early
+		 * during init all clients haven't had a chance to vot yet, and
+		 * some have use cases that persist when HLOS is asleep. So
+		 * during init vote to all sets, including SLEEP.
+		 */
 		if (init) {
 			bcm->vote_x[QCOM_ICC_BUCKET_AMC] = 16000;
 			bcm->vote_x[QCOM_ICC_BUCKET_WAKE] = 16000;
+			bcm->vote_x[QCOM_ICC_BUCKET_SLEEP] = 16000;
 			bcm->vote_y[QCOM_ICC_BUCKET_AMC] = 16000;
 			bcm->vote_y[QCOM_ICC_BUCKET_WAKE] = 16000;
+			bcm->vote_y[QCOM_ICC_BUCKET_SLEEP] = 16000;
 		} else if (bcm->vote_x[QCOM_ICC_BUCKET_AMC] == 0 &&
 			   bcm->vote_y[QCOM_ICC_BUCKET_AMC] == 0) {
 			bcm->vote_x[QCOM_ICC_BUCKET_AMC] = 1;
@@ -157,10 +166,9 @@ static void tcs_list_gen(struct bcm_voter *voter, int bucket,
 		commit = false;
 		cur_vcd_size++;
 		if ((list_is_last(&bcm->list, bcm_list)) ||
-		    bcm->aux_data.vcd !=
-			list_next_entry(bcm, list)->aux_data.vcd) {
-			cur_vcd_size = 0;
+		    bcm->aux_data.vcd != list_next_entry(bcm, list)->aux_data.vcd) {
 			commit = true;
+			cur_vcd_size = 0;
 		}
 
 		wait = commit && (voter->tcs_wait & BIT(bucket));
@@ -217,16 +225,44 @@ struct bcm_voter *of_bcm_voter_get(struct device *dev, const char *name)
 
 	node = of_parse_phandle(np, "qcom,bcm-voters", idx);
 
+	mutex_lock(&bcm_voter_lock);
 	list_for_each_entry(temp, &bcm_voters, voter_node) {
 		if (temp->np == node) {
 			voter = temp;
 			break;
 		}
 	}
+	mutex_unlock(&bcm_voter_lock);
 
+	of_node_put(node);
 	return voter;
 }
-EXPORT_SYMBOL(of_bcm_voter_get);
+EXPORT_SYMBOL_GPL(of_bcm_voter_get);
+
+/**
+ * qcom_icc_bcm_voter_exist - checks if the bcm voter exists
+ * @voter: voter that needs to checked against available bcm voters
+ *
+ * Returns true incase bcm_voter exists else false
+ */
+static bool qcom_icc_bcm_voter_exist(struct bcm_voter *voter)
+{
+	bool exists = false;
+	struct bcm_voter *temp;
+
+	if (voter) {
+		mutex_lock(&bcm_voter_lock);
+		list_for_each_entry(temp, &bcm_voters, voter_node) {
+			if (temp == voter) {
+				exists = true;
+				break;
+			}
+		}
+		mutex_unlock(&bcm_voter_lock);
+	}
+
+	return exists;
+}
 
 /**
  * qcom_icc_bcm_voter_add - queues up the bcm nodes that require updates
@@ -238,6 +274,9 @@ void qcom_icc_bcm_voter_add(struct bcm_voter *voter, struct qcom_icc_bcm *bcm)
 	if (!voter)
 		return;
 
+	if (!qcom_icc_bcm_voter_exist(voter))
+		return;
+
 	mutex_lock(&voter->lock);
 	if (list_empty(&bcm->list))
 		list_add_tail(&bcm->list, &voter->commit_list);
@@ -247,7 +286,7 @@ void qcom_icc_bcm_voter_add(struct bcm_voter *voter, struct qcom_icc_bcm *bcm)
 
 	mutex_unlock(&voter->lock);
 }
-EXPORT_SYMBOL(qcom_icc_bcm_voter_add);
+EXPORT_SYMBOL_GPL(qcom_icc_bcm_voter_add);
 
 /**
  * qcom_icc_bcm_voter_commit - generates and commits tcs cmds based on bcms
@@ -271,6 +310,9 @@ int qcom_icc_bcm_voter_commit(struct bcm_voter *voter)
 
 	if (!voter)
 		return 0;
+
+	if (!qcom_icc_bcm_voter_exist(voter))
+		return -ENODEV;
 
 	mutex_lock(&voter->lock);
 	list_for_each_entry(bcm, &voter->commit_list, list)
@@ -322,8 +364,6 @@ int qcom_icc_bcm_voter_commit(struct bcm_voter *voter)
 	list_for_each_entry_safe(bcm, bcm_tmp, &voter->commit_list, list)
 		list_del_init(&bcm->list);
 
-	INIT_LIST_HEAD(&voter->commit_list);
-
 	list_for_each_entry_safe(bcm, bcm_tmp, &voter->ws_list, ws_list) {
 		/*
 		 * Only generate WAKE and SLEEP commands if a resource's
@@ -346,8 +386,7 @@ int qcom_icc_bcm_voter_commit(struct bcm_voter *voter)
 
 	tcs_list_gen(voter, QCOM_ICC_BUCKET_WAKE, cmds, commit_idx);
 
-	ret = rpmh_write_batch(voter->dev, RPMH_WAKE_ONLY_STATE, cmds,
-				commit_idx);
+	ret = rpmh_write_batch(voter->dev, RPMH_WAKE_ONLY_STATE, cmds, commit_idx);
 	if (ret) {
 		pr_err("Error sending WAKE RPMH requests (%d)\n", ret);
 		goto out;
@@ -365,11 +404,10 @@ out:
 	list_for_each_entry_safe(bcm, bcm_tmp, &voter->commit_list, list)
 		list_del_init(&bcm->list);
 
-	INIT_LIST_HEAD(&voter->commit_list);
 	mutex_unlock(&voter->lock);
 	return ret;
 }
-EXPORT_SYMBOL(qcom_icc_bcm_voter_commit);
+EXPORT_SYMBOL_GPL(qcom_icc_bcm_voter_commit);
 
 /**
  * qcom_icc_bcm_voter_clear_init - clear init flag used during boot up
@@ -378,6 +416,9 @@ EXPORT_SYMBOL(qcom_icc_bcm_voter_commit);
 void qcom_icc_bcm_voter_clear_init(struct bcm_voter *voter)
 {
 	if (!voter)
+		return;
+
+	if (!qcom_icc_bcm_voter_exist(voter))
 		return;
 
 	mutex_lock(&voter->lock);
@@ -405,36 +446,51 @@ static int qcom_icc_bcm_voter_probe(struct platform_device *pdev)
 	mutex_init(&voter->lock);
 	INIT_LIST_HEAD(&voter->commit_list);
 	INIT_LIST_HEAD(&voter->ws_list);
+
+	mutex_lock(&bcm_voter_lock);
 	list_add_tail(&voter->voter_node, &bcm_voters);
+	mutex_unlock(&bcm_voter_lock);
+
+	return 0;
+}
+
+static int qcom_icc_bcm_voter_remove(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct bcm_voter *voter, *temp;
+
+	mutex_lock(&bcm_voter_lock);
+	list_for_each_entry_safe(voter, temp, &bcm_voters, voter_node) {
+		if (voter->np == np) {
+			list_del(&voter->voter_node);
+			break;
+		}
+	}
+	mutex_unlock(&bcm_voter_lock);
 
 	return 0;
 }
 
 static const struct of_device_id bcm_voter_of_match[] = {
-	{ .compatible = "qcom,sdm845-bcm-voter" },
 	{ .compatible = "qcom,bcm-voter" },
 	{ },
 };
 
 static struct platform_driver qcom_icc_bcm_voter_driver = {
 	.probe = qcom_icc_bcm_voter_probe,
+	.remove = qcom_icc_bcm_voter_remove,
 	.driver = {
-		.name		= "sdm845_bcm_voter",
+		.name		= "bcm_voter",
 		.of_match_table = bcm_voter_of_match,
 	},
 };
 
-static int __init bcm_voter_driver_init(void)
+static int __init qcom_icc_bcm_voter_driver_init(void)
 {
 	return platform_driver_register(&qcom_icc_bcm_voter_driver);
 }
-core_initcall(bcm_voter_driver_init);
+module_init(qcom_icc_bcm_voter_driver_init);
 
-static void __exit bcm_voter_driver_exit(void)
-{
-	platform_driver_unregister(&qcom_icc_bcm_voter_driver);
-}
-module_exit(bcm_voter_driver_exit);
-
-MODULE_DESCRIPTION("QTI BCM Voter interconnect driver");
+MODULE_AUTHOR("David Dai <daidavid1@codeaurora.org>");
+MODULE_DESCRIPTION("Qualcomm BCM Voter interconnect driver");
 MODULE_LICENSE("GPL v2");

@@ -20,7 +20,7 @@
 
 #include "icc-rpmh.h"
 #include "bcm-voter.h"
-#include "qnoc-qos.h"
+#include "qnoc-qos-rpm.h"
 
 static LIST_HEAD(qnoc_probe_list);
 static DEFINE_MUTEX(probe_list_lock);

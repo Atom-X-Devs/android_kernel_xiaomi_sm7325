@@ -20,7 +20,7 @@
 #include <soc/qcom/rpm-smd.h>
 
 #include "icc-rpm.h"
-#include "qnoc-qos.h"
+#include "qnoc-qos-rpm.h"
 #include "rpm-ids.h"
 
 static LIST_HEAD(qnoc_probe_list);

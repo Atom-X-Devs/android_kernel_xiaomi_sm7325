@@ -5,6 +5,12 @@ config INTERCONNECT_QCOM
 	help
 	  Support for Qualcomm's Network-on-Chip interconnect hardware.
 
+config INTERCONNECT_QCOM_BCM_VOTER
+	tristate
+
+config INTERCONNECT_QCOM_QOS_RPM
+	tristate
+
 config INTERCONNECT_QCOM_DIREWOLF
 	tristate "DIREWOLF interconnect driver"
 	depends on INTERCONNECT_QCOM
@@ -23,7 +29,7 @@ config INTERCONNECT_QCOM_HOLI
 	depends on INTERCONNECT_QCOM
 	depends on MSM_RPM_SMD
 	select INTERCONNECT_QCOM_RPM
-	select INTERCONNECT_QCOM_QOS
+	select INTERCONNECT_QCOM_QOS_RPM
 	help
 	  This is a driver for the Qualcomm Technologies, Inc. Network-on-Chip
 	  on holi-based platforms. The interconnect provider collects and
@@ -35,7 +41,7 @@ config INTERCONNECT_QCOM_MONACO
 	depends on INTERCONNECT_QCOM
 	depends on MSM_RPM_SMD
 	select INTERCONNECT_QCOM_RPM
-	select INTERCONNECT_QCOM_QOS
+	select INTERCONNECT_QCOM_QOS_RPM
 	help
 	  This is a driver for the Qualcomm Technologies, Inc. Network-on-Chip
 	  on monaco-based platforms. The interconnect provider collects and
@@ -50,6 +56,9 @@ config INTERCONNECT_QCOM_QCS404
 	help
 	  This is a driver for the Qualcomm Network-on-Chip on qcs404-based
 	  platforms.
+
+config INTERCONNECT_QCOM_RPMH
+	tristate
 
 config INTERCONNECT_QCOM_SCSHRIKE
 	tristate "SCSHRIKE interconnect driver"
@@ -166,20 +175,21 @@ config INTERCONNECT_QCOM_SDXNIGHTJAR
 	depends on INTERCONNECT_QCOM
 	depends on MSM_RPM_SMD
 	select INTERCONNECT_QCOM_RPM
-	select INTERCONNECT_QCOM_QOS
+	select INTERCONNECT_QCOM_QOS_RPM
 	help
 	  This is a driver for the Qualcomm Technologies, Inc. Network-on-Chip
 	  on sdxnightjar-based platforms. The interconnect provider collects and
 	  aggreagates the cosumer bandwidth requests to satisfy constraints
 	  placed on Network-on-Chip performance states.
 
+
+config INTERCONNECT_QCOM_RPM
+	tristate
+
 config INTERCONNECT_QCOM_SMD_RPM
 	tristate
 
-config INTERCONNECT_QCOM_BCM_VOTER
-	tristate
-
-config INTERCONNECT_QCOM_RPMH
+config INTERCONNECT_QCOM_QOS
 	tristate
 
 config INTERCONNECT_QCOM_SDXLEMUR
@@ -192,9 +202,3 @@ config INTERCONNECT_QCOM_SDXLEMUR
 	help
 	  This is a driver for the Qualcomm Technologies, Inc. Network-on-Chip
 	  on sdxlemur-based platforms.
-
-config INTERCONNECT_QCOM_RPM
-	tristate
-
-config INTERCONNECT_QCOM_QOS
-	tristate

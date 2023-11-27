@@ -157,6 +157,14 @@ static int qcom_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
 	return 0;
 }
 
+static int qcom_icc_get_bw_stub(struct icc_node *node, u32 *avg, u32 *peak)
+{
+	*avg = 0;
+	*peak = 0;
+
+	return 0;
+}
+
 static int qcom_icc_l3_cpu_set(struct icc_node *src, struct icc_node *dst)
 {
 	struct qcom_epss_l3_icc_provider *qp;
@@ -238,8 +246,7 @@ static int qcom_epss_l3_probe(struct platform_device *pdev)
 		return PTR_ERR(qp->base);
 
 	for (i = 0; i < LUT_MAX_ENTRIES; i++) {
-		info = readl_relaxed(qp->base + REG_FREQ_LUT +
-				     i * LUT_ROW_SIZE);
+		info = readl_relaxed(qp->base + REG_FREQ_LUT + i * LUT_ROW_SIZE);
 		src = FIELD_GET(LUT_SRC, info);
 		lval = FIELD_GET(LUT_L_VAL, info);
 		if (src)
@@ -273,6 +280,7 @@ static int qcom_epss_l3_probe(struct platform_device *pdev)
 	provider->dev = &pdev->dev;
 	provider->set = qcom_icc_l3_cpu_set;
 	provider->aggregate = qcom_icc_aggregate;
+	provider->get_bw = qcom_icc_get_bw_stub;
 	provider->xlate = of_icc_xlate_onecell;
 	INIT_LIST_HEAD(&provider->nodes);
 	provider->data = data;
@@ -289,6 +297,9 @@ static int qcom_epss_l3_probe(struct platform_device *pdev)
 
 	for (i = 0; i < num_nodes; i++) {
 		size_t j;
+
+		if (!qnodes[i])
+			continue;
 
 		node = icc_node_create(qnodes[i]->id);
 		if (IS_ERR(node)) {
