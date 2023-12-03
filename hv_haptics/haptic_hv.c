@@ -1065,6 +1065,7 @@ static int input_framework_init(struct aw_haptic *aw_haptic)
 {
 	struct input_dev *input_dev;
 	int ret = 0;
+	int max_effect_count = AW_EFFECT_NUMBER;
 
 	input_dev = devm_input_allocate_device(aw_haptic->dev);
 	if (input_dev == NULL)
@@ -1076,7 +1077,11 @@ static int input_framework_init(struct aw_haptic *aw_haptic)
 	input_set_capability(input_dev, EV_FF, FF_CONSTANT);
 	input_set_capability(input_dev, EV_FF, FF_PERIODIC);
 	input_set_capability(input_dev, EV_FF, FF_CUSTOM);
-	ret = input_ff_create(input_dev, AW_EFFECT_NUMBER);
+
+	if (aw_haptic->effect_max && aw_haptic->support_predef)
+		max_effect_count = effect_max;
+
+	ret = input_ff_create(input_dev, max_effect_count);
 	if (ret < 0) {
 		aw_err("create input FF device failed, rc=%d\n", ret);
 		return ret;
@@ -3337,9 +3342,7 @@ static int aw_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 
 	i2c_set_clientdata(i2c, aw_haptic);
 	dev_set_drvdata(&i2c->dev, aw_haptic);
-	ret = input_framework_init(aw_haptic);
-	if (ret < 0)
-		goto err_parse_dt;
+
 	/* aw_haptic rst & int */
 	if (np) {
 		ret = parse_dt(&i2c->dev, aw_haptic, np);
@@ -3351,6 +3354,10 @@ static int aw_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 		aw_haptic->reset_gpio = -1;
 		aw_haptic->irq_gpio = -1;
 	}
+
+	ret = input_framework_init(aw_haptic);
+	if (ret < 0)
+		goto err_parse_dt;
 
 #ifdef AW_ENABLE_PIN_CONTROL
 	aw_haptic->pinctrl = devm_pinctrl_get(&i2c->dev);
