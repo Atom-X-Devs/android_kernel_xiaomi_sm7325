@@ -94,11 +94,6 @@
 /* #define AW_ENABLE_PIN_CONTROL */
 /* #define AW_SND_SOC_CODEC */
 /* #define AW869X_MUL_GET_F0 */
-#define AW869X_DRIVER_ENABLE
-#define AW869XX_DRIVER_ENABLE
-#define AW8671X_DRIVER_ENABLE
-#define AW8692X_DRIVER_ENABLE
-#define AW8693X_DRIVER_ENABLE
 
 /*********************************************************
  *
@@ -721,23 +716,23 @@ struct aw_haptic_func {
  * Function Call
  *
  *********************************************************/
-#ifdef AW869X_DRIVER_ENABLE
+#ifdef CONFIG_AW869X_DRIVER_ENABLE
 extern struct aw_haptic_func aw869x_func_list;
 #endif
 
-#ifdef AW869XX_DRIVER_ENABLE
+#ifdef CONFIG_AW869XX_DRIVER_ENABLE
 extern struct aw_haptic_func aw869xx_func_list;
 #endif
 
-#ifdef AW8671X_DRIVER_ENABLE
+#ifdef CONFIG_AW8691X_DRIVER_ENABLE
 extern struct aw_haptic_func aw8671x_func_list;
 #endif
 
-#ifdef AW8692X_DRIVER_ENABLE
+#ifdef CONFIG_AW8692X_DRIVER_ENABLE
 extern struct aw_haptic_func aw8692x_func_list;
 #endif
 
-#ifdef AW8693X_DRIVER_ENABLE
+#ifdef CONFIG_AW8693X_DRIVER_ENABLE
 extern struct aw_haptic_func aw8693x_func_list;
 #endif
 

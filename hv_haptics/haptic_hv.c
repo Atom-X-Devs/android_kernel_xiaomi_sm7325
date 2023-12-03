@@ -326,13 +326,13 @@ static int ctrl_init(struct aw_haptic *aw_haptic)
 		if (read_chipid(aw_haptic, &reg) < 0)
 			aw_err("read chip id fail");
 		switch (reg) {
-#ifdef AW869X_DRIVER_ENABLE
+#ifdef CONFIG_AW869X_DRIVER_ENABLE
 		case AW8695_CHIPID:
 		case AW8697_CHIPID:
 			aw_haptic->func = &aw869x_func_list;
 			return 0;
 #endif
-#ifdef AW869XX_DRIVER_ENABLE
+#ifdef CONFIG_AW869XX_DRIVER_ENABLE
 		case AW86905_CHIPID:
 		case AW86907_CHIPID:
 		case AW86915_CHIPID:
@@ -340,7 +340,7 @@ static int ctrl_init(struct aw_haptic *aw_haptic)
 			aw_haptic->func = &aw869xx_func_list;
 			return 0;
 #endif
-#ifdef AW8671X_DRIVER_ENABLE
+#ifdef CONFIG_AW8691X_DRIVER_ENABLE
 		case AW86715_CHIPID:
 		case AW86716_CHIPID:
 		case AW86717_CHIPID:
@@ -348,7 +348,7 @@ static int ctrl_init(struct aw_haptic *aw_haptic)
 			aw_haptic->func = &aw8671x_func_list;
 			return 0;
 #endif
-#ifdef AW8692X_DRIVER_ENABLE
+#ifdef CONFIG_AW8692X_DRIVER_ENABLE
 		case AW86925_CHIPID:
 		case AW86926_CHIPID:
 		case AW86927_CHIPID:
@@ -356,7 +356,7 @@ static int ctrl_init(struct aw_haptic *aw_haptic)
 			aw_haptic->func = &aw8692x_func_list;
 			return 0;
 #endif
-#ifdef AW8693X_DRIVER_ENABLE
+#ifdef CONFIG_AW8693X_DRIVER_ENABLE
 		case AW86936_CHIPID:
 		case AW86937_CHIPID:
 		case AW86938_CHIPID:
@@ -384,7 +384,7 @@ static int parse_chipid(struct aw_haptic *aw_haptic)
 		if (ret < 0)
 			aw_err("read chip id fail: %d", ret);
 		switch (reg) {
-#ifdef AW869X_DRIVER_ENABLE
+#ifdef CONFIG_AW869X_DRIVER_ENABLE
 		case AW8695_CHIPID:
 			aw_haptic->chipid = AW8695_CHIPID;
 			aw_haptic->bst_pc = AW_BST_PC_L1;
@@ -400,7 +400,7 @@ static int parse_chipid(struct aw_haptic *aw_haptic)
 			aw_info("detected aw8697.");
 			return ret;
 #endif
-#ifdef AW869XX_DRIVER_ENABLE
+#ifdef CONFIG_AW869XX_DRIVER_ENABLE
 		case AW86905_CHIPID:
 			aw_haptic->chipid = AW86905_CHIPID;
 			aw_haptic->bst_pc = AW_BST_PC_L1;
@@ -430,7 +430,7 @@ static int parse_chipid(struct aw_haptic *aw_haptic)
 			aw_info("detected aw86917.");
 			return 0;
 #endif
-#ifdef AW8671X_DRIVER_ENABLE
+#ifdef CONFIG_AW8691X_DRIVER_ENABLE
 		case AW86715_CHIPID:
 			aw_haptic->chipid = AW86715_CHIPID;
 			aw_haptic->i2s_config = false;
@@ -456,7 +456,7 @@ static int parse_chipid(struct aw_haptic *aw_haptic)
 			aw_info("detected aw86718.");
 			return 0;
 #endif
-#ifdef AW8692X_DRIVER_ENABLE
+#ifdef CONFIG_AW8692X_DRIVER_ENABLE
 		case AW86925_CHIPID:
 			aw_haptic->chipid = AW86925_CHIPID;
 			aw_haptic->bst_pc = AW_BST_PC_L1;
@@ -482,7 +482,7 @@ static int parse_chipid(struct aw_haptic *aw_haptic)
 			aw_info("detected aw86928.");
 			return 0;
 #endif
-#ifdef AW8693X_DRIVER_ENABLE
+#ifdef CONFIG_AW8693X_DRIVER_ENABLE
 		case AW86936_CHIPID:
 			aw_haptic->chipid = AW86936_CHIPID;
 			aw_haptic->i2s_config = true;
