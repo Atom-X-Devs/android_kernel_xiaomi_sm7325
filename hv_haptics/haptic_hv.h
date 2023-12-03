@@ -83,7 +83,7 @@
 
 #define AW_CHECK_RAM_DATA
 #define AW_READ_BIN_FLEXBALLY
-#define AW_LRA_F0_DEFAULT
+/*#define AW_LRA_F0_DEFAULT*/
 #define AW_ENABLE_PIN_CONTROL
 /* #define AW_TIKTAP */
 /* #define AW_DOUBLE */
