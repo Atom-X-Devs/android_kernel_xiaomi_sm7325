@@ -18,6 +18,14 @@
 
 #define HAPTIC_HV_DRIVER_VERSION	"v1.4.0"
 
+#ifdef AW_ENABLE_PIN_CONTROL
+static const char *pctl_names[] = {
+	"awinic_reset_reset",
+	"awinic_reset_active",
+	"awinic_interrupt_active",
+};
+#endif
+
 char *aw_ram_name = "haptic_ram.bin";
 char aw_rtp_name[][AW_RTP_NAME_MAX] = {
 	{"haptic_rtp_osc_24K_5s.bin"},
@@ -146,17 +154,76 @@ static int parse_dt_gpio(struct device *dev, struct aw_haptic *aw_haptic, struct
 	return 0;
 }
 
+#ifdef AW_ENABLE_PIN_CONTROL
+static int select_pin_state(struct awinic *awinic, const char *name)
+{
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(awinic->pinctrl_state); i++) {
+		int rc;
+		const char *n = pctl_names[i];
+
+		if (!strncmp(n, name, strlen(n))) {
+			rc = pinctrl_select_state(aw_haptic->pinctrl, aw_haptic->pinctrl_state[i]);
+			if (rc)
+				aw_err("cannot select '%s'", name);
+			else
+				aw_info("selected '%s'", name);
+
+			return rc;
+		}
+	}
+
+	aw_info("'%s' not found", name);
+	return -EINVAL;
+}
+
+static void control_reset_pin(struct aw_haptic *aw_haptic)
+{
+	int ret = 0;
+
+	ret = select_pin_state(aw_haptic, "awinic_reset_active");
+	if (ret < 0) {
+		aw_err("%s select reset failed!\n", __func__);
+		return;
+	}
+	usleep_range(5000, 5500);
+
+	ret = select_pin_state(aw_haptic, "awinic_reset_reset");
+	if (ret < 0) {
+		aw_err("%s select reset failed!\n", __func__);
+		return;
+	}
+	usleep_range(5000, 5500);
+
+	ret = select_pin_state(aw_haptic, "awinic_reset_active");
+	if (ret < 0) {
+		aw_err("%s select reset failed!\n", __func__);
+		return;
+	}
+	usleep_range(8000, 8500);
+#endif
+
 static void hw_reset(struct aw_haptic *aw_haptic)
 {
 	aw_info("enter");
-	if (aw_haptic && gpio_is_valid(aw_haptic->reset_gpio)) {
-		gpio_set_value_cansleep(aw_haptic->reset_gpio, 0);
-		usleep_range(1000, 2000);
-		gpio_set_value_cansleep(aw_haptic->reset_gpio, 1);
-		usleep_range(8000, 8500);
-	} else {
-		aw_err("failed");
+
+	if (aw_haptic != NULL) {
+#ifdef AW_ENABLE_PIN_CONTROL
+		control_reset_pin(aw_haptic);
+		return;
+#else
+		if (gpio_is_valid(aw_haptic->reset_gpio)) {
+			gpio_set_value_cansleep(aw_haptic->reset_gpio, 0);
+			usleep_range(5000, 5500);
+			gpio_set_value_cansleep(aw_haptic->reset_gpio, 1);
+			usleep_range(8000, 8500);
+			return;
+		}
+#endif
 	}
+
+	aw_err("failed");
 }
 
 static void sw_reset(struct aw_haptic *aw_haptic)
@@ -3228,37 +3295,43 @@ static int aw_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 		aw_haptic->irq_gpio = -1;
 	}
 
+#ifdef AW_ENABLE_PIN_CONTROL
+	aw_haptic->pinctrl = devm_pinctrl_get(&i2c->dev);
+	if (IS_ERR(aw_haptic->pinctrl)) {
+		ret = PTR_ERR(aw_haptic->pinctrl);
+		if (ret != -EPROBE_DEFER) {
+			aw_err("target doesnt use pinctrl");
+			aw_haptic->pinctrl = NULL;
+		}
+		goto err_reset_gpio_request;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(aw_haptic->pinctrl_state); i++) {
+		const char *n = pctl_names[i];
+		struct pinctrl_state *state = pinctrl_lookup_state(aw_haptic->pinctrl, n);
+		if (!IS_ERR(state)) {
+			aw_info("pinctrl: %s found", n);
+			aw_haptic->pinctrl_state[i] = state;
+			continue;
+		}
+		aw_info("pinctrl: %s not found", n);
+		goto err_reset_gpio_request;
+	}
+
+	ret = select_pin_state(aw_haptic, "awinic_interrupt_active");
+	if (ret) {
+		aw_info("Interrupt pinctrl state change failed!");
+		goto err_reset_gpio_request; // error probe not decided yet
+	}
+#else
 	if (gpio_is_valid(aw_haptic->reset_gpio)) {
-		ret = devm_gpio_request_one(&i2c->dev, aw_haptic->reset_gpio,
-					    GPIOF_OUT_INIT_LOW, "aw_rst");
+		ret = devm_gpio_request_one(&i2c->dev, aw_haptic->reset_gpio, GPIOF_OUT_INIT_LOW, "aw_rst");
 		if (ret) {
 			aw_err("rst request failed");
 			goto err_reset_gpio_request;
 		}
 	}
 
-#ifdef AW_ENABLE_PIN_CONTROL
-	aw_haptic->pinctrl = devm_pinctrl_get(&i2c->dev);
-	if (IS_ERR(aw_haptic->pinctrl)) {
-		if (PTR_ERR(aw_haptic->pinctrl) == -EPROBE_DEFER) {
-			aw_err("pinctrl not ready");
-			ret = -EPROBE_DEFER;
-			goto err_reset_gpio_request;
-		}
-		aw_err("Target does not use pinctrl");
-		aw_haptic->pinctrl = NULL;
-		ret = -EINVAL;
-		goto err_reset_gpio_request;
-	}
-	aw_haptic->pinctrl_state = pinctrl_lookup_state(aw_haptic->pinctrl, "irq_active");
-	if (IS_ERR(aw_haptic->pinctrl_state)) {
-		aw_err("cannot find pinctrl state");
-		ret = -EINVAL;
-		goto err_reset_gpio_request;
-	} else {
-		pinctrl_select_state(aw_haptic->pinctrl, aw_haptic->pinctrl_state);
-	}
-#endif
 	if (gpio_is_valid(aw_haptic->irq_gpio)) {
 		ret = devm_gpio_request_one(&i2c->dev, aw_haptic->irq_gpio, GPIOF_DIR_IN, "aw_int");
 		if (ret) {
@@ -3266,6 +3339,7 @@ static int aw_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 			goto err_irq_gpio_request;
 		}
 	}
+#endif
 
 	/* aw func ptr init */
 	ret = ctrl_init(aw_haptic);
@@ -3329,6 +3403,7 @@ static int aw_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 
 err_id:
 err_ctrl_init:
+#ifndef AW_ENABLE_PIN_CONTROL
 err_irq_config:
 	if (gpio_is_valid(aw_haptic->irq_gpio))
 		devm_gpio_free(&i2c->dev, aw_haptic->irq_gpio);
@@ -3336,6 +3411,7 @@ err_irq_config:
 err_irq_gpio_request:
 	if (gpio_is_valid(aw_haptic->reset_gpio))
 		devm_gpio_free(&i2c->dev, aw_haptic->reset_gpio);
+#endif
 
 err_parse_dt:
 err_reset_gpio_request:
@@ -3364,8 +3440,6 @@ static int aw_remove(struct i2c_client *i2c)
 	mutex_destroy(&aw_haptic->haptic_audio.lock);
 	destroy_workqueue(aw_haptic->work_queue);
 	devm_free_irq(&i2c->dev, gpio_to_irq(aw_haptic->irq_gpio), aw_haptic);
-	if (gpio_is_valid(aw_haptic->irq_gpio))
-		devm_gpio_free(&i2c->dev, aw_haptic->irq_gpio);
 #ifdef AW_SND_SOC_CODEC
 #ifdef KERNEL_OVER_4_19
 	snd_soc_unregister_component(&i2c->dev);
@@ -3379,8 +3453,12 @@ static int aw_remove(struct i2c_client *i2c)
 	free_pages((unsigned long)aw_haptic->start_buf, AW_TIKTAP_MMAP_PAGE_ORDER);
 	aw_haptic->start_buf = NULL;
 #endif
+#ifndef AW_ENABLE_PIN_CONTROL
+	if (gpio_is_valid(aw_haptic->irq_gpio))
+		devm_gpio_free(&i2c->dev, aw_haptic->irq_gpio);
 	if (gpio_is_valid(aw_haptic->reset_gpio))
 		devm_gpio_free(&i2c->dev, aw_haptic->reset_gpio);
+#endif
 
 	return 0;
 }

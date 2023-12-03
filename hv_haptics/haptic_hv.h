@@ -637,7 +637,11 @@ struct aw_haptic {
 	struct aw_haptic_dts_info info;
 	struct aw_haptic_audio haptic_audio;
 	struct pinctrl *pinctrl;
+#ifdef AW_ENABLE_PIN_CONTROL
+	struct pinctrl_state *pinctrl_state[3];
+#else
 	struct pinctrl_state *pinctrl_state;
+#endif
 	struct aw_haptic_func *func;
 	struct aw_i2c_info i2c_info;
 	struct trig trig[AW_TRIG_NUM];
