@@ -82,7 +82,7 @@
 #define CPU_LATENCY_QOC_VALUE			(0)
 
 #define AW_CHECK_RAM_DATA
-#define AW_READ_BIN_FLEXBALLY
+/*#define AW_READ_BIN_FLEXBALLY*/
 /*#define AW_LRA_F0_DEFAULT*/
 #define AW_ENABLE_PIN_CONTROL
 /* #define AW_TIKTAP */
