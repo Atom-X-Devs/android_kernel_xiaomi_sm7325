@@ -84,6 +84,7 @@
 #define AW_CHECK_RAM_DATA
 #define AW_READ_BIN_FLEXBALLY
 #define AW_LRA_F0_DEFAULT
+#define AW_ENABLE_PIN_CONTROL
 /* #define AW_TIKTAP */
 /* #define AW_DOUBLE */
 /* #define AW_DURATION_DECIDE_WAVEFORM */
@@ -91,7 +92,6 @@
 /* #define AW_OSC_MULTI_CALI */
 /* #define AW_BOOT_OSC_CALI */
 /* #define AW_ENABLE_RTP_PRINT_LOG */
-/* #define AW_ENABLE_PIN_CONTROL */
 /* #define AW_SND_SOC_CODEC */
 /* #define AW869X_MUL_GET_F0 */
 
