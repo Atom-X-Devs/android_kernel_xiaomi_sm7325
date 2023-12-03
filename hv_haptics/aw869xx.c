@@ -1812,8 +1812,7 @@ static void aw869xx_misc_para_init(struct aw_haptic *aw_haptic)
 static ssize_t cont_drv_lvl_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	ssize_t len = 0;
-	cdev_t *cdev = dev_get_drvdata(dev);
-	struct aw_haptic *aw_haptic = container_of(cdev, struct aw_haptic, vib_dev);
+	struct aw_haptic *aw_haptic = dev_get_drvdata(dev);
 
 	len += snprintf(buf + len, PAGE_SIZE - len,
 			"cont_drv1_lvl = 0x%02X, cont_drv2_lvl = 0x%02X\n",
@@ -1826,8 +1825,7 @@ static ssize_t cont_drv_lvl_store(struct device *dev, struct device_attribute *a
 				  const char *buf, size_t count)
 {
 	uint32_t databuf[2] = { 0, 0 };
-	cdev_t *cdev = dev_get_drvdata(dev);
-	struct aw_haptic *aw_haptic = container_of(cdev, struct aw_haptic, vib_dev);
+	struct aw_haptic *aw_haptic = dev_get_drvdata(dev);
 
 	if (sscanf(buf, "%x %x", &databuf[0], &databuf[1]) == 2) {
 		aw_haptic->info.cont_drv1_lvl = databuf[0];
@@ -1845,8 +1843,7 @@ static ssize_t cont_drv_lvl_store(struct device *dev, struct device_attribute *a
 static ssize_t cont_drv_time_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	ssize_t len = 0;
-	cdev_t *cdev = dev_get_drvdata(dev);
-	struct aw_haptic *aw_haptic = container_of(cdev, struct aw_haptic, vib_dev);
+	struct aw_haptic *aw_haptic = dev_get_drvdata(dev);
 
 	len += snprintf(buf + len, PAGE_SIZE - len,
 			"cont_drv1_time = 0x%02X, cont_drv2_time = 0x%02X\n",
@@ -1860,8 +1857,7 @@ static ssize_t cont_drv_time_store(struct device *dev, struct device_attribute *
 {
 	uint8_t cont_time[2] = {0};
 	uint32_t databuf[2] = { 0, 0 };
-	cdev_t *cdev = dev_get_drvdata(dev);
-	struct aw_haptic *aw_haptic = container_of(cdev, struct aw_haptic, vib_dev);
+	struct aw_haptic *aw_haptic = dev_get_drvdata(dev);
 
 	if (sscanf(buf, "%x %x", &databuf[0], &databuf[1]) == 2) {
 		cont_time[0] = aw_haptic->info.cont_drv1_time = databuf[0];
@@ -1875,8 +1871,7 @@ static ssize_t cont_drv_time_store(struct device *dev, struct device_attribute *
 static ssize_t cont_brk_time_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	ssize_t len = 0;
-	cdev_t *cdev = dev_get_drvdata(dev);
-	struct aw_haptic *aw_haptic = container_of(cdev, struct aw_haptic, vib_dev);
+	struct aw_haptic *aw_haptic = dev_get_drvdata(dev);
 
 	len += snprintf(buf + len, PAGE_SIZE - len, "cont_brk_time = 0x%02X\n",
 			aw_haptic->info.cont_brk_time);
@@ -1888,8 +1883,7 @@ static ssize_t cont_brk_time_store(struct device *dev, struct device_attribute *
 				   const char *buf, size_t count)
 {
 	int rc = 0;
-	cdev_t *cdev = dev_get_drvdata(dev);
-	struct aw_haptic *aw_haptic = container_of(cdev, struct aw_haptic, vib_dev);
+	struct aw_haptic *aw_haptic = dev_get_drvdata(dev);
 
 	rc = kstrtou8(buf, 0, &aw_haptic->info.cont_brk_time);
 	if (rc < 0)
@@ -1904,8 +1898,7 @@ static ssize_t trig_show(struct device *dev, struct device_attribute *attr, char
 {
 	uint8_t i = 0;
 	ssize_t len = 0;
-	cdev_t *cdev = dev_get_drvdata(dev);
-	struct aw_haptic *aw_haptic = container_of(cdev, struct aw_haptic, vib_dev);
+	struct aw_haptic *aw_haptic = dev_get_drvdata(dev);
 
 	for (i = 0; i < AW_TRIG_NUM; i++) {
 		len += snprintf(buf + len, PAGE_SIZE - len,
@@ -1928,8 +1921,7 @@ static ssize_t trig_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 	uint32_t databuf[9] = { 0 };
-	cdev_t *cdev = dev_get_drvdata(dev);
-	struct aw_haptic *aw_haptic = container_of(cdev, struct aw_haptic, vib_dev);
+	struct aw_haptic *aw_haptic = dev_get_drvdata(dev);
 
 	if (sscanf(buf, "%u %u %u %u %u %u %u %u %u", &databuf[0], &databuf[1], &databuf[2],
 	    &databuf[3], &databuf[4], &databuf[5], &databuf[6], &databuf[7], &databuf[8]) == 9) {
@@ -2006,7 +1998,7 @@ static int aw869xx_creat_node(struct aw_haptic *aw_haptic)
 {
 	int ret = 0;
 
-	ret = sysfs_create_group(&aw_haptic->vib_dev.dev->kobj, &aw869xx_vibrator_attribute_group);
+	ret = sysfs_create_group(&aw_haptic->i2c.dev->kobj, &aw869xx_vibrator_attribute_group);
 	if (ret < 0)
 		aw_err("error creating sysfs attr files");
 

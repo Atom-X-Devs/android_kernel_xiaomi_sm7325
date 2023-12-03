@@ -84,7 +84,6 @@
 #define AW_CHECK_RAM_DATA
 #define AW_READ_BIN_FLEXBALLY
 #define AW_LRA_F0_DEFAULT
-#define AW_INPUT_FRAMEWORK
 /* #define AW_TIKTAP */
 /* #define AW_DOUBLE */
 /* #define AW_DURATION_DECIDE_WAVEFORM */
@@ -160,24 +159,12 @@ enum {
 #define TIKTAP_R_VALID_L_FINISHED	((MMAP_BUF_DATA_VALID&TIkTAP_LEFT_STATUS_MASK)|TIkTAP_LEFT_FINISHED_DONE)
 #endif
 
-#if KERNEL_VERSION(4, 4, 1) >= LINUX_VERSION_CODE
-#define TIMED_OUTPUT
-#endif
-
 #if KERNEL_VERSION(4, 19, 1) <= LINUX_VERSION_CODE
 #define KERNEL_OVER_4_19
 #endif
 
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 #define KERNEL_OVER_5_10
-#endif
-
-#ifdef TIMED_OUTPUT
-#include <../../../drivers/staging/android/timed_output.h>
-typedef struct timed_output_dev cdev_t;
-#else
-#include <linux/leds.h>
-typedef struct led_classdev cdev_t;
 #endif
 
 #ifdef KERNEL_OVER_4_19
@@ -618,8 +605,6 @@ struct aw_haptic {
 	uint32_t timeval_flags;
 	uint32_t osc_cali_data;
 	uint64_t microsecond;
-
-	cdev_t vib_dev;
 
 	ktime_t kend;
 	ktime_t kstart;
