@@ -131,9 +131,14 @@ static int parse_dt_gpio(struct device *dev, struct aw_haptic *aw_haptic, struct
 		aw_err("no irq gpio provided.");
 	else
 		aw_info("irq gpio provide ok irq = %d.", aw_haptic->irq_gpio);
+
 	val = of_property_read_u8(np, "mode", &aw_haptic->info.mode);
 	if (val != 0)
 		aw_info("mode not found");
+
+	val = of_property_read_u32(np, "f0_pre", &aw_haptic->info.f0_pre);
+	if (val != 0)
+		aw_info("f0_pre not found");
 #ifdef AW_DOUBLE
 	if (of_device_is_compatible(np, "awinic,haptic_hv_l")) {
 		aw_info("compatible left vibrator.");

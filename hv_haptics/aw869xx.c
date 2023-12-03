@@ -1682,9 +1682,6 @@ static void aw869xx_parse_dt(struct device *dev, struct aw_haptic *aw_haptic,
 	val = of_property_read_u8(np, "aw869xx_gain_bypass", &aw_haptic->info.gain_bypass);
 	if (val != 0)
 		aw_info("aw869xx_gain_bypass not found");
-	val = of_property_read_u32(np, "f0_pre", &aw_haptic->info.f0_pre);
-	if (val != 0)
-		aw_info("f0_pre not found");
 	val = of_property_read_u8(np, "aw869xx_f0_cali_percent", &aw_haptic->info.f0_cali_percent);
 	if (val != 0)
 		aw_info("aw869xx_f0_cali_percent not found");

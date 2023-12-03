@@ -1245,9 +1245,6 @@ static void aw869x_parse_dt(struct device *dev, struct aw_haptic *aw_haptic, str
 	uint8_t trig_config_temp[15];
 	uint32_t val = 0;
 
-	val = of_property_read_u32(np, "f0_pre", &aw_haptic->info.f0_pre);
-	if (val != 0)
-		aw_info("f0_pre not found");
 	val = of_property_read_u8(np, "aw869x_f0_cali_percent", &aw_haptic->info.f0_cali_percent);
 	if (val != 0)
 		aw_info("aw869x_f0_cali_percent not found");
