@@ -448,6 +448,11 @@ enum aw8692x_haptic_trig {
  * Struct Define
  *
  *********************************************************/
+struct qti_hap_effect {
+	int id;
+	u16 play_rate_us;
+};
+
 struct trig {
 	/* AW869X */
 	uint8_t enable;
@@ -563,6 +568,7 @@ struct aw_haptic {
 	bool rtp_init;
 	bool ram_init;
 	bool dual_flag;
+	bool support_predef;
 
 	/* COMMON */
 	uint8_t flags;
@@ -589,6 +595,7 @@ struct aw_haptic {
 	int duration;
 	int amplitude;
 	int reset_gpio;
+	int effect_max;
 
 	uint32_t f0;
 	uint32_t lra;
@@ -647,6 +654,7 @@ struct aw_haptic {
 	struct trig trig[AW_TRIG_NUM];
 	struct aw_haptic_container *aw_rtp;
 	struct pm_qos_request aw_pm_qos_req_vb;
+	struct qti_hap_effect *predefined;
 };
 
 struct aw_haptic_container {

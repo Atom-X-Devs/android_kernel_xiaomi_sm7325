@@ -116,9 +116,11 @@ int haptic_hv_i2c_write_bits(struct aw_haptic *aw_haptic, uint8_t reg_addr,
 	return 0;
 }
 
-static int parse_dt_gpio(struct device *dev, struct aw_haptic *aw_haptic, struct device_node *np)
+static int parse_dt(struct device *dev, struct aw_haptic *aw_haptic, struct device_node *np)
 {
-	int val = 0;
+	int val = 0, tmp = 0, i = 0;
+	struct device_node *child_node;
+	struct qti_hap_effect *effect;
 
 	aw_haptic->reset_gpio = of_get_named_gpio(np, "reset-gpio", 0);
 	if (aw_haptic->reset_gpio < 0) {
@@ -139,6 +141,30 @@ static int parse_dt_gpio(struct device *dev, struct aw_haptic *aw_haptic, struct
 	val = of_property_read_u32(np, "f0_pre", &aw_haptic->info.f0_pre);
 	if (val != 0)
 		aw_info("f0_pre not found");
+
+	aw_haptic->support_predef = of_property_read_bool(np, "awinic,support_predefined_pattern");
+	if (aw_haptic->support_predef) {
+		tmp = of_get_available_child_count(np);
+		aw_haptic->effect_max = tmp;
+		aw_haptic->predefined = devm_kcalloc(aw86927->dev, tmp,
+					sizeof(*aw_haptic->predefined), GFP_KERNEL);
+		if (!aw_haptic->predefined)
+			return -ENOMEM;
+
+		for_each_available_child_of_node(np, child_node) {
+			effect = &aw_haptic->predefined[i++];
+			val = of_property_read_u32(child_node, "qcom,effect-id", &effect->id);
+			if (val)
+				aw_dbg("Read qcom,effect-id failed");
+
+			val = of_property_read_u32(child_node, "qcom,wf-play-rate-us", &tmp);
+			if (val != 0)
+				aw_dbg("%s  Read qcom,wf-vmax-mv failed !\n", __func__);
+
+			effect->play_rate_us = tmp ? tmp : 0;
+		}
+	}
+
 #ifdef AW_DOUBLE
 	if (of_device_is_compatible(np, "awinic,haptic_hv_l")) {
 		aw_info("compatible left vibrator.");
@@ -915,6 +941,7 @@ static int input_upload_effect(struct input_dev *dev, struct ff_effect *effect,
 {
 	struct aw_haptic *aw_haptic = input_get_drvdata(dev);
 	short wav_id = 0;
+	s16 data[3];
 	int wav_id_max = 0;
 	int ret = 0;
 
@@ -927,13 +954,38 @@ static int input_upload_effect(struct input_dev *dev, struct ff_effect *effect,
 		aw_info("waveform id = %d", aw_haptic->index);
 		break;
 	case FF_PERIODIC:
-		ret = copy_from_user(&wav_id, effect->u.periodic.custom_data, sizeof(short));
+		if (!aw_haptic->support_predef)
+			ret = copy_from_user(&wav_id, effect->u.periodic.custom_data, sizeof(short));
+		else {
+			ret = copy_from_user(data, effect->u.periodic.custom_data, sizeof(s16) * 3);
+			wav_id = data[0];
+		}
+
 		if (ret) {
 			aw_err("copy from user error %d!!", ret);
 			mutex_unlock(&aw_haptic->lock);
 			return -ERANGE;
 		}
+
 		aw_info("waveform id = %d", wav_id);
+		if (aw_haptic->support_predef) {
+			if (wav_id < 0) {
+				mutex_unlock(&aw86927->lock);
+				return 0;
+			}
+			if (wav_id < aw_haptic->effect_max) {
+				aw_haptic->activate_mode = AW_RAM_MODE;
+				data[1] = aw_haptic->predefined[wav_id].play_rate_us / 1000000;
+				data[2] = aw_haptic->predefined[wav_id].play_rate_us / 1000;
+				ret = copy_to_user(effect->u.periodic.custom_data, data, sizeof(s16) * 3);
+				if (ret) {
+					mutex_unlock(&aw86927->lock);
+					return -EFAULT;
+				}
+				aw_haptic->index = ++wave_id;
+				break;
+			}
+		}
 		wav_id_max = aw_haptic->rtp_num + aw_haptic->ram.ram_num - 1;
 		if (wav_id > 0 && wav_id < aw_haptic->ram.ram_num) {
 			aw_haptic->activate_mode = AW_RAM_MODE;
@@ -3290,7 +3342,7 @@ static int aw_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 		goto err_parse_dt;
 	/* aw_haptic rst & int */
 	if (np) {
-		ret = parse_dt_gpio(&i2c->dev, aw_haptic, np);
+		ret = parse_dt(&i2c->dev, aw_haptic, np);
 		if (ret) {
 			aw_err("failed to parse gpio");
 			goto err_parse_dt;
