@@ -220,6 +220,10 @@ static ssize_t thermal_balance_mode_show(struct device *dev,
 static ssize_t thermal_balance_mode_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
+	int val = -1;
+	val = simple_strtol(buf, NULL, 10);
+	atomic_set(&balance_mode, val);
+
 	return len;
 }
 
@@ -296,6 +300,10 @@ static ssize_t thermal_charger_temp_show(struct device *dev,
 static ssize_t thermal_charger_temp_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
+	int val = -1;
+	val = simple_strtol(buf, NULL, 10);
+	atomic_set(&charger_temp, val);
+
 	return len;
 }
 
@@ -334,6 +342,10 @@ static ssize_t thermal_flash_state_show(struct device *dev,
 static ssize_t thermal_flash_state_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
+	int val = -1;
+	val = simple_strtol(buf, NULL, 10);
+	atomic_set(&flash_state, val);
+
 	return len;
 }
 
@@ -349,6 +361,10 @@ static ssize_t thermal_market_download_limit_show(struct device *dev,
 static ssize_t thermal_market_download_limit_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
+	int val = -1;
+	val = simple_strtol(buf, NULL, 10);
+	atomic_set(&market_download_limit, val);
+
 	return len;
 }
 
@@ -364,6 +380,10 @@ static ssize_t thermal_modem_limit_show(struct device *dev,
 static ssize_t thermal_modem_limit_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
+	int val = -1;
+	val = simple_strtol(buf, NULL, 10);
+	atomic_set(&modem_limit, val);
+
 	return len;
 }
 
@@ -379,6 +399,10 @@ static ssize_t thermal_poor_modem_limit_show(struct device *dev,
 static ssize_t thermal_poor_modem_limit_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
+	int val = -1;
+	val = simple_strtol(buf, NULL, 10);
+	atomic_set(&poor_modem_limit, val);
+
 	return len;
 }
 
@@ -395,9 +419,7 @@ static ssize_t thermal_sconfig_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
 	int val = -1;
-
 	val = simple_strtol(buf, NULL, 10);
-
 	atomic_set(&sconfig, val);
 
 	return len;
@@ -444,6 +466,10 @@ static ssize_t thermal_wifi_limit_show(struct device *dev,
 static ssize_t thermal_wifi_limit_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
+	int val = -1;
+	val = simple_strtol(buf, NULL, 10);
+	atomic_set(&wifi_limit, val);
+
 	return len;
 }
 
@@ -481,19 +507,23 @@ static void create_thermal_message_node(void)
 	struct subsys_private *cp = NULL;
 
 	sysfs_sd = kernel_kobj->sd->parent;
-	if (sysfs_sd) {
-		class_sd = kernfs_find_and_get(sysfs_sd, "class");
-		if (class_sd) {
-			thermal_sd = kernfs_find_and_get(class_sd, "thermal");
-			if (thermal_sd) {
-				kobj_tmp = (struct kobject *)thermal_sd->priv;
-				if (kobj_tmp) {
-					cp = to_subsys_private(kobj_tmp);
-					cls = cp->class;
-				}
-			}
-		}
+	if (!sysfs_sd)
+		return;
+
+	class_sd = kernfs_find_and_get(sysfs_sd, "class");
+	if (!class_sd)
+		return;
+
+	thermal_sd = kernfs_find_and_get(class_sd, "thermal");
+	if (!thermal_sd)
+		return;
+
+	kobj_tmp = (struct kobject *)thermal_sd->priv;
+	if (kobj_tmp) {
+		cp = to_subsys_private(kobj_tmp);
+		cls = cp->class;
 	}
+
 	if (!mi_thermal_dev.class && cls) {
 		mi_thermal_dev.class = cls;
 		mi_thermal_dev.dev = device_create(mi_thermal_dev.class, NULL, 'H', NULL, "thermal_message");
