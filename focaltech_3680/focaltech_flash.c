@@ -43,7 +43,7 @@
  *****************************************************************************/
 #define FTS_FW_REQUEST_SUPPORT 1
 /* Example: focaltech_ts_fw_tianma.bin */
-#define FTS_FW_NAME_PREX_WITH_REQUEST "focaltech_ts_fw"
+#define FTS_FW_NAME_PREX_WITH_REQUEST "focaltech_ts_fw_"
 #define FTS_READ_BOOT_ID_TIMEOUT 3
 #define FTS_FLASH_PACKET_LENGTH_SPI_LOW (4 * 1024 - 4)
 #define FTS_FLASH_PACKET_LENGTH_SPI (32 * 1024 - 16)

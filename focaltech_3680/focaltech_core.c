@@ -70,8 +70,9 @@
 #define FTS_I2C_VTG_MIN_UV 1800000
 #define FTS_I2C_VTG_MAX_UV 1800000
 #endif
-#define DISP_ID_DET (30 + 38)
-#define DISP_ID1_DET (30 + 164)
+#define DISP_ID_DET (336 + 96)
+#define DISP_ID1_DET (336 + 68)
+
 /*****************************************************************************
  * Global variable or extern global variabls/functions
  *****************************************************************************/
@@ -1631,7 +1632,7 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 	if (enable) {
 		if (ts_data->power_disabled) {
 			FTS_DEBUG("regulator enable !");
-			gpio_direction_output(ts_data->pdata->reset_gpio, 0);
+			gpio_direction_output(ts_data->pdata->reset_gpio, 1);
 			msleep(1);
 			if (ts_data->pinctrl && ts_data->pinctrl_dvdd_enable) {
 				ret = pinctrl_select_state(
@@ -1656,7 +1657,9 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 					FTS_ERROR("successs to enable iovdd\n");
 			} else
 				FTS_ERROR("failed to get iovdd regulator\n");
-			msleep(1);
+			msleep(3);
+			gpio_direction_output(ts_data->pdata->avdd_gpio, 1);
+			msleep(3);
 			ret = regulator_enable(ts_data->avdd);
 			if (ret)
 				FTS_ERROR("enable avdd regulator failed,ret=%d",
@@ -1669,7 +1672,9 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 		if (!ts_data->power_disabled) {
 			FTS_DEBUG("regulator disable !");
 			gpio_direction_output(ts_data->pdata->reset_gpio, 0);
-			msleep(1);
+			msleep(3);
+			gpio_direction_output(ts_data->pdata->avdd_gpio, 0);
+			msleep(3);
 			ret = regulator_disable(ts_data->avdd);
 			if (ret)
 				FTS_ERROR(
@@ -1817,9 +1822,20 @@ static int fts_gpio_configure(struct fts_ts_data *data)
 		}
 	}
 
+	if (gpio_is_valid(data->pdata->avdd_gpio)) {
+		ret = gpio_request(data->pdata->avdd_gpio, "fts_avdd_gpio");
+		if (ret) {
+			FTS_ERROR("[GPIO]avdd gpio request failed");
+			goto err_reset_gpio_dir;
+		}
+	}
+
 	FTS_FUNC_EXIT();
 	return 0;
 
+err_reset_gpio_dir:
+	if (gpio_is_valid(data->pdata->reset_gpio))
+		gpio_free(data->pdata->reset_gpio);
 err_irq_gpio_dir:
 	if (gpio_is_valid(data->pdata->irq_gpio))
 		gpio_free(data->pdata->irq_gpio);
@@ -1917,6 +1933,11 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
 	}
 
 	/* reset, irq gpio info */
+	pdata->avdd_gpio = of_get_named_gpio_flags(np, "focaltech,avdd-gpio", 0,
+						   &pdata->avdd_gpio_flags);
+	if (pdata->avdd_gpio < 0)
+		FTS_ERROR("Unable to get avdd_gpio");
+
 	pdata->reset_gpio = of_get_named_gpio_flags(
 		np, "focaltech,reset-gpio", 0, &pdata->reset_gpio_flags);
 	if (pdata->reset_gpio < 0)
@@ -1949,8 +1970,9 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
 			pdata->max_touch_number = temp_val;
 	}
 
-	FTS_INFO("max touch number:%d, irq gpio:%d, reset gpio:%d",
-		 pdata->max_touch_number, pdata->irq_gpio, pdata->reset_gpio);
+	FTS_INFO("max touch number:%d, irq gpio:%d, reset gpio:%d, avdd gpio:%d\n",
+		 pdata->max_touch_number, pdata->irq_gpio, pdata->reset_gpio,
+		 pdata->avdd_gpio);
 
 #ifdef FTS_XIAOMI_TOUCHFEATURE
 	ret = of_property_read_u32_array(np, "focaltech,touch-def-array",
@@ -3265,6 +3287,8 @@ err_irq_req:
 err_power_init:
 	fts_power_source_exit(ts_data);
 #endif
+	if (gpio_is_valid(ts_data->pdata->avdd_gpio))
+		gpio_free(ts_data->pdata->avdd_gpio);
 	if (gpio_is_valid(ts_data->pdata->reset_gpio))
 		gpio_free(ts_data->pdata->reset_gpio);
 	if (gpio_is_valid(ts_data->pdata->irq_gpio))
@@ -3331,6 +3355,9 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 	unregister_early_suspend(&ts_data->early_suspend);
 #endif
+
+	if (gpio_is_valid(ts_data->pdata->avdd_gpio))
+		gpio_free(ts_data->pdata->avdd_gpio);
 
 	if (gpio_is_valid(ts_data->pdata->reset_gpio))
 		gpio_free(ts_data->pdata->reset_gpio);
@@ -3574,22 +3601,20 @@ static struct spi_driver fts_ts_driver = {
 
 static int __init fts_ts_init(void)
 {
-	int ret = 0;
-	int gpio_a;
-	int gpio_b;
-	int flag;
+	int ret = 0, gpio_96, gpio_68;
 
 	gpio_direction_input(DISP_ID_DET);
-	gpio_a = gpio_get_value(DISP_ID_DET);
 	gpio_direction_input(DISP_ID1_DET);
-	gpio_b = gpio_get_value(DISP_ID1_DET);
-	FTS_INFO("gpio_a = %d, gpio_b:%d\n", gpio_a, gpio_b);
-	flag = gpio_a << 1 | gpio_b;
-	if (flag != 2) {
-		FTS_INFO("TP is not focal\n");
-		return 0;
+
+	gpio_96 = gpio_get_value(DISP_ID_DET);
+	gpio_68 = gpio_get_value(DISP_ID1_DET);
+
+	if (gpio_96 && !gpio_68) {
+		FTS_INFO("TP is Focaltech, initiating probe..\n");
+	} else {
+		FTS_INFO("TP is Goodix, killing Focaltech TP probe..\n");
+		return -ENODEV;
 	}
-	FTS_INFO("TP is focaltech\n");
 
 	FTS_FUNC_ENTER();
 	ret = spi_register_driver(&fts_ts_driver);
