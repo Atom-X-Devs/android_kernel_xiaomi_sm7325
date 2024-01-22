@@ -236,9 +236,10 @@
 		status = "disabled";
 	};
 
-	aw8697_haptic@5A {
-		compatible = "awinic,awinic_haptic";
-		reg = <0x5a>;
+	haptic_hv@5A {
+		status = "ok";
+		compatible = "awinic,haptic_hv";
+		reg = <0x5A>;
 
 		reset-gpio = <&tlmm 35 0x00>;
 		irq-gpio = <&tlmm 18 0x00>;
@@ -251,165 +252,91 @@
 		pinctrl-1 = <&awinic_gpio_reset_output_high>;
 		pinctrl-2 = <&awinic_gpio_int>;
 
-		/*----------------------aw8697----------------------*/
-		aw8697_vib_mode = <0>; /*mode:   RAM mode->0; CONT mode -> 1*/
-		aw8697_vib_f0_pre = <1300>;
-		aw8697_vib_f0_cali_percen = <7>;
-		aw8697_vib_cont_drv_lev = <60>;
-		aw8697_vib_cont_drv_lvl_ov = <60>;
-		aw8697_vib_cont_td = <0xef>;
-		aw8697_vib_cont_zc_thr = <0x08f8>;  /*hq 0x08F8 */
-		aw8697_vib_cont_num_brk = <3>;
-		aw8697_vib_f0_coeff = <260>; /* Don't modify it 2.604167 */
-		aw8697_vib_f0_trace_parameter = <9 3 1 31>;
-		aw8697_vib_bemf_config = <0 0x08 0x03 0xf8>;
-		aw8697_vib_sw_brake = <0x2c>;
-		aw8697_vib_tset = <0x1a>;
-		aw8697_vib_r_spare = <0x68>;
-		aw8697_vib_bstdbg = <0x30 0xeb 0xd4 0 0 0>;
-		aw8697_vib_trig_config = <0 1 0 1 2
-								  0 1 0 1 2
-								  0 1 0 1 2>;
-		aw8697_vib_bst_vol_default = <0x0e>;
-		aw8697_vib_bst_vol_ram = <0x0e>;
-		aw8697_vib_bst_vol_rtp = <0x0e>;
+		mode = <1>;
+		f0_pre = <1700>;
 
-		/*----------------------aw8692x----------------------*/
-		aw86927_vib_mode = <0>; /* mode: RAM mode->0; CONT mode->1 */
-		aw86927_vib_f0_pre = <1700>;
-		aw86927_vib_f0_cali_percen = <7>;
-		aw86927_vib_cont_drv1_lvl = <0x4F>;
-		aw86927_vib_cont_drv2_lvl = <0x28>;
-		aw86927_vib_cont_drv1_time = <0x04>;
-		aw86927_vib_cont_drv2_time = <0x06>;
-		aw86927_vib_cont_drv_width = <0x6A>;
-		aw86927_vib_cont_wait_num = <0x06>;
-		aw86927_vib_cont_brk_time = <0x08>;
-		aw86927_vib_cont_track_margin = <0x0C>;
-		aw86927_vib_brk_bst_md = <0>;
-		aw86927_vib_cont_tset = <0x06>;
-		aw86927_vib_cont_bemf_set = <0x02>;
-		aw86927_vib_cont_bst_brk_gain = <0x05>;
-		aw86927_vib_cont_brk_gain = <0x08>;
-		aw86927_vib_d2s_gain = <0x04>;
-		aw86927_vib_trig_config = <0 0 0 1 0 2 0 0
-								   0 0 0 1 0 2 0 0
-								   0 0 0 1 0 2 0 0>;
-		aw86927_vib_bst_vol_default = <0x47>;
-		aw86927_vib_bst_vol_ram = <0x47>;
-		aw86927_vib_bst_vol_rtp = <0x47>;
-
-		/*--------------------common--------------------*/
-		vib_effect_id_boundary = <10>;
-		vib_effect_max = <197>; /*vib_effect_max must bigger than vib_effect_id*/
-		vib_rtp_time = < 20 20 20 20 20 20 20 20 20000 15000
-						 15000 20000 25000 15000 30000 25000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000 20000 20000 20000 20000 20000
-						 20000 20000 20000 20000 20000>;
-		status = "ok";
+		/*************aw8692x***************/
+		aw8692x_f0_cali_percent = /bits/ 8 < 7 >;
+		aw8692x_cont_drv1_lvl =  /bits/ 8 <0x4F>;
+		aw8692x_cont_drv2_lvl = /bits/ 8 <0x28>;
+		aw8692x_cont_drv1_time = /bits/ 8 <0x04>;
+		aw8692x_cont_drv2_time = /bits/ 8 <0x06>;
+		aw8692x_cont_wait_num = /bits/ 8 < 0x06 >;
+		aw8692x_gain_bypass = /bits/ 8 <0x01>;
+		aw8692x_cont_track_margin = /bits/ 8 <0x0C>;
+		aw8692x_brk_bst_md = /bits/ 8 <0>;
+		aw8692x_cont_tset = /bits/ 8 < 0x06 >;
+		aw8692x_cont_bemf_set = /bits/ 8 < 0x02 >;
+		aw86927_vib_cont_bst_brk_gain = /bits/ 8 <0x05>;
+		aw8692x_cont_brk_gain = /bits/ 8 <0x08>;
+		aw8692x_cont_brk_time = /bits/ 8 <0x08>;
+		aw8692x_duration_time = /bits/ 8 <20 30 60>;
+		aw8692x_d2s_gain = /bits/ 8 <0x04>;
+		aw8692x_trig_config = /bits/ 8 <0 0 0 1 0 2 0 0
+										0 0 0 1 0 2 0 0
+										0 0 0 1 0 2 0 0>;
+		aw8692x_bst_vol_default = < 8000>;
+		aw8692x_is_enabled_track_en;
+		awinic,support_predefined_pattern;
 
 		/*CLICK*/
 		wf_0 {
-			qcom,effect-id = <0>;
-			qcom,wf-vmax-mv = <3600>;
-			qcom,wf-pattern = [3e 3e];
-			qcom,wf-brake-pattern = [02 01 00 00];
-			qcom,wf-play-rate-us = <20000>;
+			awinic,effect-id = <0>;
+			awinic,wf-play-rate-us = <20000>;
 		};
 
 		/*DOUBLE CLICK*/
 		wf_1 {
-			qcom,effect-id = <1>;
-			qcom,wf-vmax-mv = <3600>;
-			qcom,wf-pattern = [7e 3e];
-			qcom,wf-brake-pattern = [03 01 00 00];
-			qcom,wf-play-rate-us = <20000>;
+			awinic,effect-id = <1>;
+			awinic,wf-play-rate-us = <20000>;
 		};
 
 		/*TICK*/
 		wf_2 {
-			qcom,effect-id = <2>;
-			qcom,wf-vmax-mv = <3600>;
-			qcom,wf-pattern = [7e 3e];
-			qcom,wf-brake-pattern = [02 01 00 00];
-			qcom,wf-play-rate-us = <20000>;
+			awinic,effect-id = <2>;
+			awinic,wf-play-rate-us = <20000>;
 		};
 
 		/*THUD*/
 		wf_3 {
-			qcom,effect-id = <3>;
-			qcom,wf-vmax-mv = <3600>;
-			qcom,wf-pattern = [3e 3e];
-			qcom,wf-brake-pattern = [02 01 00 00];
-			qcom,wf-play-rate-us = <20000>;
+			awinic,effect-id = <3>;
+			awinic,wf-play-rate-us = <20000>;
 		};
 
 		/*POP*/
 		wf_4 {
-			qcom,effect-id = <4>;
-			qcom,wf-vmax-mv = <3600>;
-			qcom,wf-pattern = [3e 3e];
-			qcom,wf-brake-pattern = [02 01 00 00];
-			qcom,wf-play-rate-us = <28000>;
+			awinic,effect-id = <4>;
+			awinic,wf-play-rate-us = <28000>;
 		};
 
 		/*HEAVY CLICK*/
 		wf_5 {
-			qcom,effect-id = <5>;
-			qcom,wf-vmax-mv = <3600>;
-			qcom,wf-pattern = [7e 7e 7e];
-			qcom,wf-brake-pattern = [03 03 01 00];
-			qcom,wf-play-rate-us = <20000>;
+			awinic,effect-id = <5>;
+			awinic,wf-play-rate-us = <20000>;
 		};
 
 		/*ID 6*/
 		wf_6 {
-			qcom,effect-id = <6>;
-			qcom,wf-vmax-mv = <3600>;
-			qcom,wf-pattern = [3e 3e];
-			qcom,wf-brake-pattern = [02 01 00 00];
-			qcom,wf-play-rate-us = <20000>;
+			awinic,effect-id = <6>;
+			awinic,wf-play-rate-us = <20000>;
 		};
 
 		/*ID 7*/
 		wf_7 {
-			qcom,effect-id = <7>;
-			qcom,wf-vmax-mv = <3600>;
-			qcom,wf-pattern = [3e 3e];
-			qcom,wf-brake-pattern = [02 01 00 00];
-			qcom,wf-play-rate-us = <20000>;
+			awinic,effect-id = <7>;
+			awinic,wf-play-rate-us = <20000>;
 		};
 
 		/*ID 8*/
 		wf_8 {
-			qcom,effect-id = <8>;
-			qcom,wf-vmax-mv = <3600>;
-			qcom,wf-pattern = [3e 3e];
-			qcom,wf-brake-pattern = [02 01 00 00];
-			qcom,wf-play-rate-us = <20000>;
+			awinic,effect-id = <8>;
+			awinic,wf-play-rate-us = <20000>;
 		};
 
 		/*ID 9*/
 		wf_9 {
-			qcom,effect-id = <9>;
-			qcom,wf-vmax-mv = <3600>;
-			qcom,wf-pattern = [3e 3e];
-			qcom,wf-brake-pattern = [02 01 00 00];
-			qcom,wf-play-rate-us = <20000>;
+			awinic,effect-id = <9>;
+			awinic,wf-play-rate-us = <20000>;
 		};
 	};
 };
