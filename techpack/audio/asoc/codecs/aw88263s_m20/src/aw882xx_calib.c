@@ -1012,6 +1012,7 @@ static ssize_t aw_cali_attr_time_store(struct device *dev,
 	int ret;
 	uint32_t time;
 	struct aw882xx *aw882xx = dev_get_drvdata(dev);
+
 	struct aw_device *aw_dev = aw882xx->aw_pa;
 
 	ret = kstrtoint(buf, 0, &time);
