@@ -315,7 +315,7 @@ static int __init psci_idle_init_domains(void)
 {
 	return platform_driver_register(&psci_cpuidle_domain_driver);
 }
-subsys_initcall(psci_idle_init_domains);
+core_initcall(psci_idle_init_domains);
 
 struct device *psci_dt_attach_cpu(int cpu)
 {
