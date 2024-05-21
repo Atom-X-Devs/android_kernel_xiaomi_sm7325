@@ -1165,6 +1165,13 @@ retry_dev2:
 			goto bad;
 	}
 
+	/* Always enable DM_VERITY_OPT_AT_MOST_ONCE */
+	if (!v->validated_blocks) {
+		r = verity_alloc_most_once(v);
+		if (r)
+			goto bad;
+	}
+
 	/* Root hash signature is  a optional parameter*/
 	r = verity_verify_root_hash(root_hash_digest_to_validate,
 				    strlen(root_hash_digest_to_validate),
