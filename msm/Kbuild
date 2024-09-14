@@ -2,6 +2,62 @@
 
 KDIR := $(TOP)/kernel_platform/common
 
+ifeq ($(CONFIG_QGKI), y)
+
+ifeq ($(CONFIG_ARCH_KONA), y)
+	include $(DISPLAY_ROOT)/config/konadisp.conf
+	LINUX_INC += -include $(DISPLAY_ROOT)/config/konadispconf.h
+endif
+
+ifeq ($(CONFIG_ARCH_LAHAINA), y)
+	include $(DISPLAY_ROOT)/config/lahainadisp.conf
+	LINUX_INC += -include $(DISPLAY_ROOT)/config/lahainadispconf.h
+endif
+
+ifeq ($(CONFIG_ARCH_HOLI), y)
+	include $(DISPLAY_ROOT)/config/holidisp.conf
+	LINUX_INC += -include $(DISPLAY_ROOT)/config/holidispconf.h
+endif
+
+else
+
+ifeq ($(CONFIG_ARCH_KONA), y)
+	include $(DISPLAY_ROOT)/config/gki_konadisp.conf
+	LINUX_INC += -include $(DISPLAY_ROOT)/config/gki_konadispconf.h
+endif
+
+ifeq ($(CONFIG_ARCH_LAHAINA), y)
+	include $(DISPLAY_ROOT)/config/gki_lahainadisp.conf
+	LINUX_INC += -include $(DISPLAY_ROOT)/config/gki_lahainadispconf.h
+endif
+
+ifeq ($(CONFIG_ARCH_HOLI), y)
+	include $(DISPLAY_ROOT)/config/gki_holidisp.conf
+	LINUX_INC += -include $(DISPLAY_ROOT)/config/gki_holidispconf.h
+endif
+
+endif
+
+ifeq ($(CONFIG_ARCH_LITO), y)
+	include $(DISPLAY_ROOT)/config/saipdisp.conf
+	LINUX_INC += -include $(DISPLAY_ROOT)/config/saipdispconf.h
+endif
+
+ifeq ($(CONFIG_ARCH_BENGAL), y)
+	include $(DISPLAY_ROOT)/config/bengaldisp.conf
+	LINUX_INC += -include $(DISPLAY_ROOT)/config/bengaldispconf.h
+endif
+
+ifeq ($(CONFIG_ARCH_MONACO), y)
+	include $(DISPLAY_ROOT)/config/monacodisp.conf
+	LINUX_INC += -include $(DISPLAY_ROOT)/config/monacodispconf.h
+endif
+
+ifeq ($(CONFIG_ARCH_SDXLEMUR), y)
+	include $(DISPLAY_ROOT)/config/sdxlemurdisp.conf
+	LINUX_INC += -include $(DISPLAY_ROOT)/config/sdxlemurdispconf.h
+endif
+
 LINUX_INC +=	-Iinclude/linux \
 		-Iinclude/linux/drm
 
@@ -104,9 +160,7 @@ msm_drm-$(CONFIG_DRM_MSM_DP_MST) += dp/dp_mst_drm.o
 
 msm_drm-$(CONFIG_DRM_MSM_DP_USBPD_LEGACY) += dp/dp_usbpd.o
 
-msm_drm-$(CONFIG_DRM_MSM_SDE) += sde/sde_vm_trusted.o \
-				 sde/sde_vm_msgq.o \
-				 sde/sde_crtc.o \
+msm_drm-$(CONFIG_DRM_MSM_SDE) += sde/sde_crtc.o \
 				 sde/sde_encoder.o \
 				 sde/sde_encoder_dce.o \
 				 sde/sde_encoder_phys_vid.o \
