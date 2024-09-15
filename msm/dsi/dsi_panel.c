@@ -1147,6 +1147,23 @@ static int dsi_panel_parse_misc_host_config(struct dsi_host_common_cfg *host,
 
 	DSI_DEBUG("[%s] DMA scheduling parameters Line: %d Window: %d\n", name,
 			host->dma_sched_line, host->dma_sched_window);
+
+	rc = utils->read_u32(utils->data, "qcom,mdss-dsi-clk-strength", &val);
+	if (!rc)
+		host->clk_strength = val;
+	else
+		host->clk_strength = 0;
+
+	DSI_DEBUG("[%s] clk_strength = %d\n", name, val);
+
+	rc = utils->read_u32(utils->data, "qcom,mdss-dsi-phy-voltage", &val);
+	if (!rc)
+		host->phy_voltage = val;
+	else
+		host->phy_voltage = 0;
+
+	DSI_DEBUG("[%s] phy_voltage = %d\n", name, val);
+
 	return 0;
 }
 
