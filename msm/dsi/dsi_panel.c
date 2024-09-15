@@ -2555,6 +2555,7 @@ static int dsi_panel_parse_dsc_params(struct dsi_display_mode *mode,
 				struct dsi_parser_utils *utils)
 {
 	u32 data;
+	u64 dsc_panel_id;
 	int rc = -EINVAL;
 	int intf_width;
 	const char *compression;
@@ -2701,8 +2702,14 @@ static int dsi_panel_parse_dsc_params(struct dsi_display_mode *mode,
 	priv_info->dsc.config.slice_count = DIV_ROUND_UP(intf_width,
 		priv_info->dsc.config.slice_width);
 
-	rc = sde_dsc_populate_dsc_config(&priv_info->dsc.config,
-			priv_info->dsc.scr_rev);
+	rc = utils->read_u64(utils->data, "mi,mdss-dsc-panel-id", &dsc_panel_id);
+	if (rc) {
+		rc = sde_dsc_populate_dsc_config(&priv_info->dsc.config, priv_info->dsc.scr_rev);
+	} else {
+		rc = sde_dsc_populate_dsc_config_nt(&priv_info->dsc.config, priv_info->dsc.scr_rev, dsc_panel_id);
+		DSI_DEBUG("mi,mdss-dsc-panel-id is 0x%llx\n", dsc_panel_id);
+	}
+
 	if (rc) {
 		DSI_DEBUG("failed populating dsc params\n");
 		rc = -EINVAL;

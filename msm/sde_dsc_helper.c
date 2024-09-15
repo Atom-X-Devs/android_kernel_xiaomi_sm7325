@@ -103,6 +103,98 @@ static char sde_dsc_rc_range_bpg[DSC_RATIO_TYPE_MAX][DSC_NUM_BUF_RANGES] = {
 	{10, 8, 6, 4, 2, 0, -2, -4, -6, -8, -10, -10, -12, -12, -12},
 };
 
+/*
+ * Rate control - Min QP values for nt37703 ratio type in sde_dsc_ratio_type
+ */
+static char sde_dsc_rc_range_min_qp_nt37703[DSC_RATIO_TYPE_MAX][DSC_NUM_BUF_RANGES] = {
+	/* DSC v1.1 */
+	{0, 0, 1, 1, 3, 3, 3, 3, 3, 3, 5, 5, 5, 7, 13},
+	{0, 4, 5, 5, 7, 7, 7, 7, 7, 8, 9, 9, 9, 12, 16},
+	{0, 4, 5, 6, 7, 7, 7, 7, 7, 7, 9, 9, 9, 11, 15},
+	/* DSC v1.1 SCR and DSC v1.2 RGB 444 */
+	{0, 0, 1, 1, 3, 3, 3, 3, 3, 3, 5, 5, 5, 9, 12},
+	{0, 4, 5, 5, 7, 7, 7, 7, 7, 8, 9, 9, 9, 12, 16},
+	{0, 4, 5, 6, 7, 7, 7, 7, 7, 7, 9, 9, 9, 11, 15},
+	/* DSC v1.2 YUV422 */
+	{0, 0, 1, 1, 3, 3, 3, 3, 3, 3, 5, 5, 5, 7, 10},
+	{0, 4, 5, 5, 7, 7, 7, 7, 7, 7, 9, 9, 9, 13, 16},
+	{0, 4, 9, 9, 11, 11, 11, 11, 11, 11, 13, 13, 13, 17, 20},
+	{0, 2, 3, 4, 5, 5, 5, 6, 6, 7, 8, 8, 9, 11, 12},
+	/* DSC v1.2 YUV420 */
+	{0, 0, 1, 1, 3, 3, 3, 3, 3, 3, 5, 5, 5, 7, 10},
+	{0, 2, 3, 4, 6, 7, 7, 7, 7, 7, 9, 9, 9, 11, 14},
+	{0, 2, 3, 4, 5, 5, 5, 6, 6, 7, 8, 8, 9, 11, 12},
+};
+
+/*
+ * Rate control - Max QP values for nt37703 ratio type in sde_dsc_ratio_type
+ */
+static char sde_dsc_rc_range_max_qp_nt37703[DSC_RATIO_TYPE_MAX][DSC_NUM_BUF_RANGES] = {
+	/* DSC v1.1 */
+	{4, 4, 5, 6, 7, 7, 7, 8, 9, 10, 11, 12, 13, 13, 15},
+	{8, 8, 9, 10, 11, 11, 11, 12, 13, 14, 14, 15, 15, 16, 17},
+	{7, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16},
+	/* DSC v1.1 SCR and DSC v1.2 RGB 444 */
+	{4, 4, 5, 6, 7, 7, 7, 8, 9, 10, 10, 11, 11, 12, 13},
+	{8, 8, 9, 10, 11, 11, 11, 12, 13, 14, 14, 15, 15, 16, 17},
+	{7, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16},
+	/* DSC v1.2 YUV422 */
+	{3, 4, 5, 6, 7, 7, 7, 8, 9, 9, 10, 10, 11, 11, 12},
+	{2, 4, 5, 6, 7, 7, 7, 8, 8, 9, 9, 9, 9, 10, 11},
+	{7, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16},
+	{2, 5, 5, 6, 6, 7, 7, 8, 9, 9, 10, 11, 11, 12, 13},
+	/* DSC v1.2 YUV420 */
+	{2, 4, 5, 6, 7, 7, 7, 8, 8, 9, 9, 9, 9, 10, 12},
+	{2, 5, 7, 8, 9, 10, 11, 12, 12, 13, 13, 13, 13, 14, 15},
+	{8, 8, 9, 10, 11, 11, 11, 12, 13, 14, 14, 15, 15, 16, 17},
+};
+
+/*
+ * Rate control - bpg offset values for nt37703 ratio type in sde_dsc_ratio_type
+ */
+static char sde_dsc_rc_range_bpg_nt37703[DSC_RATIO_TYPE_MAX][DSC_NUM_BUF_RANGES] = {
+	/* DSC v1.1 */
+	{2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -12, -12, -12, -12},
+	{2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -10, -12, -12, -12},
+	{2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -10, -12, -12, -12},
+	/* DSC v1.1 SCR and DSC V1.2 RGB 444 */
+	{2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -12, -12, -12, -12},
+	{2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -10, -12, -12, -12},
+	{2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -10, -12, -12, -12},
+	/* DSC v1.2 YUV422 */
+	{2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -10, -12, -12, -12},
+	{2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -12, -12, -12, -12},
+	{2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -10, -12, -12, -12},
+	{10, 8, 6, 4, 2, 0, -2, -4, -6, -8, -10, -10, -12, -12, -12},
+	/* DSC v1.2 YUV420 */
+	{2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -12, -12, -12, -12},
+	{2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -12, -12, -12, -12},
+	{10, 8, 6, 4, 2, 0, -2, -4, -6, -8, -10, -10, -12, -12, -12},
+};
+
+/*
+ * Rate control - Max QP values for nt ratio type in sde_dsc_ratio_type
+ */
+static char sde_dsc_rc_range_max_qp_nt[DSC_RATIO_TYPE_MAX][DSC_NUM_BUF_RANGES] = {
+	/* DSC v1.1 */
+	{4, 4, 5, 6, 7, 7, 7, 8, 9, 10, 11, 12, 13, 13, 15},
+	{8, 8, 9, 10, 11, 11, 11, 12, 13, 14, 15, 16, 17, 17, 19},
+	{7, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16},
+	/* DSC v1.1 SCR and DSC v1.2 RGB 444 */
+	{4, 4, 5, 6, 7, 7, 7, 8, 9, 10, 10, 11, 11, 12, 13},
+	{8, 8, 9, 10, 11, 11, 11, 12, 13, 14, 14, 15, 15, 16, 17},
+	{7, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16},
+	/* DSC v1.2 YUV422 */
+	{3, 4, 5, 6, 7, 7, 7, 8, 9, 9, 10, 10, 11, 11, 12},
+	{2, 4, 5, 6, 7, 7, 7, 8, 8, 9, 9, 9, 9, 10, 11},
+	{7, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16},
+	{2, 5, 5, 6, 6, 7, 7, 8, 9, 9, 10, 11, 11, 12, 13},
+	/* DSC v1.2 YUV420 */
+	{2, 4, 5, 6, 7, 7, 7, 8, 8, 9, 9, 9, 9, 10, 12},
+	{2, 5, 7, 8, 9, 10, 11, 12, 12, 13, 13, 13, 13, 14, 15},
+	{2, 5, 5, 6, 6, 7, 7, 8, 9, 9, 10, 11, 11, 12, 13},
+};
+
 /**
  * Maps to lookup the sde_dsc_ratio_type index used in rate control tables
  */
@@ -257,6 +349,162 @@ int sde_dsc_populate_dsc_config(struct drm_dsc_config *dsc, int scr_ver) {
 			sde_dsc_rc_range_max_qp[ratio_idx][i];
 		dsc->rc_range_params[i].range_bpg_offset =
 			sde_dsc_rc_range_bpg[ratio_idx][i];
+	}
+
+	if (bpp == 8) {
+		dsc->initial_offset = 6144;
+		dsc->initial_xmit_delay = 512;
+	} else if (bpp == 10) {
+		dsc->initial_offset = 5632;
+		dsc->initial_xmit_delay = 410;
+	} else {
+		dsc->initial_offset = 2048;
+		dsc->initial_xmit_delay = 341;
+	}
+
+	dsc->line_buf_depth = bpc + 1;
+
+	if (bpc == 8) {
+		dsc->flatness_min_qp = 3;
+		dsc->flatness_max_qp = 12;
+		dsc->rc_quant_incr_limit0 = 11;
+		dsc->rc_quant_incr_limit1 = 11;
+		dsc->mux_word_size = DSC_MUX_WORD_SIZE_8_10_BPC;
+	} else if (bpc == 10) { /* 10bpc */
+		dsc->flatness_min_qp = 7;
+		dsc->flatness_max_qp = 16;
+		dsc->rc_quant_incr_limit0 = 15;
+		dsc->rc_quant_incr_limit1 = 15;
+		dsc->mux_word_size = DSC_MUX_WORD_SIZE_8_10_BPC;
+	} else { /* 12 bpc */
+		dsc->flatness_min_qp = 11;
+		dsc->flatness_max_qp = 20;
+		dsc->rc_quant_incr_limit0 = 19;
+		dsc->rc_quant_incr_limit1 = 19;
+		dsc->mux_word_size = DSC_MUX_WORD_SIZE_12_BPC;
+	}
+	if ((dsc->dsc_version_minor == 0x2) && (dsc->native_420)) {
+		dsc->second_line_bpg_offset = 12;
+		dsc->second_line_offset_adj = 512;
+		dsc->nsl_bpg_offset = 2048 *
+			(DIV_ROUND_UP(dsc->second_line_bpg_offset,
+				(dsc->slice_height - 1)));
+	}
+
+	groups_per_line = DIV_ROUND_UP(dsc->slice_width, 3);
+
+	dsc->slice_chunk_size = dsc->slice_width * bpp / 8;
+	if ((dsc->slice_width * bpp) % 8)
+		dsc->slice_chunk_size++;
+
+	/* rbs-min */
+	min_rate_buffer_size =  dsc->rc_model_size - dsc->initial_offset +
+			dsc->initial_xmit_delay * bpp +
+			groups_per_line * dsc->first_line_bpg_offset;
+
+	hrd_delay = DIV_ROUND_UP(min_rate_buffer_size, bpp);
+
+	dsc->initial_dec_delay = hrd_delay - dsc->initial_xmit_delay;
+
+	dsc->initial_scale_value = 8 * dsc->rc_model_size /
+			(dsc->rc_model_size - dsc->initial_offset);
+
+	slice_bits = 8 * dsc->slice_chunk_size * dsc->slice_height;
+
+	groups_total = groups_per_line * dsc->slice_height;
+
+	data = dsc->first_line_bpg_offset * 2048;
+
+	dsc->nfl_bpg_offset = DIV_ROUND_UP(data, (dsc->slice_height - 1));
+
+	pre_num_extra_mux_bits = 3 * (dsc->mux_word_size + (4 * bpc + 4) - 2);
+
+	num_extra_mux_bits = pre_num_extra_mux_bits - (dsc->mux_word_size -
+		((slice_bits - pre_num_extra_mux_bits) % dsc->mux_word_size));
+
+	data = 2048 * (dsc->rc_model_size - dsc->initial_offset
+		+ num_extra_mux_bits);
+	dsc->slice_bpg_offset = DIV_ROUND_UP(data, groups_total);
+
+	data = dsc->initial_xmit_delay * bpp;
+	final_value =  dsc->rc_model_size - data + num_extra_mux_bits;
+
+	final_scale = 8 * dsc->rc_model_size /
+		(dsc->rc_model_size - final_value);
+
+	dsc->final_offset = final_value;
+
+	data = (final_scale - 9) * (dsc->nfl_bpg_offset +
+		dsc->slice_bpg_offset);
+	dsc->scale_increment_interval = (2048 * dsc->final_offset) / data;
+
+	dsc->scale_decrement_interval = groups_per_line /
+		(dsc->initial_scale_value - 8);
+
+	return 0;
+}
+
+int sde_dsc_populate_dsc_config_nt(struct drm_dsc_config *dsc, int scr_ver, u64 panel_id) {
+	int bpp, bpc;
+	int groups_per_line, groups_total;
+	int min_rate_buffer_size;
+	int hrd_delay;
+	int pre_num_extra_mux_bits, num_extra_mux_bits;
+	int slice_bits;
+	int data;
+	int final_value, final_scale;
+	int i, ratio_idx;
+
+	dsc->rc_model_size = 8192;
+
+	if ((dsc->dsc_version_major == 0x1) &&
+			(dsc->dsc_version_minor == 0x1)) {
+		if (scr_ver == 0x1)
+			dsc->first_line_bpg_offset = 15;
+		else
+			dsc->first_line_bpg_offset = 12;
+	} else if (dsc->dsc_version_minor == 0x2) {
+		dsc->first_line_bpg_offset = _get_dsc_v1_2_bpg_offset(dsc);
+	}
+
+	dsc->rc_edge_factor = 6;
+	dsc->rc_tgt_offset_high = 3;
+	dsc->rc_tgt_offset_low = 3;
+	dsc->simple_422 = 0;
+	dsc->convert_rgb = 1;
+	dsc->vbr_enable = 0;
+
+	bpp = DSC_BPP(*dsc);
+	bpc = dsc->bits_per_component;
+
+	ratio_idx = _get_rc_table_index(dsc, scr_ver);
+	if (ratio_idx == -EINVAL)
+		return ratio_idx;
+
+	for (i = 0; i < DSC_NUM_BUF_RANGES - 1; i++)
+		dsc->rc_buf_thresh[i] = sde_dsc_rc_buf_thresh[i];
+
+	for (i = 0; i < DSC_NUM_BUF_RANGES; i++) {
+		if (((panel_id >> 8) == 0x4D3230003602)) {
+			dsc->rc_range_params[i].range_min_qp =
+				sde_dsc_rc_range_min_qp_nt37703[ratio_idx][i];
+			dsc->rc_range_params[i].range_max_qp =
+				sde_dsc_rc_range_max_qp_nt37703[ratio_idx][i];
+			dsc->rc_range_params[i].range_bpg_offset =
+				sde_dsc_rc_range_bpg_nt37703[ratio_idx][i];
+		} else {
+			dsc->rc_range_params[i].range_min_qp =
+				sde_dsc_rc_range_min_qp[ratio_idx][i];
+			if (((panel_id >> 8) == 0x4B3944003602)) {
+				dsc->rc_range_params[i].range_max_qp =
+					sde_dsc_rc_range_max_qp_nt[ratio_idx][i];
+			} else {
+				dsc->rc_range_params[i].range_max_qp =
+					sde_dsc_rc_range_max_qp[ratio_idx][i];
+			}
+			dsc->rc_range_params[i].range_bpg_offset =
+				sde_dsc_rc_range_bpg[ratio_idx][i];
+		}
 	}
 
 	if (bpp == 8) {
