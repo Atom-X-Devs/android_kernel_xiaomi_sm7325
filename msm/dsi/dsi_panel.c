@@ -1759,6 +1759,9 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-post-mode-switch-on-command",
 	"qcom,mdss-dsi-qsync-on-commands",
 	"qcom,mdss-dsi-qsync-off-commands",
+	"mi,mdss-dsi-fps-60-gamma-command",
+	"mi,mdss-dsi-fps-90-gamma-command",
+	"mi,mdss-dsi-fps-120-gamma-command",
 };
 
 const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
@@ -1785,6 +1788,9 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-post-mode-switch-on-command-state",
 	"qcom,mdss-dsi-qsync-on-commands-state",
 	"qcom,mdss-dsi-qsync-off-commands-state",
+	"mi,mdss-dsi-fps-60-gamma-command-state",
+	"mi,mdss-dsi-fps-90-gamma-command-state",
+	"mi,mdss-dsi-fps-120-gamma-command-state",
 };
 
 int dsi_panel_get_cmd_pkt_count(const char *data, u32 length, u32 *cnt)
@@ -4657,6 +4663,35 @@ int dsi_panel_mode_switch_to_vid(struct dsi_panel *panel)
 	return rc;
 }
 
+int dsi_panel_gamma_switch(struct dsi_panel *panel)
+{
+	int rc = 0;
+
+	mutex_lock(&panel->panel_lock);
+
+	switch (panel->cur_mode->timing.refresh_rate) {
+	case 120:
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_MI_FPS_120_GAMMA);
+		break;
+	case 90:
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_MI_FPS_90_GAMMA);
+		break;
+	case 60:
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_MI_FPS_60_GAMMA);
+		break;
+	default:
+		break;
+	}
+
+	mutex_unlock(&panel->panel_lock);
+
+	if (rc)
+		DSI_ERR("[%s] failed to send DSI_CMD_SET_MI_FPS_GAMMA cmds, rc=%d\n",
+		       panel->name, rc);
+
+	return rc;
+}
+
 int dsi_panel_switch(struct dsi_panel *panel)
 {
 	int rc = 0;
@@ -4737,6 +4772,9 @@ int dsi_panel_post_enable(struct dsi_panel *panel)
 	}
 error:
 	mutex_unlock(&panel->panel_lock);
+
+	dsi_panel_gamma_switch(panel);
+
 	return rc;
 }
 
