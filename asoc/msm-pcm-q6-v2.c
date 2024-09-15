@@ -132,7 +132,9 @@ static struct snd_pcm_hw_constraint_list constraints_sample_rates = {
 	.mask = 0,
 };
 
+#ifndef CONFIG_SOFT_PCM_DISABLE
 static struct asm_softvolume_params soft_params = {0,0,0};
+#endif
 
 struct msm_pcm_channel_map *chmap_pspd[MSM_FRONTEND_DAI_MM_SIZE][2];
 
@@ -156,6 +158,7 @@ static void msm_pcm_route_event_handler(enum msm_pcm_routing_event event,
 	}
 }
 
+#ifndef CONFIG_SOFT_PCM_DISABLE
 static int msm_pcm_set_soft_volume_params(struct msm_audio *prtd,struct asm_softvolume_params *soft_vol_params)
 {
 	int rc = 0;
@@ -330,6 +333,7 @@ static int msm_pcm_add_soft_volume_params_control(struct snd_soc_pcm_runtime *rt
 	kctl->get = msm_pcm_soft_volume_ctl_get;
 	return 0;
 }
+#endif
 
 static void event_handler(uint32_t opcode,
 		uint32_t token, uint32_t *payload, void *priv)
@@ -3741,6 +3745,8 @@ static int msm_asoc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		pr_err("%s: Could not add pcm Volume Control %d\n",
 			__func__, ret);
+
+#ifndef CONFIG_SOFT_PCM_DISABLE
 	/* adding soft vol module params mixer control command*/
 	ret = msm_pcm_add_soft_volume_params_control(rtd, SNDRV_PCM_STREAM_PLAYBACK);
 	if (ret)
@@ -3751,6 +3757,8 @@ static int msm_asoc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		pr_err("%s: Could not add pcm Volume Control %d\n",
 			__func__, ret);
+#endif
+
 	ret = msm_pcm_add_compress_control(rtd);
 	if (ret)
 		pr_err("%s: Could not add pcm Compress Control %d\n",
