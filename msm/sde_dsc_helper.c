@@ -485,7 +485,7 @@ int sde_dsc_populate_dsc_config_nt(struct drm_dsc_config *dsc, int scr_ver, u64 
 		dsc->rc_buf_thresh[i] = sde_dsc_rc_buf_thresh[i];
 
 	for (i = 0; i < DSC_NUM_BUF_RANGES; i++) {
-		if (((panel_id >> 8) == 0x4D3230003602)) {
+		if (((panel_id >> 8) == 0x4D3230003602) || ((panel_id >> 8) == 0x4D323000420D)) {
 			dsc->rc_range_params[i].range_min_qp =
 				sde_dsc_rc_range_min_qp_nt37703[ratio_idx][i];
 			dsc->rc_range_params[i].range_max_qp =
