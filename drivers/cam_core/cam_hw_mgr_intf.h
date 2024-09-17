@@ -273,6 +273,12 @@ struct cam_hw_config_args {
 	bool                            cdm_reset_before_apply;
 };
 
+#ifdef CONFIG_MACH_XIAOMI
+#define REQ_CNT 40
+#else
+#define REQ_CNT 20
+#endif
+
 /**
  * struct cam_hw_flush_args - Flush arguments
  *
@@ -289,9 +295,9 @@ struct cam_hw_config_args {
 struct cam_hw_flush_args {
 	void                           *ctxt_to_hw_map;
 	uint32_t                        num_req_pending;
-	void                           *flush_req_pending[20];
+	void                           *flush_req_pending[REQ_CNT];
 	uint32_t                        num_req_active;
-	void                           *flush_req_active[20];
+	void                           *flush_req_active[REQ_CNT];
 	enum flush_type_t               flush_type;
 	uint32_t                        last_flush_req;
 };

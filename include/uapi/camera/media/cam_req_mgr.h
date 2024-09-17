@@ -43,7 +43,11 @@
  * It includes both session and device handles
  */
 #define CAM_REQ_MGR_MAX_HANDLES           64
+#ifndef CONFIG_MACH_XIAOMI
 #define CAM_REQ_MGR_MAX_HANDLES_V2        128
+#else
+#define CAM_REQ_MGR_MAX_HANDLES_V2        256
+#endif
 #define MAX_LINKS_PER_SESSION             2
 
 /* V4L event type which user space will subscribe to */

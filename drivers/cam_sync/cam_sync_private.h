@@ -29,7 +29,11 @@
 #endif
 
 #define CAM_SYNC_OBJ_NAME_LEN           64
+#ifndef CONFIG_MACH_XIAOMI
 #define CAM_SYNC_MAX_OBJS               2048
+#else
+#define CAM_SYNC_MAX_OBJS               3072
+#endif
 #define CAM_SYNC_MAX_V4L2_EVENTS        250
 #define CAM_SYNC_DEBUG_FILENAME         "cam_debug"
 #define CAM_SYNC_DEBUG_BASEDIR          "cam"

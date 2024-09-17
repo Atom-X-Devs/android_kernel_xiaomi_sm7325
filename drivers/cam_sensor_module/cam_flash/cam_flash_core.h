@@ -9,6 +9,15 @@
 #include <media/cam_sensor.h>
 #include "cam_flash_dev.h"
 
+#ifdef CONFIG_MACH_XIAOMI
+enum flash_torch_status
+{
+    CAM_FLASH_TYPE_OFF     = 0x0,
+    CAM_FLASH_TYPE_LOW     = 0x1,
+    CAM_FLASH_TYPE_HIGH    = 0x2
+};
+#endif
+
 int cam_flash_publish_dev_info(struct cam_req_mgr_device_info *info);
 int cam_flash_establish_link(struct cam_req_mgr_core_dev_link_setup *link);
 int cam_flash_apply_request(struct cam_req_mgr_apply_request *apply);
