@@ -334,10 +334,9 @@ proc_read_err:
 	return ret;
 }
 
-static const struct file_operations fts_proc_fops = {
-	.owner = THIS_MODULE,
-	.read = fts_debug_read,
-	.write = fts_debug_write,
+static const struct proc_ops fts_proc_fops = {
+	.proc_read = fts_debug_read,
+	.proc_write = fts_debug_write,
 };
 
 static int fts_ta_open(struct inode *inode, struct file *file)
@@ -394,10 +393,10 @@ static ssize_t fts_ta_read(struct file *filp, char __user *buff, size_t count,
 	return read_num;
 }
 
-static const struct file_operations fts_procta_fops = {
-	.open = fts_ta_open,
-	.release = fts_ta_release,
-	.read = fts_ta_read,
+static const struct proc_ops fts_procta_fops = {
+	.proc_open = fts_ta_open,
+	.proc_release = fts_ta_release,
+	.proc_read = fts_ta_read,
 };
 
 int fts_create_apk_debug_channel(struct fts_ts_data *ts_data)
@@ -465,8 +464,9 @@ static ssize_t fts_fw_version_read(struct file *filp, char __user *buf,
 		return cnt;
 }
 
-static const struct file_operations tp_fw_version_fops = {
-	.read = fts_fw_version_read,
+
+static const struct proc_ops tp_fw_version_fops = {
+	.proc_read = fts_fw_version_read,
 };
 
 static ssize_t fts_lockdown_info_read(struct file *filp, char __user *buf,
@@ -494,8 +494,8 @@ static ssize_t fts_lockdown_info_read(struct file *filp, char __user *buf,
 		return cnt;
 }
 
-static const struct file_operations tp_lockdown_info_fops = {
-	.read = fts_lockdown_info_read,
+static const struct proc_ops tp_lockdown_info_fops = {
+	.proc_read = fts_lockdown_info_read,
 };
 
 int fts_create_proc(struct fts_ts_data *ts_data)
