@@ -437,6 +437,9 @@ struct wcd_mbhc_config {
 	bool enable_anc_mic_detect;
 	u32 enable_usbc_analog;
 	bool moisture_duty_cycle_en;
+#ifdef CONFIG_MACH_XIAOMI
+	bool flip_switch;
+#endif
 };
 
 struct wcd_mbhc_intr {

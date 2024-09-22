@@ -430,10 +430,18 @@ SND_SOC_DAILINK_DEFS(usb_audio_tx,
 	DAILINK_COMP_ARRAY(COMP_CODEC("msm-stub-codec.1", "msm-stub-tx")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
 
+#if defined(CONFIG_TARGET_PRODUCT_REDWOOD)
+SND_SOC_DAILINK_DEFS(pri_tdm_rx_0,
+	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-tdm.36864")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("aw882xx_smartpa.1-0034", "aw882xx-aif-1-34"),
+				COMP_CODEC("aw882xx_smartpa.1-0035", "aw882xx-aif-1-35")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
+#else
 SND_SOC_DAILINK_DEFS(pri_tdm_rx_0,
 	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-tdm.36864")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("msm-stub-codec.1", "msm-stub-rx")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
+#endif
 
 SND_SOC_DAILINK_DEFS(pri_tdm_tx_0,
 	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-tdm.36865")),
@@ -1110,6 +1118,7 @@ SND_SOC_DAILINK_DEFS(tx_dma_tx3,
 			   COMP_CODEC("wcd937x_codec", "wcd937x_cdc")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
 
+#ifndef CONFIG_MACH_XIAOMI
 SND_SOC_DAILINK_DEFS(tx_dma_tx4,
 	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-cdc-dma-dev.45113")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("bolero_codec", "tx_macro_tx2"),
@@ -1120,6 +1129,14 @@ SND_SOC_DAILINK_DEFS(tx_dma_tx4,
 			   COMP_CODEC("swr-dmic.03", "swr_dmic_tx2"),
 			   COMP_CODEC("swr-dmic.04", "swr_dmic_tx3")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
+#else
+SND_SOC_DAILINK_DEFS(tx_dma_tx4,
+	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-cdc-dma-dev.45113")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("bolero_codec", "tx_macro_tx2"),
+			   COMP_CODEC("wcd938x_codec", "wcd938x_cdc"),
+			   COMP_CODEC("wcd937x_codec", "wcd937x_cdc")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
+#endif
 
 SND_SOC_DAILINK_DEFS(va_dma_tx0,
 	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-cdc-dma-dev.45089")),

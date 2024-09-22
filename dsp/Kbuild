@@ -65,6 +65,10 @@ else
 			include $(AUDIO_ROOT)/config/lahainaauto.conf
 			INCS    +=  -include $(AUDIO_ROOT)/config/lahainaautoconf.h
 		endif
+		ifeq ($(CONFIG_MACH_XIAOMI_REDWOOD), y)
+			include $(AUDIO_ROOT)/config/redwoodaudio.conf
+			INCS    +=  -include $(AUDIO_ROOT)/config/redwoodaudioconf.h
+		endif
 		ifeq ($(CONFIG_ARCH_LITO), y)
 			include $(AUDIO_ROOT)/config/litoauto.conf
 			export
@@ -152,6 +156,9 @@ ifdef CONFIG_SND_SOC_MSM_QDSP6V2_INTF
 	Q6_OBJS += adsp_err.o
 	Q6_OBJS += msm_audio_ion.o
 	Q6_OBJS += q6_init.o
+ifdef CONFIG_MACH_XIAOMI
+	Q6_OBJS += model_loader.o
+endif
 endif
 
 ifdef CONFIG_SND_SOC_MSM_QDSP6V2_VM
@@ -226,7 +233,6 @@ INCS +=		$(COMMON_INC) \
 		$(UAPI_INC)
 
 EXTRA_CFLAGS += $(INCS)
-
 
 CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 		-DANI_LITTLE_BIT_ENDIAN \

@@ -79,6 +79,11 @@ else
 			export
 			INCS    +=  -include $(AUDIO_ROOT)/config/lahainaautoconf.h
 		endif
+		ifeq ($(CONFIG_MACH_XIAOMI_REDWOOD), y)
+			include $(AUDIO_ROOT)/config/redwoodaudio.conf
+			export
+			INCS    +=  -include $(AUDIO_ROOT)/config/redwoodaudioconf.h
+		endif
 		ifeq ($(CONFIG_ARCH_LITO), y)
 			include $(AUDIO_ROOT)/config/litoauto.conf
 			export
