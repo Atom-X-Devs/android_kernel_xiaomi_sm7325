@@ -288,7 +288,6 @@ struct fts_ts_data {
 	bool poweroff_on_sleep;
 	u8 gesture_status;
 	int nonui_status;
-	struct dentry *tpdbg_dentry;
 	bool gamemode_enabled;
 	bool power_status;
 	bool is_expert_mode;

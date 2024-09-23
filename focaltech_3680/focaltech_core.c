@@ -100,7 +100,6 @@ static int fts_change_fps(void *data);
 #define GAME_ORIENTATION_90 3 /* anticlockwise 90 degrees in game */
 #define GAME_ORIENTATION_270 4 /* anticlockwise 270 degrees in game */
 #endif
-static struct proc_dir_entry *touch_debug;
 
 int fts_check_cid(struct fts_ts_data *ts_data, u8 id_h)
 {
@@ -2914,128 +2913,6 @@ static char fts_touch_vendor_read(void)
 	return '3';
 }
 
-static void tpdbg_shutdown(struct fts_ts_data *ts_data, bool enable)
-{
-	if (enable) {
-		fts_data->poweroff_on_sleep = true;
-		cancel_work_sync(&fts_data->resume_work);
-		fts_ts_suspend(&fts_data->client->dev);
-	} else {
-		fts_ts_resume(&fts_data->client->dev);
-	}
-}
-
-static void tpdbg_suspend(struct fts_ts_data *ts_data, bool enable)
-{
-	if (enable) {
-		cancel_work_sync(&fts_data->resume_work);
-		fts_ts_suspend(&fts_data->client->dev);
-	} else {
-		fts_ts_resume(&fts_data->client->dev);
-	}
-}
-
-static int tpdbg_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-
-	return 0;
-}
-
-static ssize_t tpdbg_read(struct file *file, char __user *buf, size_t size,
-			  loff_t *ppos)
-{
-	const char *str =
-		"cmd support as below:\n"
-		"\n echo \"irq-disable\" or \"irq-enable\" to ctrl irq\n"
-		"\n echo \"tp-suspend-en\" or \"tp-suspend-off\" to ctrl panel in or off suspend status\n"
-		"\n echo \"tp-sd-en\" or \"tp-sd-off\" to ctrl panel in or off sleep status\n";
-
-	loff_t pos = *ppos;
-	int len = strlen(str);
-
-	if (pos < 0)
-		return -EINVAL;
-	if (pos >= len)
-		return 0;
-
-	if (copy_to_user(buf, str, len))
-		return -EFAULT;
-
-	*ppos = pos + len;
-
-	return len;
-}
-
-static ssize_t tpdbg_write(struct file *file, const char __user *buf,
-			   size_t size, loff_t *ppos)
-{
-	struct fts_ts_data *ts_data = file->private_data;
-	char *cmd = kzalloc(size, GFP_KERNEL);
-	int ret = size;
-
-	if (!cmd)
-		return -ENOMEM;
-	if (copy_from_user(cmd, buf, size)) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	if (!strncmp(cmd, "irq-disable", 11))
-		fts_irq_disable();
-	else if (!strncmp(cmd, "irq-enable", 10))
-		fts_irq_enable();
-	else if (!strncmp(cmd, "tp-suspend-en", 13))
-		tpdbg_suspend(ts_data, true);
-	else if (!strncmp(cmd, "tp-suspend-off", 14))
-		tpdbg_suspend(ts_data, false);
-	else if (!strncmp(cmd, "tp-sd-en", 8))
-		tpdbg_shutdown(ts_data, true);
-	else if (!strncmp(cmd, "tp-sd-off", 9))
-		tpdbg_shutdown(ts_data, false);
-out:
-	kfree(cmd);
-
-	return ret;
-}
-
-static int tpdbg_release(struct inode *inode, struct file *file)
-{
-	file->private_data = NULL;
-
-	return 0;
-}
-
-static const struct file_operations tpdbg_operations = {
-	.owner = THIS_MODULE,
-	.open = tpdbg_open,
-	.read = tpdbg_read,
-	.write = tpdbg_write,
-	.release = tpdbg_release,
-};
-
-int fts_proc_init(void)
-{
-	struct proc_dir_entry *entry;
-
-	touch_debug = proc_mkdir_data("tp_debug", 0777, NULL, NULL);
-	if (IS_ERR_OR_NULL(touch_debug))
-		return -ENOMEM;
-	entry = proc_create("switch_state", 0644, touch_debug,
-			    &tpdbg_operations);
-	if (IS_ERR_OR_NULL(entry)) {
-		FTS_ERROR("create node fail");
-		remove_proc_entry("tp_debug", NULL);
-		return -ENOMEM;
-	}
-	return 0;
-}
-
-void fts_proc_remove(void)
-{
-	remove_proc_entry("switch_state", touch_debug);
-	remove_proc_entry("tp_debug", NULL);
-}
 static struct xiaomi_touch_interface xiaomi_touch_interfaces;
 
 static void fts_init_xiaomi_touchfeature(struct fts_ts_data *ts_data)
@@ -3159,17 +3036,6 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 	if (ret)
 		FTS_ERROR("create sysfs node fail");
 
-	ts_data->tpdbg_dentry = debugfs_create_dir("tp_debug", NULL);
-	if (IS_ERR_OR_NULL(ts_data->tpdbg_dentry))
-		FTS_ERROR("create tp_debug dir fail");
-	if (IS_ERR_OR_NULL(debugfs_create_file("switch_state", 0660,
-					       ts_data->tpdbg_dentry, ts_data,
-					       &tpdbg_operations)))
-		FTS_ERROR("create switch_state fail");
-
-	ret = fts_proc_init();
-	if (ret)
-		FTS_ERROR("create debug proc failed");
 	ret = fts_point_report_check_init(ts_data);
 	if (ret)
 		FTS_ERROR("init point report check fail");
@@ -3320,7 +3186,7 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 	cancel_work_sync(&fts_data->suspend_work);
 	fts_point_report_check_exit(ts_data);
 	fts_release_apk_debug_channel(ts_data);
-	fts_proc_remove();
+	fts_remove_proc(ts_data);
 	fts_remove_sysfs(ts_data);
 	fts_ex_mode_exit(ts_data);
 
