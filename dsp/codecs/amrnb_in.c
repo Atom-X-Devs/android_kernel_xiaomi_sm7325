@@ -11,7 +11,7 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
-#include <audio/linux/msm_audio_amrnb.h>
+#include <linux/msm_audio_amrnb.h>
 #include <linux/compat.h>
 #include <linux/atomic.h>
 #include <asm/ioctls.h>

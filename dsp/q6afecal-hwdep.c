@@ -6,7 +6,7 @@
 #include <linux/platform_device.h>
 #include <linux/ioctl.h>
 #include <sound/hwdep.h>
-#include <audio/sound/msmcal-hwdep.h>
+#include <sound/msmcal-hwdep.h>
 #include <sound/soc.h>
 #include "q6afecal-hwdep.h"
 

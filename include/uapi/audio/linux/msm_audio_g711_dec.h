@@ -1,7 +1,7 @@
 #ifndef _UAPI_MSM_AUDIO_G711_H
 #define _UAPI_MSM_AUDIO_G711_H
 
-#include <audio/linux/msm_audio.h>
+#include <linux/msm_audio.h>
 #include <linux/types.h>
 
 struct msm_audio_g711_dec_config {

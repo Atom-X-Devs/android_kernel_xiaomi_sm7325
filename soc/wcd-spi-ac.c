@@ -11,7 +11,7 @@
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/notifier.h>
-#include <audio/linux/wcd-spi-ac-params.h>
+#include <linux/wcd-spi-ac-params.h>
 #include <soc/wcd-spi-ac.h>
 #include <soc/qcom/msm_qmi_interface.h>
 

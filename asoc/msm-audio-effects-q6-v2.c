@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
 #include <sound/compress_params.h>
-#include <audio/sound/devdep_params.h>
+#include <sound/devdep_params.h>
 #include <dsp/apr_audio-v2.h>
 #include <dsp/q6asm-v2.h>
 #include <dsp/msm-audio-effects-q6-v2.h>

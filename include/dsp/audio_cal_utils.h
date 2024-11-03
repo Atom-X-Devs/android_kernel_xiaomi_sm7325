@@ -6,7 +6,7 @@
 #define _AUDIO_CAL_UTILS_H
 
 #include <linux/msm_ion.h>
-#include <audio/linux/msm_audio_calibration.h>
+#include <linux/msm_audio_calibration.h>
 #include <dsp/msm_audio_ion.h>
 #include <dsp/audio_calibration.h>
 

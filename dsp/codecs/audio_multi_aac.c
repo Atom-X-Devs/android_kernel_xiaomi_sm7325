@@ -16,7 +16,7 @@
  *
  */
 
-#include <audio/linux/msm_audio_aac.h>
+#include <linux/msm_audio_aac.h>
 #include <linux/compat.h>
 #include <soc/qcom/socinfo.h>
 #include "audio_utils_aio.h"

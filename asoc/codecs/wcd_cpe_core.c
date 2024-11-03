@@ -14,7 +14,7 @@
 #include <linux/dma-mapping.h>
 #include <sound/soc.h>
 #include <sound/info.h>
-#include <audio/sound/lsm_params.h>
+#include <sound/lsm_params.h>
 #include <soc/qcom/pm.h>
 #include <dsp/audio_cal_utils.h>
 #include <asoc/core.h>

@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  */
-#include <audio/linux/msm_audio_amrwbplus.h>
+#include <linux/msm_audio_amrwbplus.h>
 #include <linux/compat.h>
 #include "audio_utils_aio.h"
 

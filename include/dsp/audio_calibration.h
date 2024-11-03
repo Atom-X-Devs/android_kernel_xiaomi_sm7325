@@ -5,7 +5,7 @@
 #ifndef _AUDIO_CALIBRATION_H
 #define _AUDIO_CALIBRATION_H
 
-#include <audio/linux/msm_audio_calibration.h>
+#include <linux/msm_audio_calibration.h>
 
 /* Used by driver in buffer_number field to notify client
  * To update all blocks, for example: freeing all memory

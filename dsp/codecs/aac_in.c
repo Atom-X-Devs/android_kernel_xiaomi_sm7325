@@ -10,7 +10,7 @@
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <audio/linux/msm_audio_aac.h>
+#include <linux/msm_audio_aac.h>
 #include <linux/compat.h>
 #include <linux/atomic.h>
 #include <asm/ioctls.h>

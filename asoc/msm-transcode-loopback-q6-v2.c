@@ -17,7 +17,7 @@
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/control.h>
-#include <audio/sound/audio_effects.h>
+#include <sound/audio_effects.h>
 #include <sound/pcm_params.h>
 #include <sound/timer.h>
 #include <sound/tlv.h>

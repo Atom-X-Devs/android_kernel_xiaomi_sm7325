@@ -6,7 +6,7 @@
 #ifndef _MSM_AUDIO_EFFECTS_H
 #define _MSM_AUDIO_EFFECTS_H
 
-#include <audio/sound/audio_effects.h>
+#include <sound/audio_effects.h>
 
 #define MAX_PP_PARAMS_SZ   128
 

@@ -7,7 +7,7 @@
 #define __QDSP6VOICE_H__
 
 #include <linux/msm_ion.h>
-#include <audio/sound/voice_params.h>
+#include <sound/voice_params.h>
 #include <dsp/rtac.h>
 #include <dsp/q6core.h>
 #include <ipc/apr.h>

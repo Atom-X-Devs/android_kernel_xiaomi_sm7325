@@ -12,7 +12,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
-#include <audio/linux/avtimer.h>
+#include <linux/avtimer.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/wait.h>

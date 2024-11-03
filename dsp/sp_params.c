@@ -5,7 +5,7 @@
 
 #include <dsp/q6audio-v2.h>
 #include <dsp/q6afe-v2.h>
-#include <audio/linux/msm_audio_calibration.h>
+#include <linux/msm_audio_calibration.h>
 #include <dsp/sp_params.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

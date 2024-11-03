@@ -3,7 +3,7 @@
  */
 #include <linux/slab.h>
 #include <linux/mutex.h>
-#include <audio/linux/mfd/wcd9xxx/wcd9xxx_registers.h>
+#include <linux/mfd/wcd9xxx/wcd9xxx_registers.h>
 #include <asoc/wcd9xxx-slimslave.h>
 
 struct wcd9xxx_slim_sch {

@@ -1,0 +1,10 @@
+obj-y += dsp/
+obj-y += dsp/codecs/
+obj-y += ipc/
+obj-y += soc/
+obj-y += asoc/
+obj-y += asoc/codecs/
+obj-y += asoc/codecs/bolero/
+obj-y += asoc/codecs/wsa883x/
+obj-y += asoc/codecs/wcd938x/
+obj-y += asoc/codecs/wcd937x/

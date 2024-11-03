@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
-#include <audio/sound/lsm_params.h>
+#include <sound/lsm_params.h>
 
 enum {
 	CMD_INIT_STATE = 0,

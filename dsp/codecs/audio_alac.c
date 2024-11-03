@@ -3,7 +3,7 @@
  */
 
 #include <linux/types.h>
-#include <audio/linux/msm_audio_alac.h>
+#include <linux/msm_audio_alac.h>
 #include <linux/compat.h>
 #include "audio_utils_aio.h"
 

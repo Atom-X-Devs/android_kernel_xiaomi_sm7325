@@ -8,7 +8,7 @@
 #include <sound/soc.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <audio/linux/mfd/wcd9xxx/wcd9xxx_registers.h>
+#include <linux/mfd/wcd9xxx/wcd9xxx_registers.h>
 #include <asoc/core.h>
 #include <asoc/wcd9xxx-common-v2.h>
 
