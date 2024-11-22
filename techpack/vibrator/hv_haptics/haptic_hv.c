@@ -998,7 +998,7 @@ static int input_framework_init(struct aw_haptic *aw_haptic)
 	input_dev = devm_input_allocate_device(aw_haptic->dev);
 	if (input_dev == NULL)
 		return -ENOMEM;
-	input_dev->name = "aw-haptic-hv";
+	input_dev->name = "awinic_haptic";
 	input_set_drvdata(input_dev, aw_haptic);
 	aw_haptic->input_dev = input_dev;
 	input_set_capability(input_dev, EV_FF, FF_GAIN);
