@@ -87,6 +87,8 @@
 
 #define SWRM_PHY_ADDR_MAP_COUNT 2
 
+#define CPU_IDLE_LATENCY 10
+
 /* pm runtime auto suspend timer in msecs */
 static int auto_suspend_timer = 500;
 module_param(auto_suspend_timer, int, 0664);
@@ -3815,7 +3817,7 @@ static bool swrm_lock_sleep(struct swr_mstr_ctrl *swrm)
 	if (swrm->wlock_holders++ == 0) {
 		dev_dbg(swrm->dev, "%s: holding wake lock\n", __func__);
 		cpu_latency_qos_update_request(&swrm->pm_qos_req,
-					  msm_cpuidle_get_deep_idle_latency());
+					 CPU_IDLE_LATENCY);
 		pm_stay_awake(swrm->dev);
 	}
 	mutex_unlock(&swrm->pm_lock);

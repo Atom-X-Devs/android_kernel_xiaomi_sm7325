@@ -15,7 +15,7 @@
 #include <sound/soc.h>
 #include <sound/info.h>
 #include <sound/lsm_params.h>
-#include <soc/qcom/pm.h>
+#include <linux/pm.h>
 #include <dsp/audio_cal_utils.h>
 #include <asoc/core.h>
 #include "cpe_core.h"
@@ -37,6 +37,8 @@
 #define ELF_FLAG_READ (1 << 2)
 
 #define ELF_FLAG_RW (ELF_FLAG_READ | ELF_FLAG_WRITE)
+
+#define CPU_IDLE_LATENCY 10
 
 #define WCD_CPE_GRAB_LOCK(lock, name)		\
 {						\
@@ -1007,8 +1009,8 @@ static void wcd_cpe_ssr_work(struct work_struct *work)
 	/* Obtain pm request up in case of suspend mode */
 	cpu_latency_qos_add_request(&core->pm_qos_req,
 			   PM_QOS_DEFAULT_VALUE);
-	cpu_latency_qos_update_request(&core->pm_qos_req,
-			msm_cpuidle_get_deep_idle_latency());
+	cpu_latency_qos_update_request(&swrm->pm_qos_req,
+				 CPU_IDLE_LATENCY);
 
 	dev_dbg(core->dev,
 		"%s: CPE SSR with event %d\n",
