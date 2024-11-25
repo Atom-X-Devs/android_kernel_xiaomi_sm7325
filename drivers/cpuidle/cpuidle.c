@@ -292,9 +292,6 @@ int __nocfi cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_drive
 		}
 	} else {
 		dev->last_residency = 0;
-#ifdef CONFIG_QGKI_CPUIDLE_FAILED_STAT
-		dev->states_usage[index].failed++;
-#endif
 	}
 
 	return entered_state;
