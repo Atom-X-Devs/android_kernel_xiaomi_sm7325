@@ -1725,11 +1725,7 @@ static int battery_psy_set_prop(struct power_supply *psy,
 	struct battery_chg_dev *bcdev = power_supply_get_drvdata(psy);
 #ifdef CONFIG_MACH_XIAOMI
 	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
-	int prop_id, rc = 0;
-
-	prop_id = get_property_id(pst, prop);
-	if (prop_id < 0)
-		return prop_id;
+	int prop_id = 0;
 #endif
 
 	switch (prop) {
@@ -1737,8 +1733,8 @@ static int battery_psy_set_prop(struct power_supply *psy,
 		return battery_psy_set_charge_current(bcdev, pval->intval);
 #ifdef CONFIG_MACH_XIAOMI
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
-		rc = battery_psy_set_fcc(bcdev, prop_id, pval->intval);
-		break;
+		prop_id = get_property_id(pst, prop);
+		return battery_psy_set_fcc(bcdev, prop_id, pval->intval);
 #endif
 	default:
 		return -EINVAL;
