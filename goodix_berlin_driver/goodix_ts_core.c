@@ -1027,6 +1027,41 @@ int goodix_ts_blocking_notify(enum ts_notify_event evt, void *v)
 
 #if IS_ENABLED(CONFIG_OF)
 /**
+ * goodix_check_ts_id_gpio - check if the touch driver should be
+ *							 used based of touch screen ID GPIO
+ * @dev: pointer to device
+ * @node: devicetree node
+ * return: 0 - driver should be used, <0 driver should not be used
+ */
+static int goodix_parse_id_gpio(struct device *dev, struct device_node *node)
+{
+	int gpio, gval, ret;
+	u8 mval;
+
+	gpio = of_get_named_gpio(node, "goodix,ts-id-gpio", 0);
+	if (gpio < 0)
+		return 0;
+
+	ret = of_property_read_u8(node, "goodix,ts-id-gpio-val", &mval);
+	if (ret < 0)
+		return 0;
+
+	ret = devm_gpio_request_one(dev, gpio, GPIOF_IN, "LCD_ID_DET1");
+	if (gpio < 0)
+		return -EINVAL;
+
+	gval = gpio_get_value(gpio);
+	if (mval != gval) {
+		ts_err("gpio id mismatch abort!");
+		return -ENODEV;
+	}
+
+	ts_info("goodix panel detected!");
+
+	return 0;
+}
+
+/**
  * goodix_parse_dt_resolution - parse resolution from dt
  * @node: devicetree node
  * @board_data: pointer to board data structure
@@ -2748,6 +2783,10 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	node = bus_interface->dev->of_node;
 
 #if defined(CONFIG_DRM)
+	ret = goodix_parse_id_gpio(&pdev->dev, node);
+	if (ret < 0)
+		return ret;
+	
 	ret = goodix_check_dt(node);
 	if (ret == -EPROBE_DEFER)
 		return ret;
