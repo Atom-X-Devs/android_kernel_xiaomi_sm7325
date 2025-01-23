@@ -1633,6 +1633,7 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 			FTS_DEBUG("regulator enable !");
 			gpio_direction_output(ts_data->pdata->reset_gpio, 1);
 			msleep(1);
+#if FTS_PINCTRL_EN
 			if (ts_data->pinctrl && ts_data->pinctrl_dvdd_enable) {
 				ret = pinctrl_select_state(
 					ts_data->pinctrl,
@@ -1646,6 +1647,7 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 						"%s: successs to enable dvdd\n",
 						__func__);
 			}
+#endif
 			if (!IS_ERR_OR_NULL(ts_data->iovdd)) {
 				ret = regulator_enable(ts_data->iovdd);
 				if (ret)
@@ -1679,6 +1681,7 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 				FTS_ERROR(
 					"disable avdd regulator failed,ret=%d",
 					ret);
+#if FTS_PINCTRL_EN
 			if (ts_data->pinctrl && ts_data->pinctrl_dvdd_disable) {
 				ret = pinctrl_select_state(
 					ts_data->pinctrl,
@@ -1692,6 +1695,7 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 						"%s: successs to disable dvdd\n",
 						__func__);
 			}
+#endif
 			if (!IS_ERR_OR_NULL(ts_data->iovdd)) {
 				ret = regulator_disable(ts_data->iovdd);
 				if (ret)
