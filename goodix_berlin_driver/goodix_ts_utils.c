@@ -152,52 +152,27 @@ void goodix_rotate_abcd2cbad(int tx, int rx, s16 *data)
 int goodix_get_ic_type(struct device_node *node,
 		struct goodix_bus_interface *bus_inf)
 {
-	const struct property *prop;
-	char ic_name[128] = {0};
-	int i;
-
-	prop = of_find_property(node, "compatible", NULL);
-	if (!prop || !prop->value || prop->length > sizeof(ic_name)) {
-		ts_err("invalid compatible property");
-		return -EINVAL;
-	}
-
-	memcpy(ic_name, prop->value, prop->length);
-
-	/* replace string end flag with ';' */
-	for (i = 0; i < prop->length - 1; i++)
-		if (ic_name[i] == 0)
-			ic_name[i] = ';';
-
-	ts_info("ic_name %s", ic_name);
-
-	if (strstr(ic_name, "brl-a")) {
+	if (of_device_is_compatible(node, "goodix,brl-a")) {
 		ts_info("ic type is brl-a");
 		bus_inf->ic_type = IC_TYPE_BERLIN_A;
-		return 0;
-	}
-
-	if (strstr(ic_name, "brl-b")) {
+	} else if (of_device_is_compatible(node, "goodix,brl-b")) {
 		ts_info("ic type is brl-b");
 		bus_inf->ic_type = IC_TYPE_BERLIN_B;
-		if (strstr(ic_name, "ga687x")) {
+		if (of_device_is_compatible(node, "goodix,ga687x")) {
 			bus_inf->sub_ic_type = IC_TYPE_SUB_B2;
 			ts_info("sub ic type is brl-b2");
 		}
-		return 0;
-	}
-	if (strstr(ic_name, "brl-d")) {
+	} else if (of_device_is_compatible(node, "goodix,brl-d")) {
 		ts_info("ic type is brl-d");
 		bus_inf->ic_type = IC_TYPE_BERLIN_D;
-		return 0;
-	}
-	if (strstr(ic_name, "nottingham")) {
+	} else if (of_device_is_compatible(node, "goodix,nottingham")) {
 		ts_info("ic type is nottingham");
 		bus_inf->ic_type = IC_TYPE_NOTTINGHAM;
-		return 0;
+	} else {
+		ts_err("unsupported ic type!");
+		return -EINVAL;
 	}
-	
-	ts_err("unsupported ic type %s", ic_name);
-	return -EINVAL;
+
+	return 0;
 }
 
