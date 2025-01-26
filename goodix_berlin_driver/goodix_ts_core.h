@@ -67,6 +67,8 @@
 #define GOODIX_XIAOMI_TOUCHFEATURE
 #define GOODIX_QGKI
 
+#define GOODIX_DEBUG 0
+
 enum PANEL_ORIENTATION {
 	PANEL_ORIENTATION_DEGREE_0 = 0,
 	PANEL_ORIENTATION_DEGREE_90,
@@ -670,6 +672,7 @@ static struct goodix_ext_attribute ext_attr_##_name = \
 
 /* log macro */
 extern bool debug_log_flag;
+#if GOODIX_DEBUG
 #define ts_info(fmt, arg...) \
 		pr_info("[GTP-INF][%s] "fmt"\n", __func__, ##arg)
 #define	ts_err(fmt, arg...) \
@@ -677,6 +680,11 @@ extern bool debug_log_flag;
 #define ts_debug(fmt, arg...) \
 		{if (debug_log_flag) \
 		pr_info("[GTP-DBG][%s] "fmt"\n", __func__, ##arg);}
+#else
+#define ts_info(fmt, arg...) no_printk(fmt, ##arg)
+#define ts_err(fmt, arg...) no_printk(fmt, ##arg)
+#define ts_debug(fmt, arg...) no_printk(fmt, ##arg)
+#endif
 
 /*
  * get board data pointer
