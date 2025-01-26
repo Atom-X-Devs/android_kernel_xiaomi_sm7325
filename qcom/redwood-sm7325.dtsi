@@ -404,6 +404,9 @@
 		goodix,iovdd-name = "vdd";
 		goodix,avdd-gpio = <&tlmm 107 0x00>;
 
+		goodix,ts-id-gpio = <&tlmm 96 0x01>;
+		goodix,ts-id-gpio-val = <0>;
+
 		vdd-supply = <&L2C>;
 	};
 };
