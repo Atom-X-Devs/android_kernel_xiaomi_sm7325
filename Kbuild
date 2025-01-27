@@ -71,7 +71,6 @@ ifeq ($(CONFIG_TOUCHSCREEN_FOCALTECH), y)
 	LINUX_INC += -include $(TOUCH_ROOT)/focaltech_touch/focaltech_common.h
 	LINUX_INC += -include $(TOUCH_ROOT)/focaltech_touch/focaltech_config.h
 	LINUX_INC += -include $(TOUCH_ROOT)/focaltech_touch/focaltech_core.h
-	LINUX_INC += -include $(TOUCH_ROOT)/focaltech_touch/focaltech_flash.h
 
 	focaltech_fts-y := \
 		 ./focaltech_touch/focaltech_core.o \
@@ -79,10 +78,7 @@ ifeq ($(CONFIG_TOUCHSCREEN_FOCALTECH), y)
 		 ./focaltech_touch/focaltech_ex_mode.o \
 		 ./focaltech_touch/focaltech_gesture.o \
 		 ./focaltech_touch/focaltech_esdcheck.o \
-		 ./focaltech_touch/focaltech_point_report_check.o \
-		 ./focaltech_touch/focaltech_bus.o \
-		 ./focaltech_touch/focaltech_flash.o \
-		 ./focaltech_touch/focaltech_flash/focaltech_upgrade_ft3518.o
+		 ./focaltech_touch/focaltech_bus.o
 
 	obj-$(CONFIG_MSM_TOUCH) += focaltech_fts.o
 endif

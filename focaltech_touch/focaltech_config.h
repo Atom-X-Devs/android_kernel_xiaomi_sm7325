@@ -191,7 +191,7 @@
  * Pinctrl enable
  * default: disable
  */
-#define FTS_PINCTRL_EN                          1
+#define FTS_PINCTRL_EN                          0
 
 /*
  * Customer power enable
@@ -199,6 +199,11 @@
  * default: disable
  */
 #define FTS_POWER_SOURCE_CUST_EN                1
+
+/*
+ * FTS ENABLE I2C support
+ */
+#define FTS_SUPPORT_I2C							0
 
 /****************************************************/
 
@@ -219,11 +224,6 @@
 #define FTS_GET_MODULE_NUM                      0
 
 /*
- * FTS ENABLE I2C support
- */
-#define FTS_SUPPORT_I2C							0
-
-/*
  * module_id: mean vendor_id generally, also maybe gpio or lcm_id...
  * If means vendor_id, the FTS_MODULE_ID = PANEL_ID << 8 + VENDOR_ID
  * FTS_GET_MODULE_NUM == 0/1, no check module id, you may ignore them
@@ -242,7 +242,7 @@
  * You should rename fw to "focaltech_ts_fw_tianma", and push it into
  * etc/firmware or by customers
  */
-#define FTS_MODULE_NAME                        "gvo"
+#define FTS_MODULE_NAME                        ""
 #define FTS_MODULE2_NAME                       ""
 #define FTS_MODULE3_NAME                       ""
 

@@ -66,6 +66,7 @@
 /*****************************************************************************
 * Private constant and macro definitions using #define
 *****************************************************************************/
+#define FTS_MAX_TOUCH_BUF 					4096
 #define FTS_MAX_POINTS_SUPPORT              10 /* constant value, can't be changed */
 #define FTS_MAX_KEYS                        4
 #define FTS_KEY_DIM                         10
@@ -76,15 +77,13 @@
 #define FTS_GESTURE_DATA_LEN               (FTS_GESTURE_POINTS_MAX * 4 + 4)
 
 #define FTS_MAX_ID                          0x0A
-#define FTS_TOUCH_X_H_POS                   3
-#define FTS_TOUCH_X_L_POS                   4
-#define FTS_TOUCH_Y_H_POS                   5
-#define FTS_TOUCH_Y_L_POS                   6
-#define FTS_TOUCH_PRE_POS                   7
-#define FTS_TOUCH_AREA_POS                  8
-#define FTS_TOUCH_POINT_NUM                 2
-#define FTS_TOUCH_EVENT_POS                 3
-#define FTS_TOUCH_ID_POS                    5
+#define FTS_TOUCH_OFF_E_XH 					0
+#define FTS_TOUCH_OFF_XL 					1
+#define FTS_TOUCH_OFF_ID_YH 				2
+#define FTS_TOUCH_OFF_YL 					3
+#define FTS_TOUCH_OFF_PRE 					4
+#define FTS_TOUCH_OFF_AREA 					5
+#define FTS_TOUCH_E_NUM 					1
 #define FTS_COORDS_ARR_SIZE                 4
 #define FTS_X_MIN_DISPLAY_DEFAULT           0
 #define FTS_Y_MIN_DISPLAY_DEFAULT           0
@@ -108,9 +107,10 @@
 /*
  * For commnication error in PM(deep sleep) state
  */
-#define FTS_PATCH_COMERR_PM                     0
+#define FTS_PATCH_COMERR_PM                     1
 #define FTS_TIMEOUT_COMERR_PM                   700
 
+#define FTS_TOUCHSCREEN_FOD
 
 /*****************************************************************************
 * Private enumerations, structures and unions using typedef
@@ -138,6 +138,7 @@ struct fts_ts_platform_data {
 	u32 x_min;
 	u32 y_min;
 	u32 max_touch_number;
+	u32 super_resolution_factor;
 };
 
 struct ts_event {
@@ -147,45 +148,6 @@ struct ts_event {
 	int flag;   /* touch event flag: 0 -- down; 1-- up; 2 -- contact */
 	int id;     /*touch ID */
 	int area;
-};
-
-enum trusted_touch_mode_config {
-	TRUSTED_TOUCH_VM_MODE,
-	TRUSTED_TOUCH_MODE_NONE
-};
-
-enum trusted_touch_pvm_states {
-	TRUSTED_TOUCH_PVM_INIT,
-	PVM_I2C_RESOURCE_ACQUIRED,
-	PVM_INTERRUPT_DISABLED,
-	PVM_IOMEM_LENT,
-	PVM_IOMEM_LENT_NOTIFIED,
-	PVM_IRQ_LENT,
-	PVM_IRQ_LENT_NOTIFIED,
-	PVM_IOMEM_RELEASE_NOTIFIED,
-	PVM_IRQ_RELEASE_NOTIFIED,
-	PVM_ALL_RESOURCES_RELEASE_NOTIFIED,
-	PVM_IRQ_RECLAIMED,
-	PVM_IOMEM_RECLAIMED,
-	PVM_INTERRUPT_ENABLED,
-	PVM_I2C_RESOURCE_RELEASED,
-	TRUSTED_TOUCH_PVM_STATE_MAX
-};
-
-enum trusted_touch_tvm_states {
-	TRUSTED_TOUCH_TVM_INIT,
-	TVM_IOMEM_LENT_NOTIFIED,
-	TVM_IRQ_LENT_NOTIFIED,
-	TVM_ALL_RESOURCES_LENT_NOTIFIED,
-	TVM_IOMEM_ACCEPTED,
-	TVM_I2C_SESSION_ACQUIRED,
-	TVM_IRQ_ACCEPTED,
-	TVM_INTERRUPT_ENABLED,
-	TVM_INTERRUPT_DISABLED,
-	TVM_IRQ_RELEASED,
-	TVM_I2C_SESSION_RELEASED,
-	TVM_IOMEM_RELEASED,
-	TRUSTED_TOUCH_TVM_STATE_MAX
 };
 
 struct fts_ts_data {
@@ -199,13 +161,16 @@ struct fts_ts_data {
 	struct work_struct fwupg_work;
 	struct delayed_work esdcheck_work;
 	struct delayed_work prc_work;
+	struct notifier_block power_supply_notifier;
+	struct work_struct power_supply_work;
 	struct work_struct resume_work;
 	struct work_struct suspend_work;
+	wait_queue_head_t ts_waitqueue;
+
 	struct ftxxxx_proc proc;
 	spinlock_t irq_lock;
 	struct mutex report_mutex;
 	struct mutex bus_lock;
-	struct mutex transition_lock;
 	int irq;
 	int log_level;
 	int fw_is_running;      /* confirm fw is running when using spi:default 0 */
@@ -222,21 +187,35 @@ struct fts_ts_data {
 	bool cover_mode;
 	bool charger_mode;
 	bool gesture_mode;      /* gesture enable or disable, default: disable */
+	bool poweroff_on_sleep;
 	int report_rate;
+	int charger_status;
+	u8 gesture_bmode; /*gesture buffer mode*/
+
 	/* multi-touch */
-	struct ts_event *events;
+	int bus_type;
 	u8 *bus_tx_buf;
 	u8 *bus_rx_buf;
-	int bus_type;
-	u8 *point_buf;
+	u8 gesture_status;
+	u8 *touch_buf;
+	u8 touch_addr;
+	u32 touch_size;
 	void *notifier_cookie;
 	int pnt_buf_size;
 	int touchs;
 	int key_state;
 	int touch_point;
 	int point_num;
-	struct regulator *vdd;
-	struct regulator *vcc_i2c;
+#ifdef FTS_TOUCHSCREEN_FOD
+	u8 old_point_id;
+	int overlap_area;
+	bool finger_in_fod;
+	bool fod_finger_skip;
+	bool point_id_changed;
+#endif
+	struct ts_event *events;
+	struct regulator *avdd;
+	struct regulator *iovdd;
 #if FTS_PINCTRL_EN
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_active;
@@ -253,6 +232,22 @@ enum _FTS_BUS_TYPE {
 	BUS_TYPE_I2C,
 	BUS_TYPE_SPI,
 	BUS_TYPE_SPI_V2,
+};
+
+enum _FTS_TOUCH_ETYPE {
+	TOUCH_DEFAULT = 0x00,
+	TOUCH_EVENT_NUM = 0x02,
+	TOUCH_EXTRA_MSG = 0x08,
+	TOUCH_PEN = 0x0B,
+	TOUCH_GESTURE = 0x80,
+	TOUCH_FW_INIT = 0x81,
+	TOUCH_IGNORE = 0xFE,
+	TOUCH_ERROR = 0xFF,
+};
+
+enum _FTS_GESTURE_BMODE {
+	GESTURE_BM_REG,
+	GESTURE_BM_TOUCH,
 };
 
 /*****************************************************************************
@@ -276,10 +271,7 @@ void fts_gesture_recovery(struct fts_ts_data *ts_data);
 int fts_gesture_readdata(struct fts_ts_data *ts_data, u8 *data);
 int fts_gesture_suspend(struct fts_ts_data *ts_data);
 int fts_gesture_resume(struct fts_ts_data *ts_data);
-
-/* Apk and functions */
-int fts_create_apk_debug_channel(struct fts_ts_data *);
-void fts_release_apk_debug_channel(struct fts_ts_data *);
+int fts_gesture_reg_write(u8 reg, u8 mask, bool enable);
 
 /* ADB functions */
 int fts_create_sysfs(struct fts_ts_data *ts_data);
@@ -296,18 +288,6 @@ int fts_esdcheck_suspend(void);
 int fts_esdcheck_resume(void);
 #endif
 
-/* Point Report Check*/
-#if FTS_POINT_REPORT_CHECK_EN
-int fts_point_report_check_init(struct fts_ts_data *ts_data);
-int fts_point_report_check_exit(struct fts_ts_data *ts_data);
-void fts_prc_queue_work(struct fts_ts_data *ts_data);
-#endif
-
-/* FW upgrade */
-int fts_fwupg_init(struct fts_ts_data *ts_data);
-int fts_fwupg_exit(struct fts_ts_data *ts_data);
-int fts_enter_test_environment(bool test_state);
-
 /* Other */
 int fts_reset_proc(int hdelayms);
 int fts_wait_tp_to_valid(void);
@@ -319,6 +299,8 @@ int fts_ex_mode_recovery(struct fts_ts_data *ts_data);
 
 void fts_irq_disable(void);
 void fts_irq_enable(void);
-int fts_ts_handle_trusted_touch_pvm(struct fts_ts_data *ts_data, int value);
-int fts_ts_handle_trusted_touch_tvm(struct fts_ts_data *ts_data, int value);
+
+extern int power_supply_reg_notifier(struct notifier_block *nb);
+extern int power_supply_is_system_supplied(void);
+
 #endif /* __LINUX_FOCALTECH_CORE_H__ */

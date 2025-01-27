@@ -149,7 +149,7 @@ static int fts_i2c_exit(struct fts_ts_data *ts_data)
  ****************************************************************************/
 #define SPI_RETRY_NUMBER            3
 #define CS_HIGH_DELAY               150 /* unit: us */
-#define SPI_BUF_LENGTH              256
+#define SPI_BUF_LENGTH              4096
 
 #define DATA_CRC_EN                 0x20
 #define WRITE_CMD                   0x00
@@ -175,6 +175,13 @@ static inline int fts_spi_transfer(u8 *tx_buf, u8 *rx_buf, u32 len)
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
+
+#if defined(CONFIG_PM) && FTS_PATCH_COMERR_PM
+	if (fts_data->pm_suspend) {
+		FTS_ERROR("system suspend, don't transfer.");
+		return -EACCES;
+	}
+#endif
 
 	ret = spi_sync(spi, &msg);
 	if (ret) {
@@ -284,6 +291,8 @@ err_write:
 	if (txlen_need > SPI_BUF_LENGTH) {
 		kfree(txbuf);
 		kfree(rxbuf);
+		txbuf = NULL;
+		rxbuf = NULL;
 	}
 
 	udelay(CS_HIGH_DELAY);
@@ -371,6 +380,8 @@ err_read:
 	if (txlen_need > SPI_BUF_LENGTH) {
 		kfree(txbuf);
 		kfree(rxbuf);
+		txbuf = NULL;
+		rxbuf = NULL;
 	}
 
 	udelay(CS_HIGH_DELAY);

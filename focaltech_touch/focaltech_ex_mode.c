@@ -288,15 +288,9 @@ static ssize_t fts_report_rate_store(
  * read example: cat fts_glove_mode        ---read  glove mode
  * write example:echo 1 > fts_glove_mode   ---write glove mode to 01
  */
-static DEVICE_ATTR(fts_glove_mode, S_IRUGO | S_IWUSR,
-			fts_glove_mode_show, fts_glove_mode_store);
-
-static DEVICE_ATTR(fts_cover_mode, S_IRUGO | S_IWUSR,
-			fts_cover_mode_show, fts_cover_mode_store);
-
-static DEVICE_ATTR(fts_charger_mode, S_IRUGO | S_IWUSR,
-			fts_charger_mode_show, fts_charger_mode_store);
-
+static DEVICE_ATTR_RW(fts_glove_mode);
+static DEVICE_ATTR_RW(fts_cover_mode);
+static DEVICE_ATTR_RW(fts_charger_mode);
 static DEVICE_ATTR_RW(fts_report_rate);
 
 static struct attribute *fts_touch_mode_attrs[] = {
@@ -313,17 +307,14 @@ static struct attribute_group fts_touch_mode_group = {
 
 int fts_ex_mode_recovery(struct fts_ts_data *ts_data)
 {
-	if (ts_data->glove_mode) {
+	if (ts_data->glove_mode)
 		fts_ex_mode_switch(MODE_GLOVE, ENABLE);
-	}
 
-	if (ts_data->cover_mode) {
+	if (ts_data->cover_mode)
 		fts_ex_mode_switch(MODE_COVER, ENABLE);
-	}
 
-	if (ts_data->charger_mode) {
+	if (ts_data->charger_mode)
 		fts_ex_mode_switch(MODE_CHARGER, ENABLE);
-	}
 
 	if (ts_data->report_rate > 0)
 		fts_ex_mode_switch(REPORT_RATE, ts_data->report_rate);
@@ -345,9 +336,9 @@ int fts_ex_mode_init(struct fts_ts_data *ts_data)
 		FTS_ERROR("create sysfs(ex_mode) fail");
 		sysfs_remove_group(&ts_data->dev->kobj, &fts_touch_mode_group);
 		return ret;
-	} else {
-		FTS_DEBUG("create sysfs(ex_mode) succeedfully");
 	}
+
+	FTS_DEBUG("create sysfs(ex_mode) succeedfully");
 
 	return 0;
 }

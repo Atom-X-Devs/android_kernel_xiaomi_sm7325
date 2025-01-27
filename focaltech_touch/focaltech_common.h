@@ -66,6 +66,7 @@
 #define FTS_CMD_READ_ID_LEN                 4
 #define FTS_CMD_READ_ID_LEN_INCELL          1
 #define FTS_CMD_READ_FW_CONF                0xA8
+
 /*register address*/
 #define FTS_REG_INT_CNT                     0x8F
 #define FTS_REG_FLOW_WORK_CNT               0x91
@@ -94,6 +95,30 @@
 #define FTS_REG_MODULE_ID                   0xE3
 #define FTS_REG_LIC_VER                     0xE4
 #define FTS_REG_ESD_SATURATE                0xED
+
+
+#define FTS_PALM_EN 						0x9A
+#define FTS_PALM_DATA 						0x9B
+#define FTS_PALM_ON 						0x05
+#define FTS_PALM_OFF 						0x00
+
+#define FTS_REG_FOD_OUTPUT_ADDRESS 			0xE1
+#define BTN_INFO 							0x152
+#define FTS_REG_GESTURE_DOUBLETAP_ON 		0x01
+#define FTS_REG_GESTURE_FOD_ON				0x02
+#define FTS_REG_GESTURE_SUPPORT 0xCF
+
+#define FTS_REG_SENSIVITY 0x80
+#define FTS_REG_THDIFF 0x85
+#define FTS_REG_EDGE_FILTER_EN 0x8c
+#define FTS_REG_EDGE_FILTER_LEVEL 0x8d
+#define FTS_REG_GAMEMODE 0xC1
+#define FTS_REG_ORIENTATION 0x8C
+#define FTS_PANEL_CHANGE_FPS 0x8A
+
+#define FTS_GESTURE_CTRL 0xD1
+#define FTS_GESTURE_DOUBLETAP 0x04
+#define FTS_GESTURE_AOD 0x07
 
 #define FTS_SYSFS_ECHO_ON(buf)      (buf[0] == '1')
 #define FTS_SYSFS_ECHO_OFF(buf)     (buf[0] == '0')
