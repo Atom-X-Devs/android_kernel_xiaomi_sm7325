@@ -6,10 +6,8 @@
 #include "display/redwood-sm7325-sde-display.dtsi"
 #include "redwood-audio-overlay.dtsi"
 
-&reserved_memory {
-	removed_mem: removed_region@c0000000 {
-		reg = <0x0 0xc0000000 0x0 0x6800000>;
-	};
+&removed_mem {
+	reg = <0x0 0xc0000000 0x0 0x6800000>;
 };
 
 /*
