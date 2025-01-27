@@ -47,7 +47,7 @@
 };
 
 &pmr735a_temp_alarm {
-	status = "disabled";
+	disable-thermal-zone;
 };
 
 &apps_rsc {
