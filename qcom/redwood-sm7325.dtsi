@@ -48,7 +48,7 @@
 			qcom,hw-settle-time = <200>;
 		};
 
-		pm7325b_pa_rfendc_therm {
+		pm7325b_modem1_pa1 {
 			reg = <PM7325B_ADC7_GPIO3_100K_PU>;
 			qcom,ratiometric;
 			qcom,hw-settle-time = <200>;
@@ -56,7 +56,27 @@
 	};
 };
 
+&pmk8350_adc_tm {
+	/delete-node/ pm7325_pa_5gtherm;
+
+	pm7325_modem1_pa0 {
+		reg = <PM7325_ADC7_GPIO3_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+};
+
 &pmk8350_vadc {
+	/delete-node/ pm7325_pa_5gtherm;
+
+	pm7325_modem1_pa0 {
+		reg = <PM7325_ADC7_GPIO3_100K_PU>;
+		label = "pm7325_modem1_pa0";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,pre-scaling = <1 1>;
+	};
+
 	pm7325b_batt_therm {
 		reg = <PM7325B_ADC7_AMUX_THM1_100K_PU>;
 		label = "pm7325b_batt_therm";
@@ -73,9 +93,9 @@
 		qcom,pre-scaling = <1 1>;
 	};
 
-	pm7325b_pa_rfendc_therm {
+	pm7325b_modem1_pa1 {
 		reg = <PM7325B_ADC7_GPIO3_100K_PU>;
-		label = "pm7325b_pa_rfendc_therm";
+		label = "pm7325b_modem1_pa1";
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
 		qcom,pre-scaling = <1 1>;
@@ -131,7 +151,7 @@
 		};
 	};
 
-	pa_5gtherm {
+	modem1_pa0 {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
@@ -147,7 +167,7 @@
 		};
 	};
 
-	pa_rfendc_therm {
+	modem1_pa1 {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
