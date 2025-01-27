@@ -119,7 +119,7 @@
 				qcom,compression-mode = "dsc";
 				qcom,mdss-dsc-version = <0x12>;
 				qcom,mdss-dsc-scr-version = <0x0>;
-				qcom,mdss-dsc-slice-height = <20>;
+				qcom,mdss-dsc-slice-height = <12>;
 				qcom,mdss-dsc-slice-width = <540>;
 				qcom,mdss-dsc-slice-per-pkt = <2>;
 				qcom,mdss-dsc-bit-per-component = <10>;
@@ -167,12 +167,12 @@
 			mi,mdss-dsi-doze-lbm-nolp-command-state = "dsi_hs_mode";
 
 			mi,mdss-dsi-fps-120-gamma-command = [
-				15 01 00 00 00 00 02 6C 00
+				15 01 00 00 00 00 02 6C 02
 			];
 			mi,mdss-dsi-fps-120-gamma-command-state = "dsi_lp_mode";
 
 			mi,mdss-dsi-fps-60-gamma-command = [
-				15 01 00 00 00 00 02 6C 02
+				15 01 00 00 00 00 02 6C 00
 			];
 			mi,mdss-dsi-fps-60-gamma-command-state = "dsi_lp_mode";
 		};
