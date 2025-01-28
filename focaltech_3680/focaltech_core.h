@@ -278,10 +278,8 @@ struct fts_ts_data {
 	struct mutex fod_mutex;
 	bool point_id_changed;
 #endif
-#if defined(CONFIG_FB) || defined(CONFIG_DRM)
-	struct notifier_block fb_notif;
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-	struct early_suspend early_suspend;
+#if defined(CONFIG_DRM)
+	void *notifier_cookie;
 #endif
 	struct mutex cmd_update_mutex;
 	int palm_sensor_switch;
