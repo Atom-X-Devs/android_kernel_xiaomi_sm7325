@@ -150,6 +150,8 @@ struct fts_ts_platform_data {
 	u32 keys[FTS_MAX_KEYS];
 	u32 key_y_coords[FTS_MAX_KEYS];
 	u32 key_x_coords[FTS_MAX_KEYS];
+	char avdd_name[32];
+	char iovdd_name[32];
 	u32 x_max;
 	u32 y_max;
 	u32 x_min;
