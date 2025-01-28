@@ -62,8 +62,6 @@
 #define FTS_I2C_VTG_MIN_UV 1800000
 #define FTS_I2C_VTG_MAX_UV 1800000
 #endif
-#define DISP_ID_DET (336 + 96)
-#define DISP_ID1_DET (336 + 68)
 
 /*****************************************************************************
  * Global variable or extern global variabls/functions
@@ -1924,6 +1922,41 @@ static int fts_get_dt_coords(struct device *dev, char *name,
 	return 0;
 }
 
+/**
+ * fts_parse_id_gpio - check if the touch driver should be
+ *							 used based of touch screen ID GPIO
+ * @dev: pointer to device
+ * @node: devicetree node
+ * return: 0 - driver should be used, <0 driver should not be used
+ */
+static int fts_parse_id_gpio(struct device *dev)
+{
+	u8 mval;
+	int gpio, gval, ret;
+	struct device_node *node = dev->of_node;
+
+	gpio = of_get_named_gpio(node, "focaltech,ts-id-gpio", 0);
+	if (gpio < 0)
+		return 0;
+
+	ret = of_property_read_u8(node, "focaltech,ts-id-gpio-val", &mval);
+	if (ret < 0)
+		return 0;
+
+	ret = devm_gpio_request_one(dev, gpio, GPIOF_IN, "LCD_ID_DET2");
+	if (gpio < 0)
+		return -EINVAL;
+
+	gval = gpio_get_value(gpio);
+	if (mval != gval) {
+		FTS_ERROR("gpio id mismatch abort!");
+		return -ENODEV;
+	}
+
+	FTS_INFO("focaltech panel detected!");
+	return 0;
+}
+
 static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
 {
 	int ret = 0;
@@ -2844,6 +2877,10 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 	}
 
 	if (ts_data->dev->of_node) {
+		ret = fts_parse_id_gpio(ts_data->dev);
+		if (ret < 0)
+			return ret;
+
 		ret = fts_parse_dt(ts_data->dev, ts_data->pdata);
 		if (ret)
 			FTS_ERROR("device-tree parse fail");
@@ -3341,26 +3378,14 @@ static struct spi_driver fts_ts_driver = {
 
 static int __init fts_ts_init(void)
 {
-	int ret = 0, gpio_96, gpio_68;
-
-	gpio_direction_input(DISP_ID_DET);
-	gpio_direction_input(DISP_ID1_DET);
-
-	gpio_96 = gpio_get_value(DISP_ID_DET);
-	gpio_68 = gpio_get_value(DISP_ID1_DET);
-
-	if (gpio_96 && !gpio_68) {
-		FTS_INFO("TP is Focaltech, initiating probe..\n");
-	} else {
-		FTS_INFO("TP is Goodix, killing Focaltech TP probe..\n");
-		return -ENODEV;
-	}
+	int ret = 0;
 
 	FTS_FUNC_ENTER();
 	ret = spi_register_driver(&fts_ts_driver);
 	if (ret != 0)
 		FTS_ERROR("Focaltech touch screen driver init failed!");
 	FTS_FUNC_EXIT();
+
 	return ret;
 }
 
