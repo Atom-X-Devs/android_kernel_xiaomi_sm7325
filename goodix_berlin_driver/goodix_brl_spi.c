@@ -247,11 +247,51 @@ static void goodix_pdev_release(struct device *dev)
 	kfree(goodix_pdev);
 }
 
+/**
+ * goodix_check_ts_id_gpio - check if the touch driver should be
+ *							 used based of touch screen ID GPIO
+ * @dev: pointer to device
+ * @node: devicetree node
+ * return: 0 - driver should be used, <0 driver should not be used
+ */
+static int goodix_parse_id_gpio(struct device *dev)
+{
+	struct device_node *node = dev->of_node;
+	int gpio, gval, ret;
+	u8 mval;
+
+	gpio = of_get_named_gpio(node, "goodix,ts-id-gpio", 0);
+	if (gpio < 0)
+		return 0;
+
+	ret = of_property_read_u8(node, "goodix,ts-id-gpio-val", &mval);
+	if (ret < 0)
+		return 0;
+
+	ret = devm_gpio_request_one(dev, gpio, GPIOF_IN, "LCD_ID_DET1");
+	if (gpio < 0)
+		return -EINVAL;
+
+	gval = gpio_get_value(gpio);
+	if (mval != gval) {
+		ts_err("gpio id mismatch abort!");
+		return -ENODEV;
+	}
+
+	ts_info("goodix panel detected!");
+
+	return 0;
+}
+
 static int goodix_spi_probe(struct spi_device *spi)
 {
 	int ret = 0;
 
 	ts_info("goodix spi probe in");
+
+	ret = goodix_parse_id_gpio(&spi->dev);
+	if (ret < 0)
+		return ret;
 
 	/* init spi_device */
 	spi->mode            = SPI_MODE_0;
