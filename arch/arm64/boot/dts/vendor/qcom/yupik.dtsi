@@ -2983,10 +2983,10 @@
 
 		/* max voltage are set to regulator max voltage supported */
 		qcom,bt-vdd-io-config = <1800000 2000000 0 1>;
-		qcom,bt-vdd-aon-config = <824000 1120000 0 1>;
-		qcom,bt-vdd-dig-config = <824000 1120000 0 1>;
-		qcom,bt-vdd-rfacmn-config  = <824000 1120000 0 1>;
-		qcom,bt-vdd-rfa-0p8-config  = <824000 1120000 0 1>;
+		qcom,bt-vdd-aon-config = <824000 1120000 0 0>;
+		qcom,bt-vdd-dig-config = <824000 1120000 0 0>;
+		qcom,bt-vdd-rfacmn-config  = <824000 1120000 0 0>;
+		qcom,bt-vdd-rfa-0p8-config  = <824000 1120000 0 0>;
 		qcom,bt-vdd-rfa1-config = <1872000 2040000 0 1>;
 		qcom,bt-vdd-rfa2-config = <1256000 1500000 0 1>;
 		qcom,bt-vdd-ipa-2p2-config = <2200000 2210000 0 1>;
