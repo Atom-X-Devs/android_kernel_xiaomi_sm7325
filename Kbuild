@@ -8,3 +8,4 @@ obj-y += asoc/codecs/bolero/
 obj-y += asoc/codecs/wsa883x/
 obj-y += asoc/codecs/wcd938x/
 obj-y += asoc/codecs/wcd937x/
+obj-y += asoc/codecs/aw882xx/
