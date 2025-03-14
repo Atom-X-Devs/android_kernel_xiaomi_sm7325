@@ -56,8 +56,6 @@ static int goodix_spi_read_bra(struct device *dev, unsigned int addr,
 	int ret = 0;
 	int buf_len = SPI_READ_PREFIX_LEN + len;
 
-	mutex_lock(&goodix_spi_bus.mutex);
-
 	if (buf_len <= SPI_PREALLOC_RX_BUF_SIZE &&
 		buf_len <= SPI_PREALLOC_TX_BUF_SIZE) {
 		rx_buf = goodix_spi_bus.rx_buf;
@@ -112,7 +110,6 @@ err_alloc_tx_buf:
 	if (rx_buf != goodix_spi_bus.rx_buf)
 		kfree(rx_buf);
 err_alloc_rx_buf:
-	mutex_unlock(&goodix_spi_bus.mutex);
 	return ret;
 }
 
@@ -126,8 +123,6 @@ static int goodix_spi_read(struct device *dev, unsigned int addr,
 	struct spi_message spi_msg;
 	int ret = 0;
 	int buf_len = SPI_READ_PREFIX_LEN - 1 + len;
-
-	mutex_lock(&goodix_spi_bus.mutex);
 
 	if (buf_len <= SPI_PREALLOC_RX_BUF_SIZE &&
 		buf_len <= SPI_PREALLOC_TX_BUF_SIZE) {
@@ -182,7 +177,6 @@ err_alloc_tx_buf:
 	if (tx_buf != goodix_spi_bus.tx_buf)
 		kfree(tx_buf);
 err_alloc_rx_buf:
-	mutex_unlock(&goodix_spi_bus.mutex);
 	return ret;
 }
 
@@ -217,8 +211,6 @@ static int goodix_spi_write(struct device *dev, unsigned int addr,
 	spi_message_init(&spi_msg);
 	memset(&xfers, 0, sizeof(xfers));
 
-	mutex_lock(&goodix_spi_bus.mutex);
-
 	tx_buf[0] = SPI_WRITE_FLAG;
 	tx_buf[1] = (addr >> 24) & 0xFF;
 	tx_buf[2] = (addr >> 16) & 0xFF;
@@ -230,9 +222,6 @@ static int goodix_spi_write(struct device *dev, unsigned int addr,
 	xfers.cs_change = 0;
 	spi_message_add_tail(&xfers, &spi_msg);
 	ret = spi_sync(spi, &spi_msg);
-
-	mutex_unlock(&goodix_spi_bus.mutex);
-
 	if (ret < 0)
 		ts_err("spi transfer error:%d", ret);
 
@@ -329,8 +318,6 @@ static int goodix_spi_probe(struct spi_device *spi)
 		ret = -ENOMEM;
 		goto err_alloc_tx_buf;
 	}
-
-	mutex_init(&goodix_spi_bus.mutex);
 
 	/* ts core device */
 	goodix_pdev = kzalloc(sizeof(struct platform_device), GFP_KERNEL);
