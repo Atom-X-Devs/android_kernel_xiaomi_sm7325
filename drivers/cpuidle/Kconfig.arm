@@ -23,6 +23,16 @@ config ARM_PSCI_CPUIDLE
 	  It provides an idle driver that is capable of detecting and
 	  managing idle states through the PSCI firmware interface.
 
+config ARM_PSCI_CPUIDLE_DOMAIN
+	bool "PSCI CPU idle Domain"
+	depends on ARM_PSCI_CPUIDLE
+	depends on PM_GENERIC_DOMAINS_OF
+	default y
+	help
+	  Select this to enable the PSCI based CPUidle driver to use PM domains,
+	  which is needed to support the hierarchical DT based layout of the
+	  idle states.
+
 config ARM_BIG_LITTLE_CPUIDLE
 	bool "Support for ARM big.LITTLE processors"
 	depends on ARCH_VEXPRESS_TC2_PM || ARCH_EXYNOS
@@ -86,24 +96,3 @@ config ARM_MVEBU_V7_CPUIDLE
 	depends on ARCH_MVEBU && !ARM64
 	help
 	  Select this to enable cpuidle on Armada 370, 38x and XP processors.
-
-config ARM_QCOM_LPM_CPUIDLE
-	depends on ARCH_QCOM || COMPILE_TEST
-	select CPU_IDLE_MULTIPLE_DRIVERS
-	select MSM_PM
-	select QGKI_LPM_IPI_CHECK if QGKI
-	select QGKI_PSCI_OSI_SUPPORT if QGKI
-	tristate "Qualcomm Technologies, Inc. (QTI) Power Management Drivers"
-	help
-	  Platform specific power driver to manage cores and cluster low power
-	  modes. It interface with various system driver and put the cores
-	  into low power modes. It implements OS initiated scheme and
-	  determines last CPU to call into PSCI for cluster Low power
-	  modes.
-
-config QGKI_LPM_IPI_CHECK
-	depends on ARM_QCOM_LPM_CPUIDLE
-	bool "Qualcomm Technologies, Inc. (QTI) LPM IPI Check"
-	help
-	 When this option is selected, last cpu doesn't select cluster low
-	 power mode if there is any pending IPI already on any online cpu.

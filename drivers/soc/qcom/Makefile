@@ -23,7 +23,6 @@ obj-$(CONFIG_QCOM_RMTFS_MEM)	+= rmtfs_mem.o
 obj-$(CONFIG_QCOM_RPMH)		+= qcom_rpmh.o
 qcom_rpmh-y			+= rpmh-rsc.o
 qcom_rpmh-y			+= rpmh.o
-obj-$(CONFIG_QCOM_SOC_SLEEP_STATS)	+= soc_sleep_stats.o
 obj-$(CONFIG_MSM_BOOT_STATS) += boot_stats.o
 obj-$(CONFIG_QCOM_SMD_RPM)	+= smd-rpm.o
 obj-$(CONFIG_QCOM_SMEM) +=	smem.o
@@ -67,16 +66,10 @@ obj-$(CONFIG_QTI_BATTERY_GLINK_DEBUG) += qti_battery_debug.o
 obj-$(CONFIG_QTI_ALTMODE_GLINK) += altmode-glink.o
 obj-$(CONFIG_QTI_PMIC_PON_LOG) += pmic-pon-log.o
 obj-$(CONFIG_QTI_DDR_STATS_LOG) += ddr_stats.o
-obj-$(CONFIG_QTI_SYSTEM_PM) += system_pm.o
-obj-$(CONFIG_QTI_SYSTEM_PM_RPM) += system_pm_rpm.o
 obj-$(CONFIG_MSM_REMOTEQDSS) += remoteqdss.o
 obj-$(CONFIG_MSM_SPSS_UTILS) += spss_utils.o
 obj-$(CONFIG_MSM_IDLE_STATS)	+= lpm-stats.o
 obj-$(CONFIG_MSM_PERFORMANCE) += msm_performance.o
-obj-$(CONFIG_QTI_RPM_STATS_LOG) += rpmh_master_stat.o
-ifdef CONFIG_MSM_RPM_SMD
-obj-$(CONFIG_QTI_RPM_STATS_LOG) += rpm_master_stat.o
-endif
 obj-$(CONFIG_QPNP_PBS) += qpnp-pbs.o
 obj-$(CONFIG_MSM_SPCOM) += spcom.o
 obj-$(CONFIG_QCOM_CDSP_RM) += cdsprm.o

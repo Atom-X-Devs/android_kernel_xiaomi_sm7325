@@ -10,5 +10,6 @@
 #define WAKE_TCS	1
 #define ACTIVE_TCS	2
 #define CONTROL_TCS	3
+#define FAST_PATH_TCS	4
 
 #endif /* __DT_QCOM_RPMH_RSC_H__ */
