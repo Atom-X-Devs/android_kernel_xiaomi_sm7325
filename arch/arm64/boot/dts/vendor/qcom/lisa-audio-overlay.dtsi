@@ -1,0 +1,51 @@
+#include "redwood-audio-overlay.dtsi"
+
+&yupik_snd {
+	qcom,model = "lahaina-yupikqrd-snd-card";
+
+	qcom,audio-routing =
+		"AMIC1", "Analog Mic1",
+		"Analog Mic1", "MIC BIAS1",
+		"AMIC2", "Analog Mic2",
+		"Analog Mic2", "MIC BIAS2",
+		"AMIC3", "Analog Mic3",
+		"Analog Mic3", "MIC BIAS3",
+		"AMIC4", "Analog Mic4",
+		"Analog Mic4", "MIC BIAS3",
+		"AMIC5", "Analog Mic5",
+		"Analog Mic5", "MIC BIAS3",
+		"TX DMIC0", "Digital Mic0",
+		"Digital Mic0", "MIC BIAS3",
+		"TX DMIC1", "Digital Mic1",
+		"Digital Mic1", "MIC BIAS3",
+		"TX DMIC2", "Digital Mic2",
+		"Digital Mic2", "MIC BIAS1",
+		"TX DMIC3", "Digital Mic3",
+		"Digital Mic3", "MIC BIAS1",
+		"TX DMIC4", "Digital Mic4",
+		"Digital Mic4", "MIC BIAS4",
+		"TX DMIC5", "Digital Mic5",
+		"Digital Mic5", "MIC BIAS4",
+		"IN1_HPHL", "HPHL_OUT",
+		"IN2_HPHR", "HPHR_OUT",
+		"IN3_AUX", "AUX_OUT",
+		"RX_TX DEC0_INP", "TX DEC0 MUX",
+		"RX_TX DEC1_INP", "TX DEC1 MUX",
+		"RX_TX DEC2_INP", "TX DEC2 MUX",
+		"RX_TX DEC3_INP", "TX DEC3 MUX",
+		"TX SWR_INPUT", "WCD_TX_OUTPUT",
+		"VA SWR_INPUT", "VA_SWR_CLK",
+		"VA SWR_INPUT", "WCD_TX_OUTPUT",
+		"VA_AIF1 CAP", "VA_SWR_CLK",
+		"VA_AIF2 CAP", "VA_SWR_CLK",
+		"VA_AIF3 CAP", "VA_SWR_CLK";
+
+	qcom,msm-mbhc-hphl-swh = <0>;
+	qcom,msm-mbhc-gnd-swh = <0>;
+	qcom,msm-mbhc-usbc-audio-supported = <1>;
+};
+
+&cdc_pri_tdm_gpios {
+	pinctrl-0 = <&pri_tdm_clk_low_active &pri_tdm_sync_active
+		&pri_tdm_din_active &pri_tdm_dout_active>;
+};
