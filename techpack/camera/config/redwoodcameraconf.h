@@ -1,0 +1,2 @@
+#define CONFIG_MACH_XIAOMI 1
+#define REDWOOD_CAM 1
