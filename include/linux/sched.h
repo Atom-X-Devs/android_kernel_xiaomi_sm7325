@@ -529,10 +529,6 @@ struct sched_entity {
 	ANDROID_KABI_RESERVE(4);
 };
 
-struct cpu_cycle_counter_cb {
-	u64 (*get_cpu_cycle_counter)(int cpu);
-};
-
 DECLARE_PER_CPU_READ_MOSTLY(int, sched_load_boost);
 
 #ifdef CONFIG_QCOM_HYP_CORE_CTL
@@ -551,10 +547,6 @@ static inline int  hh_vpm_grp_populate_info(u64 cap_id, int virq_num)
 
 #ifdef CONFIG_SCHED_WALT
 extern void walt_task_dead(struct task_struct *p);
-extern int
-register_cpu_cycle_counter_cb(struct cpu_cycle_counter_cb *cb);
-extern void
-sched_update_cpu_freq_min_max(const cpumask_t *cpus, u32 fmin, u32 fmax);
 extern void free_task_load_ptrs(struct task_struct *p);
 extern int set_task_boost(int boost, u64 period);
 extern void walt_update_cluster_topology(void);
@@ -632,16 +624,7 @@ struct walt_task_struct {
 #else
 static inline void walt_task_dead(struct task_struct *p) { }
 
-static inline int
-register_cpu_cycle_counter_cb(struct cpu_cycle_counter_cb *cb)
-{
-	return 0;
-}
-
 static inline void free_task_load_ptrs(struct task_struct *p) { }
-
-static inline void sched_update_cpu_freq_min_max(const cpumask_t *cpus,
-					u32 fmin, u32 fmax) { }
 
 static inline void set_task_boost(int boost, u64 period) { }
 static inline void walt_update_cluster_topology(void) { }

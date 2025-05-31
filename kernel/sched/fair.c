@@ -3895,7 +3895,7 @@ static inline bool task_fits_capacity(struct task_struct *p,
 static inline bool task_fits_max(struct task_struct *p, int cpu)
 {
 	unsigned long capacity = capacity_orig_of(cpu);
-	unsigned long max_capacity = cpu_rq(cpu)->rd->max_cpu_capacity.val;
+	unsigned long max_capacity = max_possible_capacity;
 	unsigned long task_boost = per_task_boost(p);
 
 	if (capacity == max_capacity)
@@ -3918,7 +3918,7 @@ static inline bool task_fits_max(struct task_struct *p, int cpu)
 static inline bool task_demand_fits(struct task_struct *p, int cpu)
 {
 	unsigned long capacity = capacity_orig_of(cpu);
-	unsigned long max_capacity = cpu_rq(cpu)->rd->max_cpu_capacity.val;
+	unsigned long max_capacity = max_possible_capacity;
 
 	if (capacity == max_capacity)
 		return true;
@@ -8955,16 +8955,47 @@ static unsigned long scale_rt_capacity(struct sched_domain *sd, int cpu)
 	return scale_irq_capacity(free, irq, max);
 }
 
+#ifdef CONFIG_SCHED_WALT
+static inline void walt_update_cpu_capacity(int cpu, unsigned long *capacity)
+{
+	unsigned long fmax_capacity = arch_scale_cpu_capacity(cpu);
+	unsigned long thermal_pressure = arch_scale_thermal_pressure(cpu);
+	unsigned long thermal_cap;
+	unsigned long rt_pressure = fmax_capacity - *capacity;
+	struct walt_sched_cluster *cluster;
+	struct rq *rq = cpu_rq(cpu);
+
+	/*
+	 * thermal_pressure = max_capacity - curr_cap_as_per_thermal.
+	 * so,
+	 * curr_cap_as_per_thermal = max_capacity - thermal_pressure.
+	 */
+	thermal_cap = fmax_capacity - thermal_pressure;
+
+	cluster = cpu_cluster(cpu);
+	/* reduce the fmax_capacity under cpufreq constraints */
+	if (cluster->max_freq != cluster->max_possible_freq)
+		fmax_capacity = mult_frac(fmax_capacity, cluster->max_freq,
+					 cluster->max_possible_freq);
+
+	rq->cpu_capacity_orig = min(fmax_capacity, thermal_cap);
+	*capacity = max(rq->cpu_capacity_orig - rt_pressure, 1UL);
+}
+#endif
+
 static void update_cpu_capacity(struct sched_domain *sd, int cpu)
 {
 	unsigned long capacity = scale_rt_capacity(sd, cpu);
 	struct sched_group *sdg = sd->groups;
 
-	cpu_rq(cpu)->cpu_capacity_orig =
-		min(arch_scale_cpu_capacity(cpu), thermal_cap(cpu));
+	cpu_rq(cpu)->cpu_capacity_orig = arch_scale_cpu_capacity(cpu);
 
 	if (!capacity)
 		capacity = 1;
+
+#ifdef CONFIG_SCHED_WALT
+	walt_update_cpu_capacity(cpu, &capacity);
+#endif
 
 	cpu_rq(cpu)->cpu_capacity = capacity;
 	sdg->sgc->capacity = capacity;

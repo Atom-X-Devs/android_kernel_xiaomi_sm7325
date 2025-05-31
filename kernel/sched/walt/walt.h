@@ -212,6 +212,10 @@ extern int cpu_boost_init(void);
 static inline int cpu_boost_init(void) { }
 #endif
 
+static inline struct walt_sched_cluster *cpu_cluster(int cpu)
+{
+	return cpu_rq(cpu)->wrq.cluster;
+}
 #else /* CONFIG_SCHED_WALT */
 
 static inline void walt_sched_init_rq(struct rq *rq) { }

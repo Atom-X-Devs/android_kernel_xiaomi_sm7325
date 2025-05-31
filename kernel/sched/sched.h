@@ -193,9 +193,11 @@ struct walt_sched_cluster {
 	int			id;
 	/*
 	 * max_possible_freq = maximum supported by hardware
+	 * max_freq = max freq as per cpufreq limits
 	 */
 	unsigned int		cur_freq;
 	unsigned int		max_possible_freq;
+	unsigned int		max_freq;
 	u64			aggr_grp_load;
 };
 
@@ -3181,8 +3183,6 @@ static inline void walt_fixup_cum_window_demand(struct rq *rq, s64 scaled_delta)
 		rq->wrq.cum_window_demand_scaled = 0;
 }
 
-extern unsigned long thermal_cap(int cpu);
-
 extern void clear_walt_request(int cpu);
 
 extern enum sched_boost_policy sched_boost_policy(void);
@@ -3332,13 +3332,6 @@ static inline int alloc_related_thread_groups(void) { return 0; }
 
 static inline void walt_fixup_cum_window_demand(struct rq *rq,
 						s64 scaled_delta) { }
-
-#ifdef CONFIG_SMP
-static inline unsigned long thermal_cap(int cpu)
-{
-	return cpu_rq(cpu)->cpu_capacity_orig;
-}
-#endif
 
 static inline void clear_walt_request(int cpu) { }
 
