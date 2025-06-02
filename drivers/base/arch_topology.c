@@ -130,7 +130,7 @@ void topology_set_freq_scale(const struct cpumask *cpus, unsigned long cur_freq,
 
 	scale = (cur_freq << SCHED_CAPACITY_SHIFT) / max_freq;
 
-	trace_android_vh_arch_set_freq_scale((struct cpumask *)cpus, cur_freq, max_freq, &scale);
+	trace_android_vh_arch_set_freq_scale(cur_freq, max_freq, &scale);
 
 	for_each_cpu(i, cpus){
 		per_cpu(arch_freq_scale, i) = scale;
@@ -153,7 +153,7 @@ void arch_set_max_freq_scale(struct cpumask *cpus,
 
 	scale = (policy_max_freq << SCHED_CAPACITY_SHIFT) / max_freq;
 
-	trace_android_vh_arch_set_freq_scale(cpus, policy_max_freq, max_freq, &scale);
+	trace_android_vh_arch_set_freq_scale(policy_max_freq, max_freq, &scale);
 
 	for_each_cpu(cpu, cpus)
 		per_cpu(max_freq_scale, cpu) = scale;
