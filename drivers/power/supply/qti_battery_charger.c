@@ -2507,7 +2507,6 @@ static ssize_t verify_digest_store(struct class *c,
 	memset(kbuf, 0, sizeof(kbuf));
 	strncpy(kbuf, buf, count - 1);
 	StringToHex(kbuf, random, &i);
-	pr_err("verify_digest_store  1s:%s \n", random);
 	rc = write_verify_digest_prop_id(bcdev, &bcdev->psy_list[PSY_TYPE_XM],
 		XM_PROP_VERIFY_DIGEST, random);
 
