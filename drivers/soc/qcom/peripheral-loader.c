@@ -1210,7 +1210,7 @@ int pil_boot(struct pil_desc *desc)
 
 	down_read(&pil_pm_rwsem);
 	snprintf(fw_name, sizeof(fw_name), "%s.mdt", desc->fw_name);
-	ret = request_firmware(&fw, fw_name, desc->dev);
+	ret = firmware_request_nowarn(&fw, fw_name, desc->dev);
 	if (ret) {
 		pil_err(desc, "Failed to locate %s(rc:%d)\n", fw_name, ret);
 		goto out;
