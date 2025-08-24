@@ -2119,6 +2119,23 @@ static int goodix_generic_noti_callback(struct notifier_block *self,
 }
 
 #ifdef GOODIX_QGKI
+static int goodix_get_charging_status(void)
+{
+	struct power_supply *usb_psy;
+	union power_supply_propval val;
+	int rc = 0;
+
+	usb_psy = power_supply_get_by_name("usb");
+	if (usb_psy) {
+		rc = power_supply_get_property(usb_psy, POWER_SUPPLY_PROP_ONLINE, &val);
+		if (!rc)
+			return val.intval;
+	}
+
+	ts_err("Couldn't get usb online status, rc=%d\n", rc);
+	return 0;
+}
+
 static void charger_power_supply_work(struct work_struct *work)
 {
 	struct goodix_ts_core *core_data = container_of(work,
@@ -2131,7 +2148,7 @@ static void charger_power_supply_work(struct work_struct *work)
 		return;
 	}
 
-	charge_status = !!power_supply_is_system_supplied();
+	charge_status = !!goodix_get_charging_status();
 	if (charge_status != core_data->charger_status || core_data->charger_status < 0) {
 		core_data->charger_status = charge_status;
 		hw_ops->charger_on(core_data, charge_status ? true : false);
