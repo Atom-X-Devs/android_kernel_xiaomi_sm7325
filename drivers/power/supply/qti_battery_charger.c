@@ -1659,12 +1659,6 @@ static int battery_psy_get_prop(struct power_supply *psy,
 	if (prop == POWER_SUPPLY_PROP_TIME_TO_FULL_NOW)
 		prop = POWER_SUPPLY_PROP_TIME_TO_FULL_AVG;
 
-	/*
-	 * The prop SCOPE is requested just return as it's not supported for battery
-	 */
-	if (prop == POWER_SUPPLY_PROP_SCOPE)
-		return 0;
-
 	prop_id = get_property_id(pst, prop);
 	if (prop_id < 0)
 		return prop_id;
