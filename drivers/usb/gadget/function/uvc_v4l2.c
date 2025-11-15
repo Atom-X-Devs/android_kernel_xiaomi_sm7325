@@ -58,6 +58,8 @@ struct uvc_format {
 static struct uvc_format uvc_formats[] = {
 	{ 16, V4L2_PIX_FMT_YUYV  },
 	{ 0,  V4L2_PIX_FMT_MJPEG },
+	{ 12, V4L2_PIX_FMT_YUV420 },
+	{ 8, V4L2_PIX_FMT_GREY },
 };
 
 static int
