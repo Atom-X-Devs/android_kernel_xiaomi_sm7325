@@ -28,7 +28,6 @@
 #include <linux/highmem.h>
 #include <linux/io.h>
 #include <linux/kmemleak.h>
-#include <linux/show_mem_notifier.h>
 #include <linux/sched.h>
 #include <linux/jiffies.h>
 #include <trace/events/cma.h>
@@ -93,29 +92,6 @@ static void cma_clear_bitmap(struct cma *cma, unsigned long pfn,
 	mutex_unlock(&cma->lock);
 }
 
-static int cma_showmem_notifier(struct notifier_block *nb,
-				   unsigned long action, void *data)
-{
-	int i;
-	unsigned long used;
-	struct cma *cma;
-
-	for (i = 0; i < cma_area_count; i++) {
-		cma = &cma_areas[i];
-		used = bitmap_weight(cma->bitmap,
-				     (int)cma_bitmap_maxno(cma));
-		used <<= cma->order_per_bit;
-		pr_info("cma-%d pages: => %lu used of %lu total pages\n",
-			i, used, cma->count);
-	}
-
-	return 0;
-}
-
-static struct notifier_block cma_nb = {
-	.notifier_call = cma_showmem_notifier,
-};
-
 static void __init cma_activate_area(struct cma *cma)
 {
 	unsigned long base_pfn = cma->base_pfn, pfn = base_pfn;
@@ -170,8 +146,6 @@ static int __init cma_init_reserved_areas(void)
 
 	for (i = 0; i < cma_area_count; i++)
 		cma_activate_area(&cma_areas[i]);
-
-	show_mem_notifier_register(&cma_nb);
 
 	return 0;
 }
