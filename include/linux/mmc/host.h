@@ -18,6 +18,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/pm.h>
 #include <linux/dma-direction.h>
+#include <linux/keyslot-manager.h>
 #include <linux/ipc_logging.h>
 
 struct mmc_ios {
@@ -248,15 +249,6 @@ struct mmc_cqe_ops {
 	 * will have zero data bytes transferred.
 	 */
 	void	(*cqe_recovery_finish)(struct mmc_host *host);
-#if defined(CONFIG_SDC_QTI)
-	/*
-	 * Update the request queue with keyslot manager details. This keyslot
-	 * manager will be used by block crypto to configure the crypto Engine
-	 * for data encryption.
-	 */
-	void	(*cqe_crypto_update_queue)(struct mmc_host *host,
-					struct request_queue *queue);
-#endif
 };
 
 struct mmc_async_req {
@@ -479,7 +471,11 @@ struct mmc_host {
 #define MMC_CAP2_CQE_DCMD	(1 << 24)	/* CQE can issue a direct command */
 #define MMC_CAP2_AVOID_3_3V	(1 << 25)	/* Host must negotiate down from 3.3V */
 #define MMC_CAP2_MERGE_CAPABLE	(1 << 26)	/* Host can merge a segment over the segment size */
+#ifdef CONFIG_MMC_CRYPTO
 #define MMC_CAP2_CRYPTO		(1 << 27)	/* Host supports inline encryption */
+#else
+#define MMC_CAP2_CRYPTO		0
+#endif
 #if defined(CONFIG_SDC_QTI)
 #define MMC_CAP2_CLK_SCALE      (1 << 28)       /* Allow dynamic clk scaling */
 #endif
@@ -589,20 +585,18 @@ struct mmc_host {
 	bool			cqe_enabled;
 	bool			cqe_on;
 #ifdef CONFIG_MMC_CRYPTO
-	struct keyslot_manager	*ksm;
-	void *crypto_DO_NOT_USE[7];
+	struct blk_keyslot_manager ksm;
 #endif /* CONFIG_MMC_CRYPTO */
 
 	/* Host Software Queue support */
 	bool			hsq_enabled;
+
 #if defined(CONFIG_SDC_QTI)
 	bool                    need_hw_reset;
 	bool			partial_init_broken;
-#endif
-
-#if defined(CONFIG_SDC_QTI)
 	atomic_t active_reqs;
 #endif
+
 	unsigned long		private[0] ____cacheline_aligned;
 };
 

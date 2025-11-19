@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2020 - 2021, Linux Foundation. All rights reserved.
+ * Copyright (c) 2020, Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,309 +18,224 @@
 #include "sdhci-pltfm.h"
 #include "cqhci-crypto-qti.h"
 #include <linux/crypto-qti-common.h>
+#include <linux/module.h>
 
 #define RAW_SECRET_SIZE 32
 #define MINIMUM_DUN_SIZE 512
 #define MAXIMUM_DUN_SIZE 65536
 
-static struct cqhci_host_crypto_variant_ops __maybe_unused cqhci_crypto_qti_variant_ops = {
-	.host_init_crypto = cqhci_crypto_qti_init_crypto,
-	.enable = cqhci_crypto_qti_enable,
-	.disable = cqhci_crypto_qti_disable,
-	.resume = cqhci_crypto_qti_resume,
-	.debug = cqhci_crypto_qti_debug,
-	.recovery_finish = cqhci_crypto_qti_recovery_finish,
+static const struct cqhci_crypto_alg_entry {
+	enum cqhci_crypto_alg alg;
+	enum cqhci_crypto_key_size key_size;
+} cqhci_crypto_algs[BLK_ENCRYPTION_MODE_MAX] = {
+	[BLK_ENCRYPTION_MODE_AES_256_XTS] = {
+		.alg = CQHCI_CRYPTO_ALG_AES_XTS,
+		.key_size = CQHCI_CRYPTO_KEY_SIZE_256,
+	},
 };
 
-static bool ice_cap_idx_valid(struct cqhci_host *host,
-					unsigned int cap_idx)
+static inline struct cqhci_host *
+cqhci_host_from_ksm(struct blk_keyslot_manager *ksm)
 {
-	return cap_idx < host->crypto_capabilities.num_crypto_cap;
+	struct mmc_host *mmc = container_of(ksm, struct mmc_host, ksm);
+
+	return mmc->cqe_private;
 }
 
-static uint8_t get_data_unit_size_mask(unsigned int data_unit_size)
+static void get_mmio_data(struct ice_mmio_data *data, struct cqhci_host *host)
 {
-	if (data_unit_size < MINIMUM_DUN_SIZE ||
-		data_unit_size > MAXIMUM_DUN_SIZE ||
-	    !is_power_of_2(data_unit_size))
-		return 0;
-
-	return data_unit_size / MINIMUM_DUN_SIZE;
+	data->ice_base_mmio = host->ice_mmio;
+#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+	data->ice_hwkm_mmio = host->ice_hwkm_mmio;
+#endif
 }
 
-
-void cqhci_crypto_qti_enable(struct cqhci_host *host)
-{
-	int err = 0;
-
-	if (!cqhci_host_is_crypto_supported(host))
-		return;
-
-	host->caps |= CQHCI_CAP_CRYPTO_SUPPORT;
-
-	err = crypto_qti_enable(host->crypto_vops->priv);
-	if (err) {
-		pr_err("%s: Error enabling crypto, err %d\n",
-				__func__, err);
-		cqhci_crypto_qti_disable(host);
-	}
-}
-
-void cqhci_crypto_qti_disable(struct cqhci_host *host)
-{
-	cqhci_crypto_disable_spec(host);
-	crypto_qti_disable(host->crypto_vops->priv);
-}
-
-static int cqhci_crypto_qti_keyslot_program(struct keyslot_manager *ksm,
+static int cqhci_crypto_qti_keyslot_program(struct blk_keyslot_manager *ksm,
 					    const struct blk_crypto_key *key,
 					    unsigned int slot)
 {
-	struct cqhci_host *host = keyslot_manager_private(ksm);
+	struct cqhci_host *cq_host = cqhci_host_from_ksm(ksm);
 	int err = 0;
-	u8 data_unit_mask;
-	int crypto_alg_id;
+	u8 data_unit_mask = -1;
+	struct ice_mmio_data mmio_data;
+	const struct cqhci_crypto_alg_entry *alg;
+	int i;
+	int cap_idx = -1;
 
-	crypto_alg_id = cqhci_crypto_cap_find(host, key->crypto_mode,
-					       key->data_unit_size);
+	const union cqhci_crypto_cap_entry *ccap_array =
+		cq_host->crypto_cap_array;
 
-	if (!cqhci_is_crypto_enabled(host) ||
-	    !cqhci_keyslot_valid(host, slot) ||
-	    !ice_cap_idx_valid(host, crypto_alg_id)) {
+	if (!key) {
+		pr_err("Invalid/no key present\n");
 		return -EINVAL;
 	}
 
-	data_unit_mask = get_data_unit_size_mask(key->data_unit_size);
+	alg = &cqhci_crypto_algs[key->crypto_cfg.crypto_mode];
+	data_unit_mask = key->crypto_cfg.data_unit_size / MINIMUM_DUN_SIZE;
 
-	if (!(data_unit_mask &
-	      host->crypto_cap_array[crypto_alg_id].sdus_mask)) {
-		return -EINVAL;
+	BUILD_BUG_ON(CQHCI_CRYPTO_KEY_SIZE_INVALID != 0);
+	for (i = 0; i < cq_host->crypto_capabilities.num_crypto_cap; i++) {
+		if (ccap_array[i].algorithm_id == alg->alg &&
+		    ccap_array[i].key_size == alg->key_size &&
+		    (ccap_array[i].sdus_mask & data_unit_mask)) {
+			cap_idx = i;
+			break;
+		}
 	}
+	if (WARN_ON(cap_idx < 0))
+		return -EOPNOTSUPP;
 
-	err = crypto_qti_keyslot_program(host->crypto_vops->priv, key,
-					 slot, data_unit_mask, crypto_alg_id);
+	get_mmio_data(&mmio_data, cq_host);
+
+	err = crypto_qti_keyslot_program(&mmio_data, key,
+					 slot, data_unit_mask, cap_idx);
 	if (err)
 		pr_err("%s: failed with error %d\n", __func__, err);
 
 	return err;
 }
 
-static int cqhci_crypto_qti_keyslot_evict(struct keyslot_manager *ksm,
+static int cqhci_crypto_qti_keyslot_evict(struct blk_keyslot_manager *ksm,
 					  const struct blk_crypto_key *key,
 					  unsigned int slot)
 {
 	int err = 0;
-	struct cqhci_host *host = keyslot_manager_private(ksm);
+	struct cqhci_host *host = cqhci_host_from_ksm(ksm);
+	struct ice_mmio_data mmio_data;
 
-	if (!cqhci_is_crypto_enabled(host) ||
-	    !cqhci_keyslot_valid(host, slot))
-		return -EINVAL;
+	get_mmio_data(&mmio_data, host);
 
-	err = crypto_qti_keyslot_evict(host->crypto_vops->priv, slot);
+	err = crypto_qti_keyslot_evict(&mmio_data, slot);
 	if (err)
 		pr_err("%s: failed with error %d\n", __func__, err);
 
 	return err;
 }
 
-static int cqhci_crypto_qti_derive_raw_secret(struct keyslot_manager *ksm,
+static int cqhci_crypto_qti_derive_raw_secret(struct blk_keyslot_manager *ksm,
 		const u8 *wrapped_key, unsigned int wrapped_key_size,
 		u8 *secret, unsigned int secret_size)
 {
 	int err = 0;
-	struct cqhci_host *host = keyslot_manager_private(ksm);
 
-	err = crypto_qti_derive_raw_secret(host->crypto_vops->priv, wrapped_key, wrapped_key_size,
+	err = crypto_qti_derive_raw_secret(wrapped_key, wrapped_key_size,
 					  secret, secret_size);
+	if (err)
+		pr_err("%s: failed with error %d\n", __func__, err);
+
 	return err;
 }
 
-static const struct keyslot_mgmt_ll_ops cqhci_crypto_qti_ksm_ops = {
+static const struct blk_ksm_ll_ops cqhci_crypto_qti_ksm_ops = {
 	.keyslot_program	= cqhci_crypto_qti_keyslot_program,
 	.keyslot_evict		= cqhci_crypto_qti_keyslot_evict,
 	.derive_raw_secret	= cqhci_crypto_qti_derive_raw_secret
 };
 
-enum blk_crypto_mode_num cqhci_blk_crypto_qti_mode_num_for_alg_dusize(
-	enum cqhci_crypto_alg cqhci_crypto_alg,
-	enum cqhci_crypto_key_size key_size)
+static enum blk_crypto_mode_num
+cqhci_find_blk_crypto_mode(union cqhci_crypto_cap_entry cap)
 {
-	/*
-	 * Currently the only mode that eMMC and blk-crypto both support.
-	 */
-	if (cqhci_crypto_alg == CQHCI_CRYPTO_ALG_AES_XTS &&
-		key_size == CQHCI_CRYPTO_KEY_SIZE_256)
-		return BLK_ENCRYPTION_MODE_AES_256_XTS;
+	int i;
 
+	for (i = 0; i < ARRAY_SIZE(cqhci_crypto_algs); i++) {
+		BUILD_BUG_ON(CQHCI_CRYPTO_KEY_SIZE_INVALID != 0);
+		if (cqhci_crypto_algs[i].alg == cap.algorithm_id &&
+		    cqhci_crypto_algs[i].key_size == cap.key_size)
+			return i;
+	}
 	return BLK_ENCRYPTION_MODE_INVALID;
 }
 
-int cqhci_host_init_crypto_qti_spec(struct cqhci_host *host,
-				    const struct keyslot_mgmt_ll_ops *ksm_ops)
+/**
+ * cqhci_crypto_init - initialize CQHCI crypto support
+ * @cq_host: a cqhci host
+ *
+ * If the driver previously set MMC_CAP2_CRYPTO and the CQE declares
+ * CQHCI_CAP_CS, initialize the crypto support.  This involves reading the
+ * crypto capability registers, initializing the keyslot manager, clearing all
+ * keyslots, and enabling 128-bit task descriptors.
+ *
+ * Return: 0 if crypto was initialized or isn't supported; whether
+ *	   MMC_CAP2_CRYPTO remains set indicates which one of those cases it is.
+ *	   Also can return a negative errno value on unexpected error.
+ */
+int cqhci_qti_crypto_init(struct cqhci_host *cq_host)
 {
-	int cap_idx = 0;
-	int err = 0;
-	unsigned int crypto_modes_supported[BLK_ENCRYPTION_MODE_MAX];
+	struct mmc_host *mmc = cq_host->mmc;
+	struct device *dev = mmc_dev(mmc);
+	struct blk_keyslot_manager *ksm = &mmc->ksm;
+	unsigned int num_keyslots;
+	unsigned int cap_idx;
 	enum blk_crypto_mode_num blk_mode_num;
+	unsigned int slot;
+	int err = 0;
 
-	/* Default to disabling crypto */
-	host->caps &= ~CQHCI_CAP_CRYPTO_SUPPORT;
-
-	if (!(cqhci_readl(host, CQHCI_CAP) & CQHCI_CAP_CS)) {
-		pr_debug("%s no crypto capability\n", __func__);
-		err = -ENODEV;
+	if (!(mmc->caps2 & MMC_CAP2_CRYPTO) ||
+	    !(cqhci_readl(cq_host, CQHCI_CAP) & CQHCI_CAP_CS))
 		goto out;
-	}
 
-	/*
-	 * Crypto Capabilities should never be 0, because the
-	 * config_array_ptr > 04h. So we use a 0 value to indicate that
-	 * crypto init failed, and can't be enabled.
-	 */
-	host->crypto_capabilities.reg_val = cqhci_readl(host, CQHCI_CCAP);
-	host->crypto_cfg_register =
-		(u32)host->crypto_capabilities.config_array_ptr * 0x100;
-	host->crypto_cap_array =
-		devm_kcalloc(mmc_dev(host->mmc),
-				host->crypto_capabilities.num_crypto_cap,
-				sizeof(host->crypto_cap_array[0]), GFP_KERNEL);
-	if (!host->crypto_cap_array) {
+	cq_host->crypto_capabilities.reg_val =
+			cpu_to_le32(cqhci_readl(cq_host, CQHCI_CCAP));
+
+	cq_host->crypto_cfg_register =
+		(u32)cq_host->crypto_capabilities.config_array_ptr * 0x100;
+
+	cq_host->crypto_cap_array =
+		devm_kcalloc(dev, cq_host->crypto_capabilities.num_crypto_cap,
+			     sizeof(cq_host->crypto_cap_array[0]), GFP_KERNEL);
+	if (!cq_host->crypto_cap_array) {
 		err = -ENOMEM;
-		pr_err("%s failed to allocate memory\n", __func__);
 		goto out;
 	}
 
-	memset(crypto_modes_supported, 0, sizeof(crypto_modes_supported));
+	/*
+	 * CCAP.CFGC is off by one, so the actual number of crypto
+	 * configurations (a.k.a. keyslots) is CCAP.CFGC + 1.
+	 */
+	num_keyslots = cq_host->crypto_capabilities.config_count + 1;
+
+	err = devm_blk_ksm_init(dev, ksm, num_keyslots);
+	if (err)
+		goto out;
+
+	ksm->ksm_ll_ops = cqhci_crypto_qti_ksm_ops;
+	ksm->dev = dev;
+
+	/* Unfortunately, CQHCI crypto only supports 32 DUN bits. */
+	ksm->max_dun_bytes_supported = 4;
+
+	ksm->features = BLK_CRYPTO_FEATURE_WRAPPED_KEYS;
 
 	/*
-	 * Store all the capabilities now so that we don't need to repeatedly
-	 * access the device each time we want to know its capabilities
+	 * Cache all the crypto capabilities and advertise the supported crypto
+	 * modes and data unit sizes to the block layer.
 	 */
-	for (cap_idx = 0; cap_idx < host->crypto_capabilities.num_crypto_cap;
+	for (cap_idx = 0; cap_idx < cq_host->crypto_capabilities.num_crypto_cap;
 	     cap_idx++) {
-		host->crypto_cap_array[cap_idx].reg_val =
-			cpu_to_le32(cqhci_readl(host,
-						 CQHCI_CRYPTOCAP +
-						 cap_idx * sizeof(__le32)));
-		blk_mode_num = cqhci_blk_crypto_qti_mode_num_for_alg_dusize(
-				host->crypto_cap_array[cap_idx].algorithm_id,
-				host->crypto_cap_array[cap_idx].key_size);
+		cq_host->crypto_cap_array[cap_idx].reg_val =
+			cpu_to_le32(cqhci_readl(cq_host,
+						CQHCI_CRYPTOCAP +
+						cap_idx * sizeof(__le32)));
+		blk_mode_num = cqhci_find_blk_crypto_mode(
+					cq_host->crypto_cap_array[cap_idx]);
 		if (blk_mode_num == BLK_ENCRYPTION_MODE_INVALID)
 			continue;
-		crypto_modes_supported[blk_mode_num] |=
-				host->crypto_cap_array[cap_idx].sdus_mask * 512;
+		ksm->crypto_modes_supported[blk_mode_num] |=
+			cq_host->crypto_cap_array[cap_idx].sdus_mask * 512;
 	}
 
-	host->mmc->ksm = keyslot_manager_create(host->mmc->parent,
-				       cqhci_num_keyslots(host), ksm_ops,
-				       BLK_CRYPTO_FEATURE_WRAPPED_KEYS,
-				       crypto_modes_supported,
-				       host);
+	/* Clear all the keyslots so that we start in a known state. */
+	for (slot = 0; slot < num_keyslots; slot++)
+		ksm->ksm_ll_ops.keyslot_evict(ksm, NULL, slot);
 
-	if (!host->mmc->ksm) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	host->mmc->caps2 |= MMC_CAP2_CRYPTO;
-	keyslot_manager_set_max_dun_bytes(host->mmc->ksm, sizeof(u32));
-
-	/*
-	 * In case host controller supports cryptographic operations
-	 * then, it uses 128bit task descriptor. Upper 64 bits of task
-	 * descriptor would be used to pass crypto specific informaton.
-	 */
-	host->caps |= CQHCI_TASK_DESC_SZ_128;
+	/* CQHCI crypto requires the use of 128-bit task descriptors. */
+	cq_host->caps |= CQHCI_TASK_DESC_SZ_128;
 
 	return 0;
 
 out:
-	/* Indicate that init failed by setting crypto_capabilities to 0 */
-	host->crypto_capabilities.reg_val = 0;
+	mmc->caps2 &= ~MMC_CAP2_CRYPTO;
 	return err;
-}
-
-int cqhci_crypto_qti_init_crypto(struct cqhci_host *host,
-				const struct keyslot_mgmt_ll_ops *ksm_ops)
-{
-	int err = 0;
-	struct resource *cqhci_ice_memres = NULL;
-	struct resource *hwkm_ice_memres = NULL;
-	void __iomem *hwkm_ice_mmio = NULL;
-
-	cqhci_ice_memres = platform_get_resource_byname(host->pdev,
-							IORESOURCE_MEM,
-							"cqhci_ice");
-	if (!cqhci_ice_memres) {
-		pr_debug("%s ICE not supported\n", __func__);
-		host->icemmio = NULL;
-		host->caps &= ~CQHCI_CAP_CRYPTO_SUPPORT;
-		return err;
-	}
-
-	host->icemmio = devm_ioremap(&host->pdev->dev,
-				     cqhci_ice_memres->start,
-				     resource_size(cqhci_ice_memres));
-	if (!host->icemmio) {
-		pr_err("%s failed to remap ice regs\n", __func__);
-		return PTR_ERR(host->icemmio);
-	}
-
-	hwkm_ice_memres = platform_get_resource_byname(host->pdev,
-						       IORESOURCE_MEM,
-						       "cqhci_ice_hwkm");
-
-	if (!hwkm_ice_memres) {
-		pr_err("%s: Either no entry in dtsi or no memory available for IORESOURCE\n",
-		       __func__);
-	} else {
-		hwkm_ice_mmio = devm_ioremap_resource(&host->pdev->dev,
-						      hwkm_ice_memres);
-		if (IS_ERR(hwkm_ice_mmio)) {
-			err = PTR_ERR(hwkm_ice_mmio);
-			pr_err("%s: Error = %d mapping HWKM memory\n",
-				__func__, err);
-			return err;
-		}
-	}
-
-	err = cqhci_host_init_crypto_qti_spec(host, &cqhci_crypto_qti_ksm_ops);
-	if (err) {
-		pr_err("%s: Error initiating crypto capabilities, err %d\n",
-					__func__, err);
-		return err;
-	}
-
-	err = crypto_qti_init_crypto(&host->pdev->dev, host->icemmio,
-				     hwkm_ice_mmio,
-				     (void **)&host->crypto_vops->priv);
-	if (err) {
-		pr_err("%s: Error initiating crypto, err %d\n",
-					__func__, err);
-	}
-	return err;
-}
-
-int cqhci_crypto_qti_debug(struct cqhci_host *host)
-{
-	return crypto_qti_debug(host->crypto_vops->priv);
-}
-
-void cqhci_crypto_qti_set_vops(struct cqhci_host *host)
-{
-	return cqhci_crypto_set_vops(host, &cqhci_crypto_qti_variant_ops);
-}
-EXPORT_SYMBOL(cqhci_crypto_qti_set_vops);
-
-int cqhci_crypto_qti_resume(struct cqhci_host *host)
-{
-	return crypto_qti_resume(host->crypto_vops->priv);
-}
-
-int cqhci_crypto_qti_recovery_finish(struct cqhci_host *host)
-{
-	keyslot_manager_reprogram_all_keys(host->mmc->ksm);
-	return 0;
 }
 
 MODULE_DESCRIPTION("Vendor specific CQHCI Crypto Engine Support");
