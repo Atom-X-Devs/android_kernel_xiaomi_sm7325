@@ -2321,11 +2321,14 @@ int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
 	gfp_t gfp = mapping_gfp_mask(mapping);
 	pgoff_t pgoff = linear_page_index(dst_vma, dst_addr);
 	struct mem_cgroup *memcg;
+	spinlock_t *ptl;
 	void *page_kaddr;
 	struct page *page;
+	pte_t _dst_pte, *dst_pte;
 	int ret;
 	pgoff_t max_off;
 
+	ret = -ENOMEM;
 	if (!shmem_inode_acct_block(inode, 1)) {
 		/*
 		 * We may have got a page, returned -ENOENT triggering a retry,
@@ -2336,11 +2339,10 @@ int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
 			put_page(*pagep);
 			*pagep = NULL;
 		}
-		return -ENOMEM;
+		goto out;
 	}
 
 	if (!*pagep) {
-		ret = -ENOMEM;
 		page = shmem_alloc_page(gfp, info, pgoff);
 		if (!page)
 			goto out_unacct_blocks;
@@ -2355,9 +2357,9 @@ int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
 			/* fallback to copy_from_user outside mmap_sem */
 			if (unlikely(ret)) {
 				*pagep = page;
-				ret = -ENOENT;
+				shmem_inode_unacct_blocks(inode, 1);
 				/* don't free the page */
-				goto out_unacct_blocks;
+				return -ENOENT;
 			}
 		} else {		/* ZEROPAGE */
 			clear_highpage(page);
@@ -2389,10 +2391,32 @@ int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
 
 	mem_cgroup_commit_charge(page, memcg, false, false);
 
-	ret = mfill_atomic_install_pte(dst_mm, dst_pmd, dst_vma, dst_addr,
-				       page, true);
-	if (ret)
-		goto out_delete_from_cache;
+	_dst_pte = mk_pte(page, dst_vma->vm_page_prot);
+	if (dst_vma->vm_flags & VM_WRITE)
+		_dst_pte = pte_mkwrite(pte_mkdirty(_dst_pte));
+	else {
+		/*
+		 * We don't set the pte dirty if the vma has no
+		 * VM_WRITE permission, so mark the page dirty or it
+		 * could be freed from under us. We could do it
+		 * unconditionally before unlock_page(), but doing it
+		 * only if VM_WRITE is not set is faster.
+		 */
+		set_page_dirty(page);
+	}
+
+	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
+
+	ret = -EFAULT;
+	max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+	if (unlikely(pgoff >= max_off))
+		goto out_release_uncharge_unlock;
+
+	ret = -EEXIST;
+	if (!pte_none(*dst_pte))
+		goto out_release_uncharge_unlock;
+
+	lru_cache_add_anon(page);
 
 	spin_lock_irq(&info->lock);
 	info->alloced++;
@@ -2400,10 +2424,20 @@ int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
 	shmem_recalc_inode(inode);
 	spin_unlock_irq(&info->lock);
 
-	SetPageDirty(page);
+	inc_mm_counter(dst_mm, mm_counter_file(page));
+	page_add_file_rmap(page, false);
+	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
+
+	/* No need to invalidate - it was non-present before */
+	update_mmu_cache(dst_vma, dst_addr, dst_pte);
+	pte_unmap_unlock(dst_pte, ptl);
 	unlock_page(page);
-	return 0;
-out_delete_from_cache:
+	ret = 0;
+out:
+	return ret;
+out_release_uncharge_unlock:
+	pte_unmap_unlock(dst_pte, ptl);
+	ClearPageDirty(page);
 	delete_from_page_cache(page);
 out_release_uncharge:
 	mem_cgroup_cancel_charge(page, memcg, false);
@@ -2412,7 +2446,7 @@ out_release:
 	put_page(page);
 out_unacct_blocks:
 	shmem_inode_unacct_blocks(inode, 1);
-	return ret;
+	goto out;
 }
 #endif /* CONFIG_USERFAULTFD */
 
