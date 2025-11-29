@@ -761,6 +761,4 @@ static inline bool hugetlb_pmd_shared(pte_t *pte)
 }
 #endif
 
-bool want_pmd_share(struct vm_area_struct *vma, unsigned long addr);
-
 #endif /* _LINUX_HUGETLB_H */
