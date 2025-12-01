@@ -16,7 +16,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
-#include <linux/remoteproc/qcom_rproc.h>
+#include <soc/qcom/subsystem_notif.h>
+#include <soc/qcom/subsystem_restart.h>
 #include <linux/of.h>
 #include <linux/io.h>
 #include <linux/soc/qcom/qmi.h>
@@ -1394,7 +1395,7 @@ static int qcom_slim_ngd_ssr_pdr_notify(struct qcom_slim_ngd_ctrl *ctrl,
 					unsigned long action)
 {
 	switch (action) {
-	case QCOM_SSR_BEFORE_SHUTDOWN:
+	case SUBSYS_BEFORE_SHUTDOWN:
 		/* Make sure the last dma xfer is finished */
 		mutex_lock(&ctrl->tx_lock);
 		if (ctrl->state != QCOM_SLIM_NGD_CTRL_DOWN) {
@@ -1405,7 +1406,7 @@ static int qcom_slim_ngd_ssr_pdr_notify(struct qcom_slim_ngd_ctrl *ctrl,
 		}
 		mutex_unlock(&ctrl->tx_lock);
 		break;
-	case QCOM_SSR_AFTER_POWERUP:
+	case SUBSYS_AFTER_POWERUP:
 		schedule_work(&ctrl->ngd_up_work);
 		break;
 	default:
@@ -1538,7 +1539,7 @@ static int qcom_slim_ngd_ctrl_probe(struct platform_device *pdev)
 	}
 
 	ctrl->nb.notifier_call = qcom_slim_ngd_ssr_notify;
-	ctrl->notifier = qcom_register_ssr_notifier("lpass", &ctrl->nb);
+	ctrl->notifier = subsys_notif_register_notifier("lpass", &ctrl->nb);
 	if (IS_ERR(ctrl->notifier))
 		return PTR_ERR(ctrl->notifier);
 
@@ -1581,7 +1582,7 @@ static int qcom_slim_ngd_remove(struct platform_device *pdev)
 	struct qcom_slim_ngd_ctrl *ctrl = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
-	qcom_unregister_ssr_notifier(ctrl->notifier, &ctrl->nb);
+	subsys_notif_unregister_notifier(ctrl->notifier, &ctrl->nb);
 	qcom_slim_ngd_enable(ctrl, false);
 	qcom_slim_ngd_exit_dma(ctrl);
 	qcom_slim_ngd_qmi_svc_event_deinit(&ctrl->qmi);
