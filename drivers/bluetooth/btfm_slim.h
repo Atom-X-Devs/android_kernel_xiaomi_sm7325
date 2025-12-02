@@ -36,7 +36,13 @@ enum {
 	BTFM_BT_SCO_SLIM_TX,
 	BTFM_BT_SCO_A2DP_SLIM_RX,
 	BTFM_BT_SPLIT_A2DP_SLIM_RX,
+	BTFM_BT_SPLIT_A2DP_SLIM_TX,
 	BTFM_SLIM_NUM_CODEC_DAIS
+};
+
+struct btfm_slim_codec_dai_data {
+	struct slim_stream_config sconfig;
+	struct slim_stream_runtime *sruntime;
 };
 
 struct btfmslim_ch {
@@ -44,11 +50,7 @@ struct btfmslim_ch {
 	char *name;
 	uint16_t port;		/* slimbus port number */
 	uint8_t ch;		/* slimbus channel number */
-};
-
-struct btfm_slim_codec_dai_data {
-	struct slim_stream_config sconfig;
-	struct slim_stream_runtime *sruntime;
+	struct btfm_slim_codec_dai_data dai;
 };
 
 /* Slimbus Port defines - This should be redefined in specific device file */
@@ -64,11 +66,11 @@ struct btfmslim {
 	uint32_t num_rx_port;
 	uint32_t num_tx_port;
 	uint32_t sample_rate;
+	int dai_id;
 	uint32_t bps;
 	uint16_t direction;
 	struct btfmslim_ch *rx_chs;
 	struct btfmslim_ch *tx_chs;
-	struct btfm_slim_codec_dai_data dai;
 	int (*vendor_init)(struct btfmslim *btfmslim);
 	int (*vendor_port_en)(struct btfmslim *btfmslim, uint8_t port_num,
 		uint8_t rxport, uint8_t enable);

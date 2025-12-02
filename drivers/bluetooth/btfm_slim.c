@@ -25,13 +25,13 @@
 #define DELAY_FOR_PORT_OPEN_MS (200)
 #define SLIM_MANF_ID_QCOM	0x217
 #define SLIM_PROD_CODE		0x221
+#define SLIM_PROD_CODE1		0x220
 #define BT_CMD_SLIM_TEST	0xbfac
 
 struct class *btfm_slim_class;
 static int btfm_slim_major;
 struct btfmslim *btfm_slim_drv_data;
-
-static bool btfm_is_port_opening_delayed = true;
+static int btfm_num_ports_open;
 
 int btfm_slim_write(struct btfmslim *btfmslim,
 		uint16_t reg, uint8_t reg_val, uint8_t pgd)
@@ -40,7 +40,7 @@ int btfm_slim_write(struct btfmslim *btfmslim,
 	uint32_t reg_addr;
 	int slim_write_tries = SLIM_SLAVE_RW_MAX_TRIES;
 
-	BTFMSLIM_INFO("Write to %s", pgd?"PGD":"IFD");
+	BTFMSLIM_DBG("Write to %s", pgd ? "PGD":"IFD");
 	reg_addr = SLIM_SLAVE_REG_OFFSET + reg;
 
 	for ( ; slim_write_tries != 0; slim_write_tries--) {
@@ -88,19 +88,6 @@ int btfm_slim_read(struct btfmslim *btfmslim, uint32_t reg, uint8_t pgd)
 	return ret;
 }
 
-static bool btfm_slim_is_sb_reset_needed(int chip_ver)
-{
-	switch (chip_ver) {
-	case QCA_APACHE_SOC_ID_0100:
-	case QCA_APACHE_SOC_ID_0110:
-	case QCA_APACHE_SOC_ID_0120:
-	case QCA_APACHE_SOC_ID_0121:
-		return true;
-	default:
-		return false;
-	}
-}
-
 int btfm_slim_enable_ch(struct btfmslim *btfmslim, struct btfmslim_ch *ch,
 	uint8_t rxport, uint32_t rates, uint8_t nchan)
 {
@@ -113,40 +100,35 @@ int btfm_slim_enable_ch(struct btfmslim *btfmslim, struct btfmslim_ch *ch,
 
 	BTFMSLIM_DBG("port: %d ch: %d", ch->port, ch->ch);
 
+	chan->dai.sruntime = slim_stream_allocate(btfmslim->slim_pgd, "BTFM_SLIM");
+	if (chan->dai.sruntime == NULL) {
+		BTFMSLIM_ERR("slim_stream_allocate failed");
+		return -EINVAL;
+	}
+	chan->dai.sconfig.bps = btfmslim->bps;
+	chan->dai.sconfig.direction = btfmslim->direction;
+	chan->dai.sconfig.rate = rates;
+	chan->dai.sconfig.ch_count = nchan;
+	chan->dai.sconfig.chs = kcalloc(nchan, sizeof(unsigned int), GFP_KERNEL);
+	if (!chan->dai.sconfig.chs)
+		return -ENOMEM;
+
 	for (i = 0; i < nchan; i++, ch++) {
 		/* Enable port through registration setting */
 		if (btfmslim->vendor_port_en) {
-			ret = btfmslim->vendor_port_en(btfmslim, ch->port,
-					rxport, 1);
+			ret = btfmslim->vendor_port_en(btfmslim, ch->port, rxport, 1);
 			if (ret < 0) {
-				BTFMSLIM_ERR("vendor_port_en failed ret[%d]",
-					ret);
+				BTFMSLIM_ERR("vendor_port_en failed ret[%d]", ret);
 				goto error;
 			}
 		}
+		chan->dai.sconfig.chs[i] = ch->ch;
+		chan->dai.sconfig.port_mask |= BIT(ch->port);
 	}
 
 	/* Activate the channel immediately */
-	BTFMSLIM_INFO("port: %d, ch: %d", chan->port, chan->ch);
 	chipset_ver = btpower_get_chipset_version();
 	BTFMSLIM_INFO("chipset soc version:%x", chipset_ver);
-
-	/* Delay port opening for few chipsets if:
-		1. for 8k, feedback channel
-		2. 44.1k, 88.2k rxports
-	*/
-	if (((rates == 8000 && btfm_feedback_ch_setting && rxport == 0) ||
-		(rxport == 1 && (rates == 44100 || rates == 88200))) &&
-		btfm_slim_is_sb_reset_needed(chipset_ver)) {
-
-		BTFMSLIM_INFO("btfm_is_port_opening_delayed %d",
-					btfm_is_port_opening_delayed);
-		if (!btfm_is_port_opening_delayed) {
-			BTFMSLIM_INFO("SB reset needed, sleeping");
-			btfm_is_port_opening_delayed = true;
-			msleep(DELAY_FOR_PORT_OPEN_MS);
-		}
-	}
 
 	/* for feedback channel, PCM bit should not be set */
 	if (btfm_feedback_ch_setting) {
@@ -156,18 +138,26 @@ int btfm_slim_enable_ch(struct btfmslim *btfmslim, struct btfmslim_ch *ch,
 		btfm_feedback_ch_setting = 0;
 	}
 
-	btfmslim->dai.sconfig.bps = btfmslim->bps;
-	btfmslim->dai.sconfig.direction = btfmslim->direction;
-	btfmslim->dai.sconfig.rate = rates;
-	btfmslim->dai.sconfig.ch_count = 1;
-	btfmslim->dai.sconfig.chs = kcalloc(1, sizeof(unsigned int), GFP_KERNEL);
-	btfmslim->dai.sconfig.chs[0] = chan->ch;
-	btfmslim->dai.sconfig.port_mask = BIT(chan->port);
-	ret = slim_stream_prepare(btfmslim->dai.sruntime, &btfmslim->dai.sconfig);
-	BTFMSLIM_INFO("btfm_slim_codec codec slim_stream_prepare returned val = %d", ret);
-	ret = slim_stream_enable(btfmslim->dai.sruntime);
-	BTFMSLIM_INFO("btfm_slim_codec codec slim_stream_enable returned val = %d", ret);
+	ret = slim_stream_prepare(chan->dai.sruntime, &chan->dai.sconfig);
+	if (ret) {
+		BTFMSLIM_ERR("slim_stream_prepare failed = %d", ret);
+		goto error;
+	}
+
+	ret = slim_stream_enable(chan->dai.sruntime);
+	if (ret) {
+		BTFMSLIM_ERR("slim_stream_enable failed = %d", ret);
+		goto error;
+	}
+
+	if (ret == 0)
+		btfm_num_ports_open++;
+
+	BTFMSLIM_DBG("btfm_num_ports_open: %d", btfm_num_ports_open);
+	return ret;
 error:
+	kfree(chan->dai.sconfig.chs);
+	chan->dai.sconfig.chs = NULL;
 	return ret;
 }
 
@@ -175,16 +165,39 @@ int btfm_slim_disable_ch(struct btfmslim *btfmslim, struct btfmslim_ch *ch,
 			uint8_t rxport, uint8_t nchan)
 {
 	int ret, i;
+	int chipset_ver = 0;
+
 	if (!btfmslim || !ch)
 		return -EINVAL;
 
-	BTFMSLIM_INFO("port:%d ", ch->port);
-	btfm_is_port_opening_delayed = false;
+	if (ch->dai.sruntime == NULL) {
+		BTFMSLIM_ERR("Channel not enabled yet. returning");
+		return -EINVAL;
+	}
 
-	ret = slim_stream_disable(btfmslim->dai.sruntime);
-	if (ret != 0)
+	if (rxport && (btfmslim->sample_rate == 44100 ||
+		btfmslim->sample_rate == 88200)) {
+		BTFMSLIM_INFO("disconnecting the ports, removing the channel");
+		/* disconnect the ports of the stream */
+		ret = slim_stream_unprepare_disconnect_port(ch->dai.sruntime,
+				true, false);
+		if (ret != 0)
+			BTFMSLIM_ERR("slim_stream_unprepare failed %d", ret);
+	}
+
+	ret = slim_stream_disable(ch->dai.sruntime);
+	if (ret != 0) {
 		BTFMSLIM_ERR("slim_stream_disable failed returned val = %d", ret);
-	ret = slim_stream_unprepare(btfmslim->dai.sruntime);
+		if ((btfmslim->sample_rate != 44100) && (btfmslim->sample_rate != 88200)) {
+			/* disconnect the ports of the stream */
+			ret = slim_stream_unprepare_disconnect_port(ch->dai.sruntime,
+					true, false);
+			if (ret != 0)
+				BTFMSLIM_ERR("slim_stream_unprepare failed %d", ret);
+		}
+	}
+
+	ret = slim_stream_unprepare_disconnect_port(ch->dai.sruntime, false, true);
 	if (ret != 0)
 		BTFMSLIM_ERR("slim_stream_unprepare failed returned val = %d", ret);
 
@@ -198,6 +211,31 @@ int btfm_slim_disable_ch(struct btfmslim *btfmslim, struct btfmslim_ch *ch,
 				break;
 			}
 		}
+	}
+	ch->dai.sconfig.port_mask = 0;
+	if (ch->dai.sconfig.chs != NULL) {
+		kfree(ch->dai.sconfig.chs);
+		BTFMSLIM_DBG("setting ch->dai.sconfig.chs to NULL");
+		ch->dai.sconfig.chs = NULL;
+	} else
+		BTFMSLIM_ERR("ch->dai.sconfig.chs is already NULL");
+
+	if (btfm_num_ports_open > 0)
+		btfm_num_ports_open--;
+
+	ch->dai.sruntime = NULL;
+
+	BTFMSLIM_DBG("btfm_num_ports_open: %d", btfm_num_ports_open);
+
+	chipset_ver = btpower_get_chipset_version();
+
+	if (btfm_num_ports_open == 0 && (chipset_ver == QCA_HSP_SOC_ID_0200 ||
+		chipset_ver == QCA_HSP_SOC_ID_0210 ||
+		chipset_ver == QCA_HSP_SOC_ID_1211 ||
+		chipset_ver == QCA_MOSELLE_SOC_ID_0100 ||
+		chipset_ver == QCA_MOSELLE_SOC_ID_0110)) {
+		BTFMSLIM_INFO("SB reset needed after all ports disabled, sleeping");
+		msleep(DELAY_FOR_PORT_OPEN_MS);
 	}
 	return ret;
 }
@@ -229,6 +267,7 @@ static int btfm_slim_alloc_port(struct btfmslim *btfmslim)
 		}
 		tx_chs = btfmslim->tx_chs;
 	}
+
 	if (!rx_chs || !tx_chs)
 		return ret;
 
@@ -240,10 +279,8 @@ static int btfm_slim_get_logical_addr(struct slim_device *slim)
 	int ret = 0;
 	const unsigned long timeout = jiffies +
 			      msecs_to_jiffies(SLIM_SLAVE_PRESENT_TIMEOUT);
-	BTFMSLIM_INFO("");
 
 	do {
-
 		ret = slim_get_logical_addr(slim);
 		if (!ret)  {
 			BTFMSLIM_DBG("Assigned l-addr: 0x%x", slim->laddr);
@@ -264,7 +301,6 @@ int btfm_slim_hw_init(struct btfmslim *btfmslim)
 	struct slim_device *slim;
 	struct slim_device *slim_ifd;
 
-	BTFMSLIM_DBG("");
 	if (!btfmslim)
 		return -EINVAL;
 
@@ -277,20 +313,14 @@ int btfm_slim_hw_init(struct btfmslim *btfmslim)
 	slim_ifd = &btfmslim->slim_ifd;
 
 	mutex_lock(&btfmslim->io_lock);
-	BTFMSLIM_INFO(
-		"PGD Enum Addr: mfr id:%.02x prod code:%.02x dev ind:%.02x ins:%.02x",
-		slim->e_addr.manf_id, slim->e_addr.prod_code,
-		slim->e_addr.dev_index, slim->e_addr.instance);
-
-
 	chipset_ver = btpower_get_chipset_version();
-	BTFMSLIM_INFO("chipset soc version:%x", chipset_ver);
+	BTFMSLIM_DBG("chipset soc version:%x", chipset_ver);
 
 	if (chipset_ver == QCA_HSP_SOC_ID_0100 ||
 		chipset_ver == QCA_HSP_SOC_ID_0110 ||
+		chipset_ver == QCA_HSP_SOC_ID_0200 ||
 		chipset_ver == QCA_HSP_SOC_ID_0210 ||
-		chipset_ver == QCA_HSP_SOC_ID_1211 ||
-		chipset_ver == QCA_HSP_SOC_ID_0200) {
+		chipset_ver == QCA_HSP_SOC_ID_1211) {
 		BTFMSLIM_INFO("chipset is hastings prime, overwriting EA");
 		slim->is_laddr_valid = false;
 		slim->e_addr.manf_id = SLIM_MANF_ID_QCOM;
@@ -330,22 +360,22 @@ int btfm_slim_hw_init(struct btfmslim *btfmslim)
 		slim_ifd->e_addr.instance = 0x0;
 		slim_ifd->laddr = 0x0;
 	}
-		BTFMSLIM_INFO(
-			"PGD Enum Addr: manu id:%.02x prod code:%.02x dev idx:%.02x instance:%.02x",
-			slim->e_addr.manf_id, slim->e_addr.prod_code,
-			slim->e_addr.dev_index, slim->e_addr.instance);
+	BTFMSLIM_INFO(
+		"PGD Enum Addr: manu id:%.02x prod code:%.02x dev idx:%.02x instance:%.02x",
+		slim->e_addr.manf_id, slim->e_addr.prod_code,
+		slim->e_addr.dev_index, slim->e_addr.instance);
 
-		BTFMSLIM_INFO(
-			"IFD Enum Addr: manu id:%.02x prod code:%.02x dev idx:%.02x instance:%.02x",
-			slim_ifd->e_addr.manf_id, slim_ifd->e_addr.prod_code,
-			slim_ifd->e_addr.dev_index, slim_ifd->e_addr.instance);
+	BTFMSLIM_INFO(
+		"IFD Enum Addr: manu id:%.02x prod code:%.02x dev idx:%.02x instance:%.02x",
+		slim_ifd->e_addr.manf_id, slim_ifd->e_addr.prod_code,
+		slim_ifd->e_addr.dev_index, slim_ifd->e_addr.instance);
 
 	/* Assign Logical Address for PGD (Ported Generic Device)
 	 * enumeration address
 	 */
 	ret = btfm_slim_get_logical_addr(btfmslim->slim_pgd);
 	if (ret) {
-		BTFMSLIM_ERR("failed to get slimbus %s logical address: %d", ret);
+		BTFMSLIM_ERR("failed to get slimbus logical address: %d", ret);
 		goto error;
 	}
 
@@ -354,13 +384,14 @@ int btfm_slim_hw_init(struct btfmslim *btfmslim)
 	 */
 	ret = btfm_slim_get_logical_addr(&btfmslim->slim_ifd);
 	if (ret) {
-		BTFMSLIM_ERR("failed to get slimbus %s logical address: %d", ret);
+		BTFMSLIM_ERR("failed to get slimbus logical address: %d", ret);
 		goto error;
 	}
 
 	ret = btfm_slim_alloc_port(btfmslim);
 	if (ret != 0)
 		goto error;
+
 	/* Start vendor specific initialization and get port information */
 	if (btfmslim->vendor_init)
 		ret = btfmslim->vendor_init(btfmslim);
@@ -379,7 +410,6 @@ int btfm_slim_hw_deinit(struct btfmslim *btfmslim)
 {
 	int ret = 0;
 
-	BTFMSLIM_INFO("");
 	if (!btfmslim)
 		return -EINVAL;
 
@@ -411,7 +441,6 @@ static long btfm_slim_ioctl(struct file *file, unsigned int cmd, unsigned long a
 {
 	int ret = 0;
 
-	BTFMSLIM_INFO("");
 	switch (cmd) {
 	case BT_CMD_SLIM_TEST:
 		BTFMSLIM_INFO("cmd BT_CMD_SLIM_TEST, call btfm_slim_hw_init");
@@ -431,14 +460,12 @@ static int btfm_slim_probe(struct slim_device *slim)
 	int ret = 0;
 	struct btfmslim *btfm_slim;
 
-	pr_info("%s: name = %s\n", __func__, dev_name(&slim->dev));
 	/*this as true during the probe then slimbus won't check for logical address*/
 	slim->is_laddr_valid = true;
 	dev_set_name(&slim->dev, "%s", "btfmslim_slave");
+
 	pr_info("%s: name = %s\n", __func__, dev_name(&slim->dev));
 
-	BTFMSLIM_DBG("");
-	BTFMSLIM_ERR("is_laddr_valid is true");
 	if (!slim->ctrl)
 		return -EINVAL;
 
@@ -466,6 +493,7 @@ static int btfm_slim_probe(struct slim_device *slim)
 	ret = btpower_register_slimdev(&slim->dev);
 	if (ret < 0) {
 		btfm_slim_unregister_codec(&slim->dev);
+		ret = -EPROBE_DEFER;
 		goto dealloc;
 	}
 
@@ -507,21 +535,29 @@ dealloc:
 
 static void btfm_slim_remove(struct slim_device *slim)
 {
-	struct btfmslim *btfm_slim = slim->dev.platform_data;
-
-	BTFMSLIM_DBG("");
+	struct device *dev = &slim->dev;
+	struct btfmslim *btfm_slim = dev_get_drvdata(dev);
 	mutex_destroy(&btfm_slim->io_lock);
 	mutex_destroy(&btfm_slim->xfer_lock);
 	snd_soc_unregister_component(&slim->dev);
 	kfree(btfm_slim);
 }
 
-static const struct slim_device_id btfm_slim_id = {
+static const struct slim_device_id btfm_slim_id[] = {
+	{
 	.manf_id = SLIM_MANF_ID_QCOM,
 	.prod_code = SLIM_PROD_CODE,
 	.dev_index = 0x1,
 	.instance = 0x0,
+	},
+	{
+	.manf_id = SLIM_MANF_ID_QCOM,
+	.prod_code = SLIM_PROD_CODE1,
+	.dev_index = 0x1,
+	.instance = 0x0,
+	}
 };
+
 MODULE_DEVICE_TABLE(slim, btfm_slim_id);
 
 static struct slim_driver btfm_slim_driver = {
@@ -532,7 +568,7 @@ static struct slim_driver btfm_slim_driver = {
 	.probe = btfm_slim_probe,
 	.device_status = btfm_slim_status,
 	.remove = btfm_slim_remove,
-	.id_table = &btfm_slim_id
+	.id_table = btfm_slim_id
 };
 
 module_slim_driver(btfm_slim_driver);
