@@ -625,6 +625,45 @@
 	ranges = <0 0 0 0xffffffff>;
 	compatible = "simple-bus";
 
+	slimbam: dma-controller@3a84000 {
+		compatible = "qcom,bam-v1.7.0";
+		reg = <0x03a84000 0x20000>;
+		interrupts = <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
+		#dma-cells = <1>;
+		qcom,controlled-remotely;
+		num-channels = <31>;
+		qcom,ee = <1>;
+		qcom,num-ees = <2>;
+		iommus = <&apps_smmu 0x1826 0x0>;
+	};
+
+	slim_msm: slim@3ac0000 {
+		compatible = "qcom,slim-ngd-v1.5.0";
+		reg = <0x03ac0000 0x2c000>;
+		interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&slimbam 3>, <&slimbam 4>;
+		dma-names = "rx", "tx";
+		iommus = <&apps_smmu 0x1826 0x0>;
+		qcom,wait_for_adsp_up;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ngd@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			//slimbus child nodes
+			slimbus: btfmslim-driver {
+				compatible = "slim217,221";
+				reg = <1 0>;
+				qcom,btslim-address  = <0x0>; /* BT SLIM EP address*/
+				qcom,btslimtx-channels = <159 160>;
+				qcom,btslimrx-channels = <157 158>;
+			};
+		};
+	};
+
 	intc: interrupt-controller@17a00000 {
 		compatible = "arm,gic-v3";
 		#interrupt-cells = <3>;
