@@ -1,7 +1,0 @@
-# Nothing logger
-
-config NOTHING_BOOTLOADER_LOG
-	tristate "nothing bootloader log"
-	default n
-	help
-		show booloader_log under proc/bootloader_log
