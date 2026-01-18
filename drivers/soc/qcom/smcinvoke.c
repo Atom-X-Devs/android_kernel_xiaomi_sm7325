@@ -31,6 +31,7 @@
 #include <soc/qcom/qseecomi.h>
 #include <linux/qtee_shmbridge.h>
 #include <linux/ipc_logging.h>
+#include <linux/kthread.h>
 #include <soc/qcom/smci_object.h>
 #include <misc/qseecom_kernel.h>
 #include <soc/qcom/smci_clientenv.h>
@@ -464,7 +465,7 @@ static void smcinvoke_shmbridge_post_process(void)
 			pr_err("entry is NULL, pos:%#llx\n", (uint64_t)pos);
 		}
 		list_del(pos);
-		kfree_sensitive(entry);
+		kzfree(entry);
 		mutex_unlock(&bridge_postprocess_lock);
 
 		if (entry) {
@@ -560,7 +561,7 @@ static int smcinvoke_object_post_process(void)
 		} else {
 			pr_err("entry is NULL, pos:%#llx\n", (uint64_t)pos);
 		}
-		kfree_sensitive(entry);
+		kzfree(entry);
 	} while (1);
 
 out:
