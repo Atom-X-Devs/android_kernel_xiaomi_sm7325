@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -21590,11 +21590,12 @@ csr_process_roam_sync_callback(struct mac_context *mac_ctx,
 	 * eapol. So the session->psk_pmk will be stale in PMKSA cached
 	 * SAE/OWE roaming case.
 	 */
+	akm_type = session->connectedProfile.AuthType;
+
 	if (roam_synch_data->authStatus == CSR_ROAM_AUTH_STATUS_AUTHENTICATED ||
-	    session->pCurRoamProfile->negotiatedAuthType ==
-	    eCSR_AUTH_TYPE_SAE ||
-	    session->pCurRoamProfile->negotiatedAuthType ==
-	    eCSR_AUTH_TYPE_OWE) {
+	    akm_type == eCSR_AUTH_TYPE_SAE ||
+	    akm_type == eCSR_AUTH_TYPE_FT_SAE ||
+	    akm_type == eCSR_AUTH_TYPE_OWE) {
 		csr_roam_substate_change(mac_ctx,
 				eCSR_ROAM_SUBSTATE_NONE, session_id);
 		/*
@@ -21619,8 +21620,7 @@ csr_process_roam_sync_callback(struct mac_context *mac_ctx,
 				 &session->connectedProfile.bssid);
 		sme_debug("Trying to find PMKID for " QDF_MAC_ADDR_FMT " AKM Type:%d",
 			  QDF_MAC_ADDR_REF(pmkid_cache->BSSID.bytes),
-			  session->pCurRoamProfile->negotiatedAuthType);
-		akm_type = session->connectedProfile.AuthType;
+			  akm_type);
 		mdie_present = session->connectedProfile.mdid.mdie_present;
 
 		if (csr_lookup_pmkid_using_bssid(mac_ctx, session,
@@ -21700,6 +21700,8 @@ csr_process_roam_sync_callback(struct mac_context *mac_ctx,
 					qdf_mem_zero(pmksa, sizeof(*pmksa));
 					qdf_mem_free(pmksa);
 				}
+			} else {
+				sme_debug("PMK not received from fw");
 			}
 			sme_debug("pmkid found for " QDF_MAC_ADDR_FMT " len %d",
 				  QDF_MAC_ADDR_REF(pmkid_cache->BSSID.bytes),
