@@ -14729,6 +14729,12 @@ static QDF_STATUS extract_pdev_csa_switch_count_status_tlv(
 							wmi_handle,
 							csa_status->pdev_id);
 	param->current_switch_count = csa_status->current_switch_count;
+
+	if (param_buf->num_vdev_ids != csa_status->num_vdevs) {
+		wmi_err("Invalid number of vdevs: received = %d, expected = %d",
+			csa_status->num_vdevs, param_buf->num_vdev_ids);
+		return QDF_STATUS_E_INVAL;
+	}
 	param->num_vdevs = csa_status->num_vdevs;
 	param->vdev_ids = param_buf->vdev_ids;
 
