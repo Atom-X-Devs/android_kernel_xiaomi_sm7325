@@ -6520,6 +6520,9 @@ static void lim_process_set_ie_req(struct mac_context *mac_ctx, uint32_t *msg_bu
 	if (p_ext_cap->interworking_service)
 		p_ext_cap->qos_map = 1;
 
+	if (wma_is_mbssid_enabled())
+		p_ext_cap->multi_bssid = 1;
+
 	extra_ext_cap.num_bytes = lim_compute_ext_cap_ie_length(&extra_ext_cap);
 
 send_ie:
