@@ -1369,6 +1369,7 @@ static int brl_after_event_handler(struct goodix_ts_core *cd)
 		&sync_clean, 1);
 }
 
+#ifdef GOODIX_TOUCH_DEBUG
 static int brld_get_framedata(struct goodix_ts_core *cd,
 		struct ts_rawdata_info *info)
 {
@@ -1577,6 +1578,13 @@ exit:
 	goodix_ts_blocking_notify(NOTIFY_ESD_ON, NULL);
 	return ret;
 }
+#else
+static int brl_get_capacitance_data(struct goodix_ts_core *cd,
+		struct ts_rawdata_info *info)
+{
+	return -EINVAL;
+}
+#endif
 
 #define GOODIX_CHARGER_CMD	0xAF
 static int brl_charger_on(struct goodix_ts_core *cd, bool on)
