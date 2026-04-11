@@ -1988,6 +1988,7 @@ static int qcom_slim_ngd_ctrl_probe(struct platform_device *pdev)
 	struct qcom_slim_ngd_ctrl *ctrl;
 	struct resource *res, *remote_res;
 	char ipc_err_log_name[30];
+	const char *subsys_name = NULL;
 	int ret;
 	struct pdr_service *pds;
 
@@ -2081,8 +2082,13 @@ static int qcom_slim_ngd_ctrl_probe(struct platform_device *pdev)
 		ctrl->sysfs_created = true;
 	}
 
+	ret = of_property_read_string(pdev->dev.of_node,
+				"qcom,subsys-name", &subsys_name);
+	if (ret)
+		subsys_name = "adsp";
+
 	ctrl->nb.notifier_call = qcom_slim_ngd_ssr_notify;
-	ctrl->notifier = subsys_notif_register_notifier("lpass", &ctrl->nb);
+	ctrl->notifier = subsys_notif_register_notifier(subsys_name, &ctrl->nb);
 	if (IS_ERR(ctrl->notifier)) {
 		ret = PTR_ERR(ctrl->notifier);
 		dev_err(dev, "Failed to register SSR notification: %d\n", ret);

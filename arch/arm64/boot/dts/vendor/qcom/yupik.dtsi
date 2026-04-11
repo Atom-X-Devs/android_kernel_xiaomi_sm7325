@@ -635,6 +635,9 @@
 		qcom,ee = <1>;
 		qcom,num-ees = <2>;
 		iommus = <&apps_smmu 0x1826 0x0>;
+		qcom,iommu-dma-addr-pool = <0x40000000 0x10000000>;
+		qcom,iommu-geometry = <0x40000000 0x10000000>;
+		qcom,iommu-dma = "fastmap";
 	};
 
 	slim_msm: slim@3ac0000 {
