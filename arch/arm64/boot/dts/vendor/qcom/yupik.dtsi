@@ -632,9 +632,6 @@
 		qcom,ee = <1>;
 		qcom,num-ees = <2>;
 		iommus = <&apps_smmu 0x1826 0x0>;
-		qcom,iommu-dma-addr-pool = <0x40000000 0x10000000>;
-		qcom,iommu-geometry = <0x40000000 0x10000000>;
-		qcom,iommu-dma = "fastmap";
 	};
 
 	slim_msm: slim@3ac0000 {
@@ -643,7 +640,12 @@
 		interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
 		dmas = <&slimbam 3>, <&slimbam 4>;
 		dma-names = "rx", "tx";
+
 		iommus = <&apps_smmu 0x1826 0x0>;
+		qcom,iommu-dma-addr-pool = <0x40000000 0x10000000>;
+		qcom,iommu-geometry = <0x40000000 0x10000000>;
+		qcom,iommu-dma = "fastmap";
+
 		qcom,wait_for_adsp_up;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -2979,10 +2981,10 @@
 
 		/* max voltage are set to regulator max voltage supported */
 		qcom,bt-vdd-io-config = <1800000 2000000 0 1>;
-		qcom,bt-vdd-aon-config = <824000 1120000 0 0>;
-		qcom,bt-vdd-dig-config = <824000 1120000 0 0>;
-		qcom,bt-vdd-rfacmn-config  = <824000 1120000 0 0>;
-		qcom,bt-vdd-rfa-0p8-config  = <824000 1120000 0 0>;
+		qcom,bt-vdd-aon-config = <824000 1120000 0 1>;
+		qcom,bt-vdd-dig-config = <824000 1120000 0 1>;
+		qcom,bt-vdd-rfacmn-config  = <824000 1120000 0 1>;
+		qcom,bt-vdd-rfa-0p8-config  = <824000 1120000 0 1>;
 		qcom,bt-vdd-rfa1-config = <1872000 2040000 0 1>;
 		qcom,bt-vdd-rfa2-config = <1256000 1500000 0 1>;
 		qcom,bt-vdd-ipa-2p2-config = <2200000 2210000 0 1>;
@@ -4402,11 +4404,14 @@
 		#clock-cells = <0>;
 	};
 
-	qmp_aop: qcom,qmp-aop@c300000 {
+	qmp_aop: qcom,qmp-aop {
 		compatible = "qcom,qmp-mbox";
 		qcom,qmp = <&aoss_qmp>;
 		label = "aop";
 		#mbox-cells = <1>;
+		qcom,early-boot;
+		priority = <0>;
+		mbox-desc-offset = <0x0>;
 	};
 
 	aop-msg-client {
