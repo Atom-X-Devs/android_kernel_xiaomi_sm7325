@@ -1,19 +1,21 @@
- /*
-  * Goodix Touchscreen Driver
-  * Copyright (C) 2020 - 2021 Goodix, Inc.
-  *
-  * This program is free software; you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License as published by
-  * the Free Software Foundation; either version 2 of the License, or
-  * (at your option) any later version.
-  *
-  * This program is distributed in the hope that it will be a reference
-  * to you, when you are integrating the GOODiX's CTP IC into your system,
-  * but WITHOUT ANY WARRANTY; without even the implied warranty of
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  * General Public License for more details.
-  *
-  */
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Goodix Touchscreen Driver
+ * Copyright (C) 2020 - 2021 Goodix, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be a reference
+ * to you, when you are integrating the GOODiX's CTP IC into your system,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ */
+
 #include "goodix_ts_core.h"
 
 #define TS_BIN_VERSION_START_INDEX		5
@@ -21,6 +23,7 @@
 #define TS_CFG_BIN_HEAD_RESERVED_LEN	6
 #define TS_CFG_OFFSET_LEN				2
 #define TS_IC_TYPE_NAME_MAX_LEN			15
+
 #define TS_CFG_BIN_HEAD_LEN \
 		(sizeof(struct goodix_cfg_bin_head) + \
 		TS_CFG_BIN_HEAD_RESERVED_LEN)
@@ -88,6 +91,27 @@ struct goodix_cfg_bin_head {
 	u8 pkg_num;
 };
 
+struct goodix_cfgb_head {
+	u32 cfgb_len;
+	u32 checksum;
+	u32 flash_addr;
+	u8 pkg_num;
+	u16 protocol_ver;
+	u8 sub_info_len;
+	u8 project_id[8];
+	u8 module_id[8];
+	u8 chip_type[8];
+	u32 cfg_ver;
+	u32 cfg_id;
+	u8 cfg_time[8];
+	u8 reserve[8];
+};
+
+struct goodix_cfgb_sub_info {
+	u16 id;
+	u32 offset;
+	u32 len;
+};
 #pragma pack()
 
 struct goodix_cfg_package {
@@ -104,29 +128,30 @@ struct goodix_cfg_bin {
 	struct goodix_cfg_package *cfg_pkgs;
 };
 
-static int goodix_read_cfg_bin(struct device *dev, const char *cfg_name,
-			struct goodix_cfg_bin *cfg_bin)
+static int goodix_read_cfg_bin(struct goodix_ts_core *cd, const char *cfg_name,
+			       struct goodix_cfg_bin *cfg_bin)
 {
+	struct device *dev = cd->bus->dev;
 	const struct firmware *firmware = NULL;
 	int ret;
 	int retry = GOODIX_RETRY_3;
 
-	ts_info("cfg_bin_name:%s", cfg_name);
+	ts_info(dev, "cfg_bin_name:%s", cfg_name);
 
 	while (retry--) {
-		ret = request_firmware(&firmware, cfg_name, dev);
+		ret = request_firmware(&firmware, cfg_name, &cd->pdev->dev);
 		if (!ret)
 			break;
-		ts_info("get cfg bin retry:[%d]", GOODIX_RETRY_3 - retry);
-		msleep(200);
+		ts_info(dev, "get cfg bin retry:[%d]", GOODIX_RETRY_3 - retry);
+		msleep(300);
 	}
 	if (retry < 0) {
-		ts_err("failed get cfg bin[%s] error:%d", cfg_name, ret);
+		ts_info(dev, "can't find config bin[%s]", cfg_name);
 		return ret;
 	}
 
 	if (firmware->size <= 0) {
-		ts_err("request_firmware, cfg_bin length ERROR,len:%zu",
+		ts_err(dev, "request_firmware, cfg_bin length ERROR,len:%zu",
 		       firmware->size);
 		ret = -EINVAL;
 		goto exit;
@@ -146,15 +171,16 @@ exit:
 	return ret;
 }
 
-static int goodix_parse_cfg_bin(struct goodix_cfg_bin *cfg_bin)
+static int goodix_parse_cfg_bin(struct goodix_ts_core *cd, struct goodix_cfg_bin *cfg_bin)
 {
+	struct device *dev = cd->bus->dev;
 	u16 offset1, offset2;
 	u8 checksum;
 	int i;
 
 	/* copy cfg_bin head info */
 	if (cfg_bin->bin_data_len < sizeof(struct goodix_cfg_bin_head)) {
-		ts_err("Invalid cfg_bin size:%d", cfg_bin->bin_data_len);
+		ts_err(dev, "Invalid cfg_bin size:%d", cfg_bin->bin_data_len);
 		return -EINVAL;
 	}
 
@@ -164,7 +190,7 @@ static int goodix_parse_cfg_bin(struct goodix_cfg_bin *cfg_bin)
 
 	/*check length*/
 	if (cfg_bin->bin_data_len != cfg_bin->head.bin_len) {
-		ts_err("cfg_bin len check failed,%d != %d",
+		ts_err(dev, "cfg_bin len check failed,%d != %d",
 		       cfg_bin->head.bin_len, cfg_bin->bin_data_len);
 		return -EINVAL;
 	}
@@ -175,14 +201,15 @@ static int goodix_parse_cfg_bin(struct goodix_cfg_bin *cfg_bin)
 		checksum += cfg_bin->bin_data[i];
 
 	if (checksum != cfg_bin->head.checksum) {
-		ts_err("cfg_bin checksum check filed 0x%02x != 0x%02x",
+		ts_err(dev, "cfg_bin checksum check filed 0x%02x != 0x%02x",
 		       cfg_bin->head.checksum, checksum);
 		return -EINVAL;
 	}
 
 	/*allocate memory for cfg packages*/
 	cfg_bin->cfg_pkgs = kzalloc(sizeof(struct goodix_cfg_package) *
-				    cfg_bin->head.pkg_num, GFP_KERNEL);
+					    cfg_bin->head.pkg_num,
+				    GFP_KERNEL);
 	if (!cfg_bin->cfg_pkgs)
 		return -ENOMEM;
 
@@ -191,26 +218,29 @@ static int goodix_parse_cfg_bin(struct goodix_cfg_bin *cfg_bin)
 		/*get cfg pkg length*/
 		if (i == cfg_bin->head.pkg_num - 1) {
 			offset1 = cfg_bin->bin_data[TS_CFG_BIN_HEAD_LEN +
-					i * TS_CFG_OFFSET_LEN] +
-					(cfg_bin->bin_data[TS_CFG_BIN_HEAD_LEN +
-					i * TS_CFG_OFFSET_LEN + 1] << 8);
+						    i * TS_CFG_OFFSET_LEN] +
+				  (cfg_bin->bin_data[TS_CFG_BIN_HEAD_LEN +
+						     i * TS_CFG_OFFSET_LEN + 1]
+				   << 8);
 
 			cfg_bin->cfg_pkgs[i].pkg_len =
-					cfg_bin->bin_data_len - offset1;
+				cfg_bin->bin_data_len - offset1;
 		} else {
 			offset1 = cfg_bin->bin_data[TS_CFG_BIN_HEAD_LEN +
-					i * TS_CFG_OFFSET_LEN] +
-					(cfg_bin->bin_data[TS_CFG_BIN_HEAD_LEN +
-					i * TS_CFG_OFFSET_LEN + 1] << 8);
+						    i * TS_CFG_OFFSET_LEN] +
+				  (cfg_bin->bin_data[TS_CFG_BIN_HEAD_LEN +
+						     i * TS_CFG_OFFSET_LEN + 1]
+				   << 8);
 
 			offset2 = cfg_bin->bin_data[TS_CFG_BIN_HEAD_LEN +
-					i * TS_CFG_OFFSET_LEN + 2] +
-					(cfg_bin->bin_data[TS_CFG_BIN_HEAD_LEN +
-					i * TS_CFG_OFFSET_LEN + 3] << 8);
+						    i * TS_CFG_OFFSET_LEN + 2] +
+				  (cfg_bin->bin_data[TS_CFG_BIN_HEAD_LEN +
+						     i * TS_CFG_OFFSET_LEN + 3]
+				   << 8);
 
 			if (offset2 <= offset1) {
-				ts_err("offset error,pkg:%d, offset1:%d, offset2:%d",
-						i, offset1, offset2);
+				ts_err(dev, "offset error,pkg:%d, offset1:%d, offset2:%d",
+				       i, offset1, offset2);
 				goto exit;
 			}
 
@@ -225,14 +255,13 @@ static int goodix_parse_cfg_bin(struct goodix_cfg_bin *cfg_bin)
 
 		/*get configuration data*/
 		cfg_bin->cfg_pkgs[i].cfg =
-				&cfg_bin->bin_data[offset1 + TS_PKG_HEAD_LEN];
+			&cfg_bin->bin_data[offset1 + TS_PKG_HEAD_LEN];
 	}
 
 	/*debug, print pkg information*/
-	ts_info("Driver bin info: ver %s, len %d, pkgs %d",
-			cfg_bin->head.bin_version,
-			cfg_bin->head.bin_len,
-			cfg_bin->head.pkg_num);
+	ts_info(dev, "Driver bin info: ver %s, len %d, pkgs %d",
+		cfg_bin->head.bin_version, cfg_bin->head.bin_len,
+		cfg_bin->head.pkg_num);
 
 	return 0;
 exit:
@@ -241,96 +270,165 @@ exit:
 }
 
 static int goodix_get_reg_and_cfg(struct goodix_ts_core *cd, u8 sensor_id,
-			   struct goodix_cfg_bin *cfg_bin)
+				  struct goodix_cfg_bin *cfg_bin)
 {
 	int i;
 	u8 cfg_type;
 	u32 cfg_len;
+	bool match_sensor_id = true;
 	struct goodix_cfg_package *cfg_pkg;
+	struct device *dev = cd->bus->dev;
 
 	if (!cfg_bin->head.pkg_num || !cfg_bin->cfg_pkgs) {
-		ts_err("there is none cfg package, pkg_num:%d",
-			cfg_bin->head.pkg_num);
+		ts_err(dev, "there is none cfg package, pkg_num:%d",
+		       cfg_bin->head.pkg_num);
 		return -EINVAL;
 	}
 
 	/* find cfg packages with same sensor_id */
+refind_cfg:
+	memset(cd->ic_configs, 0, sizeof(cd->ic_configs));
 	for (i = 0; i < cfg_bin->head.pkg_num; i++) {
 		cfg_pkg = &cfg_bin->cfg_pkgs[i];
-		if (sensor_id != cfg_pkg->cnst_info.sensor_id) {
-			ts_info("pkg:%d, sensor id contrast FAILED, bin %d != %d",
-			       i, cfg_pkg->cnst_info.sensor_id, sensor_id);
+		if (match_sensor_id &&
+		    (sensor_id != cfg_pkg->cnst_info.sensor_id)) {
+			ts_info(dev, "pkg:%d, sensor id contrast FAILED, bin %d != %d",
+				i, cfg_pkg->cnst_info.sensor_id, sensor_id);
 			continue;
 		}
 		cfg_type = cfg_pkg->cnst_info.cfg_type;
 		if (cfg_type >= GOODIX_MAX_CONFIG_GROUP) {
-			ts_err("usupported config type %d",
-				cfg_pkg->cnst_info.cfg_type);
+			ts_err(dev, "usupported config type %d",
+			       cfg_pkg->cnst_info.cfg_type);
 			goto err_out;
 		}
 
 		cfg_len = cfg_pkg->pkg_len - TS_PKG_CONST_INFO_LEN -
-			    TS_PKG_REG_INFO_LEN;
+			  TS_PKG_REG_INFO_LEN;
 		if (cfg_len > GOODIX_CFG_MAX_SIZE) {
-			ts_err("config len exceed limit %d > %d",
-				cfg_len, GOODIX_CFG_MAX_SIZE);
+			ts_err(dev, "config len exceed limit %d > %d", cfg_len,
+			       GOODIX_CFG_MAX_SIZE);
 			goto err_out;
 		}
-		if (cd->ic_configs[cfg_type]) {
-			ts_err("found same type config twice for sensor id %d, skiped",
-				sensor_id);
+		if (cd->ic_configs[cfg_type].len > 0) {
+			ts_err(dev, "found same type config twice for sensor id %d, skiped",
+			       sensor_id);
 			continue;
 		}
-		cd->ic_configs[cfg_type] =
-				kzalloc(sizeof(struct goodix_ic_config),
-				GFP_KERNEL);
-		if (!cd->ic_configs[cfg_type])
-			goto err_out;
-		cd->ic_configs[cfg_type]->len = cfg_len;
-		memcpy(cd->ic_configs[cfg_type]->data, cfg_pkg->cfg, cfg_len);
-		ts_info("get config type %d, len %d, for sensor id %d",
+		cd->ic_configs[cfg_type].len = cfg_len;
+		memcpy(cd->ic_configs[cfg_type].data, cfg_pkg->cfg, cfg_len);
+		ts_info(dev, "get config type %d, len %d, for sensor id %d",
 			cfg_type, cfg_len, sensor_id);
 	}
+
+	if (cd->ic_configs[CONFIG_TYPE_NORMAL].len <= 0) {
+		if (match_sensor_id) {
+			ts_info(dev, "no cfg match sensor_id[%d], don't match sensor_id, try again.",
+				sensor_id);
+			match_sensor_id = false;
+			goto refind_cfg;
+		} else {
+			ts_err(dev, "can't find normal config");
+			goto err_out;
+		}
+	}
+
 	return 0;
 
 err_out:
-	/* parse config enter error, release memory alloced */
-	for (i = 0; i < GOODIX_MAX_CONFIG_GROUP; i++) {
-		kfree(cd->ic_configs[i]);
-		cd->ic_configs[i] = NULL;
-	}
 	return -EINVAL;
+}
+
+static int goodix_parse_cfg_bundle(struct goodix_ts_core *cd,
+				   struct goodix_cfg_bin *cfg_bin)
+{
+	struct goodix_cfgb_head *head =
+		(struct goodix_cfgb_head *)cfg_bin->bin_data;
+	struct goodix_cfgb_sub_info *sub_info;
+	struct device *dev = cd->bus->dev;
+	u32 cal_checksum = 0;
+	int i;
+
+	ts_info(dev, "cfgb_len:%d", head->cfgb_len);
+	for (i = 0; i < head->cfgb_len - 8; i += 2)
+		cal_checksum += (cfg_bin->bin_data[9 + i] << 8) |
+				cfg_bin->bin_data[8 + i];
+	if (cal_checksum != head->checksum) {
+		ts_err(dev, "cfgb checksum error");
+		return -EINVAL;
+	}
+
+	ts_info(dev, "cfgb_pro_ver:%x", head->protocol_ver);
+	ts_info(dev, "cfgb_ver:0x%04X", head->cfg_ver);
+	ts_info(dev, "cfgb_id:0x%04X", head->cfg_id);
+
+	cd->cfg_bundle.flash_addr = head->flash_addr;
+	cd->cfg_bundle.len = head->cfgb_len;
+	memcpy(cd->cfg_bundle.data, cfg_bin->bin_data, cd->cfg_bundle.len);
+	ts_info(dev, "config flash addr:0x%04X", head->flash_addr);
+
+	sub_info =
+		(struct goodix_cfgb_sub_info *)&cfg_bin->bin_data[sizeof(*head)];
+	for (i = 0; i < head->pkg_num; i++) {
+		if (sub_info->id == 0) {
+			cd->ic_configs[CONFIG_TYPE_NORMAL].len = sub_info->len;
+			memcpy(cd->ic_configs[CONFIG_TYPE_NORMAL].data,
+			       &cfg_bin->bin_data[sub_info->offset],
+			       sub_info->len);
+			ts_info(dev, "found normal cfg, len:%d", sub_info->len);
+			break;
+		}
+		sub_info++;
+	}
+	return 0;
 }
 
 static int goodix_get_config_data(struct goodix_ts_core *cd, u8 sensor_id)
 {
-	struct goodix_cfg_bin cfg_bin = {0};
-	char *cfg_name = cd->board_data.cfg_bin_name;
+	struct device *dev = cd->bus->dev;
+	struct goodix_cfg_bin cfg_bin = { 0 };
+	char cfg_name[GOODIX_MAX_STR_LABLE_LEN] = { 0 };
+	char *prefix;
 	int ret;
 
+	if(cd->pdev->id == 0) {
+		strscpy(cfg_name, cd->board_data->cfg_bin_name, sizeof(cfg_name));
+	} else {
+		prefix = find_file_prefix(cd->board_data->cfg_bin_name);
+		sprintf(cfg_name, "%s_%d.bin", prefix, cd->pdev->id);
+	}
+
 	/*get cfg_bin from file system*/
-	ret = goodix_read_cfg_bin(&cd->pdev->dev, cfg_name, &cfg_bin);
+	ret = goodix_read_cfg_bin(cd, cfg_name, &cfg_bin);
 	if (ret) {
-		ts_err("failed get valid config bin data");
+		ts_info(dev, "can't get valid config bin data");
 		return ret;
 	}
 
+	if (cd->bus->ic_type >= IC_TYPE_ATB ||
+			cd->bus->sub_ic_type == IC_TYPE_SUB_MCU2) {
+		ret = goodix_parse_cfg_bundle(cd, &cfg_bin);
+		if (ret < 0)
+			ts_err(dev, "parse cfg bundle failed");
+		goto free_out;
+	}
+
 	/*parse cfg bin*/
-	ret = goodix_parse_cfg_bin(&cfg_bin);
+	ret = goodix_parse_cfg_bin(cd, &cfg_bin);
 	if (ret) {
-		ts_err("failed parse cfg bin");
-		goto err_out;
+		ts_err(dev, "failed parse cfg bin");
+		goto free_out;
 	}
 
 	/*get register address and configuration from cfg bin*/
 	ret = goodix_get_reg_and_cfg(cd, sensor_id, &cfg_bin);
 	if (!ret)
-		ts_info("success get reg and cfg info from cfg bin");
+		ts_info(dev, "success get reg and cfg info from cfg bin");
 	else
-		ts_err("failed get cfg and reg info, update fw then retry");
+		ts_err(dev, "failed get cfg and reg info, update fw then retry");
 
 	kfree(cfg_bin.cfg_pkgs);
-err_out:
+free_out:
 	kfree(cfg_bin.bin_data);
 	return ret;
 }
@@ -339,5 +437,3 @@ int goodix_get_config_proc(struct goodix_ts_core *cd)
 {
 	return goodix_get_config_data(cd, cd->fw_version.sensor_id);
 }
-
-
