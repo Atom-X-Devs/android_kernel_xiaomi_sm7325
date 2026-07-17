@@ -5183,6 +5183,10 @@
 			bits = <5 8>;
 		};
 
+		tsens_chipinfo: tsens_chipinfo@4180 {
+			reg = <0x4180 0x4>;
+		};
+
 		feat_conf_m7: feat_conf_m7@6020 {
 			reg = <0x6020 0x4>;
 		};

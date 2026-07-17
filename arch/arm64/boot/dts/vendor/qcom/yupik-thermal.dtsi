@@ -14,6 +14,8 @@
 		interrupt-names = "tsens-upper-lower",
 				"tsens-critical",
 				"tsens-0C";
+		nvmem-cells = <&tsens_chipinfo>;
+		nvmem-cell-names = "tsens_chipinfo";
 		#thermal-sensor-cells = <1>;
 	};
 
@@ -29,6 +31,8 @@
 		interrupt-names = "tsens-upper-lower",
 				"tsens-critical",
 				"tsens-0C";
+		nvmem-cells = <&tsens_chipinfo>;
+		nvmem-cell-names = "tsens_chipinfo";
 		#thermal-sensor-cells = <1>;
 	};
 
