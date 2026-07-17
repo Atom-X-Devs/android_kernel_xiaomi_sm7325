@@ -1363,12 +1363,8 @@ static int brl_event_handler(struct goodix_ts_core *cd,
 		       GOODIX_GESTURE_DATA_LEN);
 	}
 
-	if (cd->palm_status) {
-		if (pre_buf[2] & GOODIX_LARGETOUCH_EVENT)
-			update_palm_sensor_value(1);
-		else
-			update_palm_sensor_value(0);
-	}
+	if (cd->palm_status)
+		update_palm_sensor_value((int)(pre_buf[2] & GOODIX_LARGETOUCH_EVENT));
 
 	return 0;
 }

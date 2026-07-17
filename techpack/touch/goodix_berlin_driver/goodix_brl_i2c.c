@@ -173,7 +173,6 @@ static int goodix_i2c_probe(struct i2c_client *client,
 #endif
 {
 	struct goodix_ts_device *ts_dev = NULL;
-	const void *ts_data;
 	int ret = 0;
 
 	ts_info(&client->dev, "goodix i2c probe in");
@@ -186,13 +185,12 @@ static int goodix_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	/* get ic type */
-	ts_data = of_device_get_match_data(&client->dev);
-	if (!ts_data) {
-		ts_info(&spi->dev, "missing or unknown device\n");
-		return -EINVAL;
+	ret = goodix_get_ic_type(&client->dev, &ts_dev->bus);
+	if (ret < 0) {
+		kfree(ts_dev);
+		return ret;
 	}
 
-	ts_dev->bus.ic_type = (uintptr_t)ts_data;
 	ts_dev->bus.bus_type = GOODIX_BUS_TYPE_I2C;
 	ts_dev->bus.dev = &client->dev;
 	ts_dev->bus.read = goodix_i2c_read;
@@ -245,12 +243,11 @@ static int goodix_i2c_remove(struct i2c_client *client)
 static const struct of_device_id i2c_matchs[] = {
 	{ .compatible = "goodix,brl-a", .data = (void *)IC_TYPE_BERLIN_A },
 	{ .compatible = "goodix,brl-b", .data = (void *)IC_TYPE_BERLIN_B },
-	{ .compatible = "goodix,ga687x", .data = (void *)IC_TYPE_SUB_B2 },
 	{ .compatible = "goodix,brl-d", .data = (void *)IC_TYPE_BERLIN_D },
 	{ .compatible = "goodix,nottingham", .data = (void *)IC_TYPE_NOTTINGHAM },
 	{ .compatible = "goodix,marseille", .data = (void *)IC_TYPE_MARSEILLE },
 	{ .compatible = "goodix,atb", .data = (void *)IC_TYPE_ATB },
-	{ } /* Null terminated */
+	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, i2c_matchs);
 #endif

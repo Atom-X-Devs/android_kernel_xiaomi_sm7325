@@ -849,11 +849,11 @@ void ts_info(struct device *dev, const char *fmt, ...);
 void ts_err(struct device *dev, const char *fmt, ...);
 void ts_debug(struct device *dev, const char *fmt, ...);
 #else
-#define ts_info(dev, fmt, arg...) no_printk(fmt, ##arg)
+#define ts_info(dev, fmt, arg...) no_printk(fmt, dev, ##arg)
 
-#define ts_err(dev, fmt, arg...) no_printk(fmt, ##arg)
+#define ts_err(dev, fmt, arg...) no_printk(fmt, dev, ##arg)
 
-#define ts_debug(dev, fmt, arg...) no_printk(fmt, ##arg)
+#define ts_debug(dev, fmt, arg...) no_printk(fmt, dev, ##arg)
 #endif
 
 extern int g_pdev_id;
@@ -881,10 +881,8 @@ char *find_file_prefix(const char *file_name);
 int goodix_fw_update_init(struct goodix_ts_core *cd);
 void goodix_fw_update_uninit(struct goodix_ts_core *cd);
 int goodix_do_fw_update(struct goodix_ts_core *cd, int mode);
-#if 0
 int goodix_get_ic_type(struct device *dev,
 		       struct goodix_bus_interface *bus_inf);
-#endif
 int gesture_module_init(struct goodix_ts_core *cd);
 void gesture_module_exit(struct goodix_ts_core *cd);
 

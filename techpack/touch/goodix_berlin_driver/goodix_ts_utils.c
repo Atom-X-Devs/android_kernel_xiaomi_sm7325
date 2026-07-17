@@ -203,72 +203,41 @@ void goodix_rotate_abcd2cbad(int tx, int rx, s16 *data)
 }
 #endif
 
-#if 0
-
 /* get ic type */
 int goodix_get_ic_type(struct device *dev,
 		       struct goodix_bus_interface *bus_inf)
 {
 	struct device_node *node = dev->of_node;
-	const struct property *prop;
-	char ic_name[128] = { 0 };
-	int i;
+	const void *ts_data;
 
-	prop = of_find_property(node, "compatible", NULL);
-	if (!prop || !prop->value || prop->length > sizeof(ic_name)) {
-		ts_err(dev, "invalid compatible property");
+	ts_data = of_device_get_match_data(dev);
+	if (!ts_data) {
+		ts_err(dev, "unsupported ic type\n");
 		return -EINVAL;
 	}
 
-	memcpy(ic_name, prop->value, prop->length);
+	bus_inf->ic_type = (uintptr_t)ts_data;
 
-	/* replace string end flag with ';' */
-	for (i = 0; i < prop->length - 1; i++)
-		if (ic_name[i] == 0)
-			ic_name[i] = ';';
-
-	ts_info(dev, "ic_name %s", ic_name);
-
-	if (strstr(ic_name, "brl-a")) {
-		ts_info(dev, "ic type is brl-a");
-		bus_inf->ic_type = IC_TYPE_BERLIN_A;
-		return 0;
-	}
-
-	if (strstr(ic_name, "brl-b")) {
-		ts_info(dev, "ic type is brl-b");
-		bus_inf->ic_type = IC_TYPE_BERLIN_B;
-		if (strstr(ic_name, "ga687x")) {
+	if (bus_inf->ic_type == IC_TYPE_BERLIN_A) {
+		dev_info(dev, "ic type is brl-a");
+	} else if (bus_inf->ic_type == IC_TYPE_BERLIN_B) {
+		dev_info(dev, "ic type is brl-b");
+		if (of_device_is_compatible(node, "goodix,ga687x")) {
 			bus_inf->sub_ic_type = IC_TYPE_SUB_B2;
-			ts_info(dev, "sub ic type is brl-b2");
+			dev_info(dev, "sub ic type is brl-b2");
 		}
-		return 0;
-	}
-	if (strstr(ic_name, "brl-d")) {
-		ts_info(dev, "ic type is brl-d");
-		bus_inf->ic_type = IC_TYPE_BERLIN_D;
-		return 0;
-	}
-	if (strstr(ic_name, "nottingham")) {
-		ts_info(dev, "ic type is nottingham");
-		bus_inf->ic_type = IC_TYPE_NOTTINGHAM;
-		return 0;
-	}
-	if (strstr(ic_name, "marseille")) {
-		ts_info(dev, "ic type is marseille");
-		bus_inf->ic_type = IC_TYPE_MARSEILLE;
-		return 0;
-	}
-	if (strstr(ic_name, "atb")) {
-		ts_info(dev, "ic type is Atlanta B");
-		bus_inf->ic_type = IC_TYPE_ATB;
-		return 0;
+	} else if (bus_inf->ic_type == IC_TYPE_BERLIN_D) {
+		dev_info(dev, "ic type is brl-d");
+	} else if (bus_inf->ic_type == IC_TYPE_NOTTINGHAM) {
+		dev_info(dev, "ic type is nottingham");
+	} else if (bus_inf->ic_type == IC_TYPE_MARSEILLE) {
+		dev_info(dev, "ic type is marseille");
+	} else {
+		dev_info(dev, "ic type is Atlanta B");
 	}
 
-	ts_err(dev, "unsupported ic type %s", ic_name);
-	return -EINVAL;
+	return 0;
 }
-#endif
 
 char *find_file_prefix(const char *file_name)
 {

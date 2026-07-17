@@ -149,7 +149,6 @@ static void goodix_pdev_release(struct device *dev)
 static int goodix_spi_probe(struct spi_device *spi)
 {
 	struct goodix_ts_device *ts_dev = NULL;
-	const void *ts_data;
 	int ret = 0;
 
 	ts_info(&spi->dev, "goodix spi probe in");
@@ -171,19 +170,16 @@ static int goodix_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	/* get ic type */
-	ts_data = of_device_get_match_data(&spi->dev);
-	if (!ts_data) {
-		ts_info(&spi->dev, "missing or unknown device\n");
-		return -EINVAL;
+	ret = goodix_get_ic_type(&spi->dev, &ts_dev->bus);
+	if (ret < 0) {
+		kfree(ts_dev);
+		return ret;
 	}
 
 	spi_set_drvdata(spi, ts_dev);
 	global_spi_parent_device = spi->controller->dev.parent;
 
-	ts_info(&spi->dev, "ic_name %d", ts_data);
-
 	mutex_init(&ts_dev->bus.spi_lock);
-	ts_dev->bus.ic_type = (uintptr_t)ts_data;
 	ts_dev->bus.bus_type = GOODIX_BUS_TYPE_SPI;
 	ts_dev->bus.dev = &spi->dev;
 	ts_dev->bus.read = goodix_spi_read;
@@ -235,12 +231,11 @@ static int goodix_spi_remove(struct spi_device *spi)
 static const struct of_device_id spi_matchs[] = {
 	{ .compatible = "goodix,brl-a", .data = (void *)IC_TYPE_BERLIN_A },
 	{ .compatible = "goodix,brl-b", .data = (void *)IC_TYPE_BERLIN_B },
-	{ .compatible = "goodix,ga687x", .data = (void *)IC_TYPE_SUB_B2 },
 	{ .compatible = "goodix,brl-d", .data = (void *)IC_TYPE_BERLIN_D },
 	{ .compatible = "goodix,nottingham", .data = (void *)IC_TYPE_NOTTINGHAM },
 	{ .compatible = "goodix,marseille", .data = (void *)IC_TYPE_MARSEILLE },
 	{ .compatible = "goodix,atb", .data = (void *)IC_TYPE_ATB },
-	{ } /* Null terminated */
+	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, goodix_spi_of_match);
 #endif
