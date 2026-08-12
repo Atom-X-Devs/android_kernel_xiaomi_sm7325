@@ -146,11 +146,9 @@
 
 		qcom,sde-max-bw-low-kbps = <4700000>;
 		qcom,sde-max-bw-high-kbps = <8800000>;
-		qcom,sde-min-core-ib-kbps = <2500000>;
-		qcom,sde-min-llcc-ib-kbps = <0>;
-		qcom,sde-min-dram-ib-kbps = <1600000>;
 		qcom,sde-dram-channels = <2>;
 		qcom,sde-num-nrt-paths = <0>;
+		qcom,sde-num-ddr-channels = <2>;
 
 		qcom,sde-uidle-off = <0x80000>;
 		qcom,sde-uidle-size = <0x70>;

@@ -322,6 +322,7 @@
 				&cnoc2 SLAVE_DISPLAY_CFG>;
 	interconnect-names = "qcom,sde-data-bus0", "qcom,sde-ebi-bus", "qcom,sde-reg-bus";
 
+	qcom,sde-ib-bw-vote = <2500000 0 1600000>;
 	qcom,sde-has-idle-pc;
 	qcom,sde-dspp-ltm-version = <0x00010001>;
 	/* offsets are based off dspp 0 */
