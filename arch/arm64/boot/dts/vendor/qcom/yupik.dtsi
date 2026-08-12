@@ -3826,6 +3826,12 @@
 		};
 	};
 
+	sram@c3f0000 {
+		compatible = "qcom,rpmh-stats";
+		reg = <0x0c3f0000 0x400>;
+		ss-name = "modem", "adsp", "adsp_island", "cdsp", "apss";
+	};
+
 	cluster-device {
 		compatible = "qcom,lpm-cluster-dev";
 		power-domains = <&CLUSTER_PD>;
