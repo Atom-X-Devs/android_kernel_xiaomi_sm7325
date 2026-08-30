@@ -297,7 +297,6 @@ static int cc_cipher_sethkey(struct crypto_skcipher *sktfm, const u8 *key,
 	/* This check the size of the protected key token */
 	if (keylen != sizeof(hki)) {
 		dev_err(dev, "Unsupported protected key size %d.\n", keylen);
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
@@ -310,7 +309,6 @@ static int cc_cipher_sethkey(struct crypto_skcipher *sktfm, const u8 *key,
 
 	if (validate_keys_sizes(ctx_p, keylen)) {
 		dev_err(dev, "Unsupported key size %d.\n", keylen);
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
@@ -401,7 +399,6 @@ static int cc_cipher_setkey(struct crypto_skcipher *sktfm, const u8 *key,
 
 	if (validate_keys_sizes(ctx_p, keylen)) {
 		dev_err(dev, "Unsupported key size %d.\n", keylen);
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
@@ -440,12 +437,9 @@ static int cc_cipher_setkey(struct crypto_skcipher *sktfm, const u8 *key,
 		int key_len = keylen >> 1;
 		int err;
 
-		SHASH_DESC_ON_STACK(desc, ctx_p->shash_tfm);
-
-		desc->tfm = ctx_p->shash_tfm;
-
-		err = crypto_shash_digest(desc, ctx_p->user.key, key_len,
-					  ctx_p->user.key + key_len);
+		err = crypto_shash_tfm_digest(ctx_p->shash_tfm,
+					      ctx_p->user.key, key_len,
+					      ctx_p->user.key + key_len);
 		if (err) {
 			dev_err(dev, "Failed to hash ESSIV key.\n");
 			return err;
@@ -883,7 +877,6 @@ static int cc_cipher_process(struct skcipher_request *req,
 	/* TODO: check data length according to mode */
 	if (validate_data_size(ctx_p, nbytes)) {
 		dev_err(dev, "Unsupported data size %d.\n", nbytes);
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_BLOCK_LEN);
 		rc = -EINVAL;
 		goto exit_process;
 	}

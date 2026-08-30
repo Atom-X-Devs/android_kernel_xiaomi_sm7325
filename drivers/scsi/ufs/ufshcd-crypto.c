@@ -143,7 +143,6 @@ ufshcd_find_blk_crypto_mode(union ufs_crypto_cap_entry cap)
 			return i;
 		}
 	}
-
 	return BLK_ENCRYPTION_MODE_INVALID;
 }
 

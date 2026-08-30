@@ -548,7 +548,6 @@ int sun4i_ss_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 		break;
 	default:
 		dev_err(ss->dev, "ERROR: Invalid keylen %u\n", keylen);
-		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 	op->keylen = keylen;

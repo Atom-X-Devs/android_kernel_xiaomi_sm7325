@@ -17,7 +17,7 @@ static int crypto_blake2s_update_generic(struct shash_desc *desc,
 {
 	return crypto_blake2s_update(desc, in, inlen, true);
 }
-
+ 
 static int crypto_blake2s_final_generic(struct shash_desc *desc, u8 *out)
 {
 	return crypto_blake2s_final(desc, out, true);

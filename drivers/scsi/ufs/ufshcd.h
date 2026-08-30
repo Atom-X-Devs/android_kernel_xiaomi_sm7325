@@ -1025,7 +1025,7 @@ struct ufs_hba {
 	u32 crypto_cfg_register;
 	struct blk_keyslot_manager ksm;
 	void *crypto_DO_NOT_USE[8];
-#endif
+#endif /* CONFIG_SCSI_UFS_CRYPTO */
 
 	bool wb_buf_flush_enabled;
 	bool wb_enabled;

@@ -274,7 +274,6 @@ skip_split_key:
 	memzero_explicit(&keys, sizeof(keys));
 	return ret;
 badkey:
-	crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 }
@@ -362,10 +361,8 @@ static int gcm_setkey(struct crypto_aead *aead,
 	int ret;
 
 	ret = aes_check_keylen(keylen);
-	if (ret) {
-		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (ret)
 		return ret;
-	}
 
 	print_hex_dump_debug("key in @" __stringify(__LINE__)": ",
 			     DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
@@ -468,10 +465,8 @@ static int rfc4106_setkey(struct crypto_aead *aead,
 	int ret;
 
 	ret = aes_check_keylen(keylen - 4);
-	if (ret) {
-		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (ret)
 		return ret;
-	}
 
 	print_hex_dump_debug("key in @" __stringify(__LINE__)": ",
 			     DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
@@ -576,10 +571,8 @@ static int rfc4543_setkey(struct crypto_aead *aead,
 	int ret;
 
 	ret = aes_check_keylen(keylen - 4);
-	if (ret) {
-		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (ret)
 		return ret;
-	}
 
 	print_hex_dump_debug("key in @" __stringify(__LINE__)": ",
 			     DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
@@ -650,7 +643,7 @@ static int skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 					  ctx->sh_desc_enc);
 		if (ret) {
 			dev_err(jrdev, "driver enc context update failed\n");
-			goto badkey;
+			return -EINVAL;
 		}
 	}
 
@@ -659,14 +652,11 @@ static int skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 					  ctx->sh_desc_dec);
 		if (ret) {
 			dev_err(jrdev, "driver dec context update failed\n");
-			goto badkey;
+			return -EINVAL;
 		}
 	}
 
 	return ret;
-badkey:
-	crypto_skcipher_set_flags(skcipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-	return -EINVAL;
 }
 
 static int aes_skcipher_setkey(struct crypto_skcipher *skcipher,
@@ -675,11 +665,8 @@ static int aes_skcipher_setkey(struct crypto_skcipher *skcipher,
 	int err;
 
 	err = aes_check_keylen(keylen);
-	if (err) {
-		crypto_skcipher_set_flags(skcipher,
-					  CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (err)
 		return err;
-	}
 
 	return skcipher_setkey(skcipher, key, keylen, 0);
 }
@@ -699,11 +686,8 @@ static int rfc3686_skcipher_setkey(struct crypto_skcipher *skcipher,
 	keylen -= CTR_RFC3686_NONCE_SIZE;
 
 	err = aes_check_keylen(keylen);
-	if (err) {
-		crypto_skcipher_set_flags(skcipher,
-					  CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (err)
 		return err;
-	}
 
 	return skcipher_setkey(skcipher, key, keylen, ctx1_iv_off);
 }
@@ -722,11 +706,8 @@ static int ctr_skcipher_setkey(struct crypto_skcipher *skcipher,
 	ctx1_iv_off = 16;
 
 	err = aes_check_keylen(keylen);
-	if (err) {
-		crypto_skcipher_set_flags(skcipher,
-					  CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (err)
 		return err;
-	}
 
 	return skcipher_setkey(skcipher, key, keylen, ctx1_iv_off);
 }
@@ -755,7 +736,7 @@ static int xts_skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 
 	if (keylen != 2 * AES_MIN_KEY_SIZE  && keylen != 2 * AES_MAX_KEY_SIZE) {
 		dev_err(jrdev, "key size mismatch\n");
-		goto badkey;
+		return -EINVAL;
 	}
 
 	err = crypto_skcipher_setkey(ctx->fallback, key, keylen);
@@ -776,7 +757,7 @@ static int xts_skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 					  ctx->sh_desc_enc);
 		if (ret) {
 			dev_err(jrdev, "driver enc context update failed\n");
-			goto badkey;
+			return -EINVAL;
 		}
 	}
 
@@ -785,14 +766,11 @@ static int xts_skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 					  ctx->sh_desc_dec);
 		if (ret) {
 			dev_err(jrdev, "driver dec context update failed\n");
-			goto badkey;
+			return -EINVAL;
 		}
 	}
 
 	return ret;
-badkey:
-	crypto_skcipher_set_flags(skcipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-	return -EINVAL;
 }
 
 /*

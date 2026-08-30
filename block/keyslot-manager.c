@@ -86,7 +86,6 @@ int blk_ksm_init(struct blk_keyslot_manager *ksm, unsigned int num_slots)
 
 	memset(ksm, 0, sizeof(*ksm));
 
-	/* Check that all ops are specified */
 	if (num_slots == 0)
 		return -EINVAL;
 

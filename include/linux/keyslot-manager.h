@@ -21,7 +21,7 @@ enum {
 struct blk_keyslot_manager;
 
 /**
- * struct keyslot_mgmt_ll_ops - functions to manage keyslots in hardware
+ * struct blk_ksm_ll_ops - functions to manage keyslots in hardware
  * @keyslot_program:	Program the specified key into the specified slot in the
  *			inline encryption hardware.
  * @keyslot_evict:	Evict key from the specified keyslot in the hardware.

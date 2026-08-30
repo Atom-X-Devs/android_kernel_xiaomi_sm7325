@@ -144,10 +144,9 @@ extern int qcom_scm_call_legacy(struct device *dev, struct qcom_scm_desc *desc);
 #define QCOM_SCM_DCVS_INIT_V2			0x0b
 #define QCOM_SCM_DCVS_INIT_CA_V2		0x0c
 #define QCOM_SCM_DCVS_UPDATE_CA_V2		0x0d
-
 #define QCOM_SCM_SVC_ES			0x10	/* Enterprise Security */
-#define QCOM_SCM_ES_INVALIDATE_ICE_KEY	0x03
-#define QCOM_SCM_ES_CONFIG_SET_ICE_KEY	0x04
+#define QCOM_SCM_ES_INVALIDATE_ICE_KEY		0x03
+#define QCOM_SCM_ES_CONFIG_SET_ICE_KEY		0x04
 #define QCOM_SCM_ES_CONFIG_SET_ICE_KEY_V2	0x05
 #define QCOM_SCM_ES_CLEAR_ICE_KEY		0x06
 #define QCOM_SCM_ES_DERIVE_RAW_SECRET	0x07

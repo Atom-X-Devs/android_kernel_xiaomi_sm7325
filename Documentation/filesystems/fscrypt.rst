@@ -176,11 +176,11 @@ Master Keys
 
 Each encrypted directory tree is protected by a *master key*.  Master
 keys can be up to 64 bytes long, and must be at least as long as the
-greater of the key length needed by the contents and filenames
-encryption modes being used.  For example, if AES-256-XTS is used for
-contents encryption, the master key must be 64 bytes (512 bits).  Note
-that the XTS mode is defined to require a key twice as long as that
-required by the underlying block cipher.
+greater of the security strength of the contents and filenames
+encryption modes being used.  For example, if any AES-256 mode is
+used, the master key must be at least 256 bits, i.e. 32 bytes.  A
+stricter requirement applies if the key is used by a v1 encryption
+policy and AES-256-XTS is used; such keys must be 64 bytes.
 
 To "unlock" an encrypted directory tree, userspace must provide the
 appropriate master key.  There can be any number of master keys, each
@@ -366,8 +366,8 @@ Contents encryption
 -------------------
 
 For file contents, each filesystem block is encrypted independently.
-Currently, only the case where the filesystem block size is equal to
-the system's page size (usually 4096 bytes) is supported.
+Starting from Linux kernel 5.5, encryption of filesystems with block
+size less than system's page size is supported.
 
 Each block's IV is set to the logical block number within the file as
 a little endian number, except that:
@@ -1225,12 +1225,12 @@ the user-supplied name to get the ciphertext.
 
 Lookups without the key are more complicated.  The raw ciphertext may
 contain the ``\0`` and ``/`` characters, which are illegal in
-filenames.  Therefore, readdir() must base64-encode the ciphertext for
-presentation.  For most filenames, this works fine; on ->lookup(), the
-filesystem just base64-decodes the user-supplied name to get back to
-the raw ciphertext.
+filenames.  Therefore, readdir() must base64url-encode the ciphertext
+for presentation.  For most filenames, this works fine; on ->lookup(),
+the filesystem just base64url-decodes the user-supplied name to get
+back to the raw ciphertext.
 
-However, for very long filenames, base64 encoding would cause the
+However, for very long filenames, base64url encoding would cause the
 filename length to exceed NAME_MAX.  To prevent this, readdir()
 actually presents long filenames in an abbreviated form which encodes
 a strong "hash" of the ciphertext filename, along with the optional
